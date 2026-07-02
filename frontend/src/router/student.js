@@ -14,15 +14,55 @@ const studentRoutes = [
   {
     path: '/student',
     component: StudentLayout,
+    meta: { title: 'Student', role: 'student', requiresAuth: true },
     children: [
-      { path: '', redirect: { name: 'studentDashboard' } },
-      { path: 'dashboard', name: 'studentDashboard', component: StudentDashboard },
-      { path: 'my-seat', name: 'studentMySeat', component: StudentMySeat },
-      { path: 'fees', name: 'studentFees', component: StudentFees },
-      { path: 'receipts', name: 'studentReceipts', component: StudentReceipts },
-      { path: 'requests', name: 'studentRequests', component: StudentRequests },
-      { path: 'announcements', name: 'studentAnnouncements', component: StudentAnnouncements },
-      { path: 'profile', name: 'studentProfile', component: StudentProfile },
+      {
+        path: '',
+        redirect: { name: 'studentDashboard' },
+        meta: { title: 'Student', role: 'student', requiresAuth: true },
+      },
+      {
+        path: 'dashboard',
+        name: 'studentDashboard',
+        component: StudentDashboard,
+        meta: { title: 'Dashboard', role: 'student', requiresAuth: true },
+      },
+      {
+        path: 'my-seat',
+        name: 'studentMySeat',
+        component: StudentMySeat,
+        meta: { title: 'My Seat', role: 'student', requiresAuth: true },
+      },
+      {
+        path: 'fees',
+        name: 'studentFees',
+        component: StudentFees,
+        meta: { title: 'Fees', role: 'student', requiresAuth: true },
+      },
+      {
+        path: 'receipts',
+        name: 'studentReceipts',
+        component: StudentReceipts,
+        meta: { title: 'Receipts', role: 'student', requiresAuth: true },
+      },
+      {
+        path: 'requests',
+        name: 'studentRequests',
+        component: StudentRequests,
+        meta: { title: 'Requests', role: 'student', requiresAuth: true },
+      },
+      {
+        path: 'announcements',
+        name: 'studentAnnouncements',
+        component: StudentAnnouncements,
+        meta: { title: 'Announcements', role: 'student', requiresAuth: true },
+      },
+      {
+        path: 'profile',
+        name: 'studentProfile',
+        component: StudentProfile,
+        meta: { title: 'Profile', role: 'student', requiresAuth: true },
+      },
     ],
   },
 ]

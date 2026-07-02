@@ -1,7 +1,7 @@
 <template>
   <div class="app-layout app-layout--student">
-    <Navbar />
-    <Sidebar />
+    <StudentNavbar />
+    <StudentSidebar />
     <main class="app-layout__main">
       <slot>
         <RouterView />
@@ -12,8 +12,8 @@
 </template>
 
 <script setup>
-import Navbar from '../components/layout/Navbar.vue'
-import Sidebar from '../components/layout/Sidebar.vue'
+import StudentNavbar from '../components/layout/StudentNavbar.vue'
+import StudentSidebar from '../components/layout/StudentSidebar.vue'
 import Footer from '../components/layout/Footer.vue'
 import { RouterView } from 'vue-router'
 </script>

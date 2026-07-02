@@ -11,25 +11,64 @@
 │   └── icons.svg
 ├── README.md
 ├── src
+│   ├── api
+│   │   ├── axios.js
+│   │   └── README.md
 │   ├── App.vue
 │   ├── assets
+│   │   ├── icons
+│   │   │   └── README.md
+│   │   ├── illustrations
+│   │   │   └── README.md
+│   │   ├── images
+│   │   │   └── README.md
+│   │   ├── logos
+│   │   │   └── README.md
 │   │   └── README.md
 │   ├── components
-│   │   ├── Breadcrumb.vue
-│   │   ├── ConfirmDialog.vue
-│   │   ├── DataTable.vue
-│   │   ├── EmptyState.vue
-│   │   ├── Footer.vue
-│   │   ├── LoadingSpinner.vue
-│   │   ├── Modal.vue
-│   │   ├── Navbar.vue
-│   │   ├── Pagination.vue
-│   │   ├── SearchBar.vue
-│   │   ├── Sidebar.vue
-│   │   ├── StatCard.vue
-│   │   └── Toast.vue
+│   │   ├── common
+│   │   │   ├── Breadcrumb.vue
+│   │   │   ├── ConfirmDialog.vue
+│   │   │   ├── DataTable.vue
+│   │   │   ├── EmptyState.vue
+│   │   │   ├── LoadingSpinner.vue
+│   │   │   ├── Modal.vue
+│   │   │   ├── Pagination.vue
+│   │   │   ├── README.md
+│   │   │   ├── SearchBar.vue
+│   │   │   └── Toast.vue
+│   │   ├── dashboard
+│   │   │   ├── README.md
+│   │   │   └── StatCard.vue
+│   │   ├── layout
+│   │   │   ├── Footer.vue
+│   │   │   ├── Navbar.vue
+│   │   │   ├── README.md
+│   │   │   └── Sidebar.vue
+│   │   ├── payment
+│   │   │   └── README.md
+│   │   ├── seat
+│   │   │   └── README.md
+│   │   └── student
+│   │       └── README.md
 │   ├── composables
 │   │   └── README.md
+│   ├── config
+│   │   ├── appConfig.js
+│   │   ├── README.md
+│   │   └── theme.js
+│   ├── constants
+│   │   ├── apiEndpoints.js
+│   │   ├── permissions.js
+│   │   ├── README.md
+│   │   ├── roles.js
+│   │   └── routes.js
+│   ├── guards
+│   │   ├── adminGuard.js
+│   │   ├── authGuard.js
+│   │   ├── README.md
+│   │   ├── studentGuard.js
+│   │   └── superAdminGuard.js
 │   ├── layouts
 │   │   ├── AdminLayout.vue
 │   │   ├── AuthLayout.vue
@@ -75,8 +114,16 @@
 │   │       ├── Owners.vue
 │   │       ├── Settings.vue
 │   │       └── Subscriptions.vue
+│   ├── plugins
+│   │   ├── axios.js
+│   │   ├── pinia.js
+│   │   └── README.md
 │   ├── router
-│   │   └── index.js
+│   │   ├── admin.js
+│   │   ├── auth.js
+│   │   ├── index.js
+│   │   ├── student.js
+│   │   └── superadmin.js
 │   ├── services
 │   │   ├── authService.js
 │   │   ├── dashboardService.js
@@ -103,4 +150,4 @@
 └── .vscode
     └── extensions.json
 
-20 directories, 84 files
+35 directories, 116 files

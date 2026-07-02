@@ -10,11 +10,31 @@ const authRoutes = [
   {
     path: '/',
     component: AuthLayout,
+    meta: { title: 'Authentication', requiresAuth: false, guestOnly: true },
     children: [
-      { path: '', redirect: { name: 'login' } },
-      { path: 'login', name: 'login', component: Login },
-      { path: 'register-library', name: 'registerLibrary', component: RegisterLibrary },
-      { path: 'forgot-password', name: 'forgotPassword', component: ForgotPassword },
+      {
+        path: '',
+        redirect: { name: 'login' },
+        meta: { title: 'Authentication', requiresAuth: false, guestOnly: true },
+      },
+      {
+        path: 'login',
+        name: 'login',
+        component: Login,
+        meta: { title: 'Login', requiresAuth: false, guestOnly: true },
+      },
+      {
+        path: 'register-library',
+        name: 'registerLibrary',
+        component: RegisterLibrary,
+        meta: { title: 'Register Library', requiresAuth: false, guestOnly: true },
+      },
+      {
+        path: 'forgot-password',
+        name: 'forgotPassword',
+        component: ForgotPassword,
+        meta: { title: 'Forgot Password', requiresAuth: false, guestOnly: true },
+      },
     ],
   },
 ]

@@ -8,7 +8,10 @@ import superAdminRoutes from './superadmin'
 import NotFound from '../pages/shared/NotFound.vue'
 
 // src/router: Central route composition and future navigation guard registration.
-// TODO: Add authentication, role, and tenant guards after auth APIs are implemented.
+// TODO: Register the Authentication Guard here after JWT authentication is implemented.
+// TODO: Register the Role Guard here after role validation rules are finalized.
+// TODO: Register the Tenant Guard here after tenant validation is available from the backend.
+// TODO: Navigation guards should read route meta and delegate checks to guards/*.js.
 const routes = [
   ...authRoutes,
   ...adminRoutes,
@@ -18,6 +21,7 @@ const routes = [
     path: '/:pathMatch(.*)*',
     name: 'notFound',
     component: NotFound,
+    meta: { title: 'Not Found', requiresAuth: false },
   },
 ]
 

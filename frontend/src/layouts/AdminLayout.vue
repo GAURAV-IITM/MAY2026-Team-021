@@ -1,7 +1,7 @@
 <template>
   <div class="app-layout app-layout--admin">
-    <Navbar />
-    <Sidebar />
+    <AdminNavbar />
+    <AdminSidebar />
     <main class="app-layout__main">
       <slot>
         <RouterView />
@@ -12,8 +12,8 @@
 </template>
 
 <script setup>
-import Navbar from '../components/layout/Navbar.vue'
-import Sidebar from '../components/layout/Sidebar.vue'
+import AdminNavbar from '../components/layout/AdminNavbar.vue'
+import AdminSidebar from '../components/layout/AdminSidebar.vue'
 import Footer from '../components/layout/Footer.vue'
 import { RouterView } from 'vue-router'
 </script>
@@ -22,4 +22,5 @@ import { RouterView } from 'vue-router'
 src/layouts: Shared page frames for route groups.
 TODO:
 - Add admin navigation, tenant context, and role-aware layout behavior.
+- Tenant validation will be reflected in this shell after route guards provide tenant context.
 -->

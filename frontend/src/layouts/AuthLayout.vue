@@ -1,19 +1,19 @@
 <template>
   <div class="app-layout app-layout--auth">
-    <Navbar />
-    <Sidebar />
-    <main class="app-layout__main">
-      <slot>
-        <RouterView />
-      </slot>
+    <AuthNavbar />
+    <main class="auth-layout__main">
+      <section class="auth-layout__card">
+        <slot>
+          <RouterView />
+        </slot>
+      </section>
     </main>
     <Footer />
   </div>
 </template>
 
 <script setup>
-import Navbar from '../components/layout/Navbar.vue'
-import Sidebar from '../components/layout/Sidebar.vue'
+import AuthNavbar from '../components/layout/AuthNavbar.vue'
 import Footer from '../components/layout/Footer.vue'
 import { RouterView } from 'vue-router'
 </script>
@@ -21,5 +21,6 @@ import { RouterView } from 'vue-router'
 <!--
 src/layouts: Shared page frames for route groups.
 TODO:
-- Replace placeholder regions with auth-specific navigation and footer structure.
+- Add centered auth styling and brand assets when the design system is finalized.
+- Keep authentication pages separate from dashboard navigation and sidebars.
 -->
