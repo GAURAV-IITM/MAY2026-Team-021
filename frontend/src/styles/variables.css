@@ -1,0 +1,13 @@
+:root {
+  --color-background: #ffffff;
+  --color-surface: #f7f8fa;
+  --color-text: #1f2937;
+  --color-border: #d8dee8;
+  --layout-content-width: 1200px;
+}
+
+/*
+src/styles: Global CSS foundations for variables, theme rules, and base styles.
+TODO:
+- Expand design tokens after the visual system is finalized.
+*/
