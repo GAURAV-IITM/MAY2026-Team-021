@@ -1,0 +1,4 @@
+# TODO: Add generated files here as tooling grows.
+dist
+node_modules
+package-lock.json

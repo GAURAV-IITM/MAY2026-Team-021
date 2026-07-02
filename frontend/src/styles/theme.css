@@ -1,0 +1,10 @@
+body {
+  background: var(--color-background);
+  color: var(--color-text);
+}
+
+/*
+src/styles: Global CSS foundations for variables, theme rules, and base styles.
+TODO:
+- Add light and dark theme rules when theming requirements are finalized.
+*/
