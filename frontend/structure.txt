@@ -1,0 +1,106 @@
+.
+├── eslint.config.js
+├── .gitignore
+├── index.html
+├── package.json
+├── package-lock.json
+├── prettier.config.js
+├── .prettierignore
+├── public
+│   ├── favicon.svg
+│   └── icons.svg
+├── README.md
+├── src
+│   ├── App.vue
+│   ├── assets
+│   │   └── README.md
+│   ├── components
+│   │   ├── Breadcrumb.vue
+│   │   ├── ConfirmDialog.vue
+│   │   ├── DataTable.vue
+│   │   ├── EmptyState.vue
+│   │   ├── Footer.vue
+│   │   ├── LoadingSpinner.vue
+│   │   ├── Modal.vue
+│   │   ├── Navbar.vue
+│   │   ├── Pagination.vue
+│   │   ├── SearchBar.vue
+│   │   ├── Sidebar.vue
+│   │   ├── StatCard.vue
+│   │   └── Toast.vue
+│   ├── composables
+│   │   └── README.md
+│   ├── layouts
+│   │   ├── AdminLayout.vue
+│   │   ├── AuthLayout.vue
+│   │   ├── StudentLayout.vue
+│   │   └── SuperAdminLayout.vue
+│   ├── main.js
+│   ├── mocks
+│   │   ├── authMock.js
+│   │   ├── dashboardMock.js
+│   │   ├── paymentMock.js
+│   │   ├── seatMock.js
+│   │   └── studentMock.js
+│   ├── pages
+│   │   ├── admin
+│   │   │   ├── AddStudent.vue
+│   │   │   ├── Announcements.vue
+│   │   │   ├── Dashboard.vue
+│   │   │   ├── EditStudent.vue
+│   │   │   ├── Payments.vue
+│   │   │   ├── Reports.vue
+│   │   │   ├── SeatManagement.vue
+│   │   │   ├── Settings.vue
+│   │   │   ├── StudentDetails.vue
+│   │   │   └── Students.vue
+│   │   ├── auth
+│   │   │   ├── ForgotPassword.vue
+│   │   │   ├── Login.vue
+│   │   │   └── RegisterLibrary.vue
+│   │   ├── shared
+│   │   │   └── NotFound.vue
+│   │   ├── student
+│   │   │   ├── Announcements.vue
+│   │   │   ├── Dashboard.vue
+│   │   │   ├── Fees.vue
+│   │   │   ├── MySeat.vue
+│   │   │   ├── Profile.vue
+│   │   │   ├── Receipts.vue
+│   │   │   └── Requests.vue
+│   │   └── superadmin
+│   │       ├── Analytics.vue
+│   │       ├── Dashboard.vue
+│   │       ├── Libraries.vue
+│   │       ├── Owners.vue
+│   │       ├── Settings.vue
+│   │       └── Subscriptions.vue
+│   ├── router
+│   │   └── index.js
+│   ├── services
+│   │   ├── authService.js
+│   │   ├── dashboardService.js
+│   │   ├── paymentService.js
+│   │   ├── seatService.js
+│   │   └── studentService.js
+│   ├── stores
+│   │   ├── authStore.js
+│   │   ├── dashboardStore.js
+│   │   ├── paymentStore.js
+│   │   ├── seatStore.js
+│   │   └── studentStore.js
+│   ├── styles
+│   │   ├── global.css
+│   │   ├── theme.css
+│   │   └── variables.css
+│   └── utils
+│       ├── constants.js
+│       ├── dateFormatter.js
+│       ├── helpers.js
+│       └── validators.js
+├── structure.txt
+├── vite.config.js
+└── .vscode
+    └── extensions.json
+
+20 directories, 84 files
