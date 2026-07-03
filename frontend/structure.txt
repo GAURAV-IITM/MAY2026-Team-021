@@ -41,10 +41,17 @@
 │   │   │   ├── README.md
 │   │   │   └── StatCard.vue
 │   │   ├── layout
+│   │   │   ├── AdminNavbar.vue
+│   │   │   ├── AdminSidebar.vue
+│   │   │   ├── AuthNavbar.vue
 │   │   │   ├── Footer.vue
 │   │   │   ├── Navbar.vue
 │   │   │   ├── README.md
-│   │   │   └── Sidebar.vue
+│   │   │   ├── Sidebar.vue
+│   │   │   ├── StudentNavbar.vue
+│   │   │   ├── StudentSidebar.vue
+│   │   │   ├── SuperAdminNavbar.vue
+│   │   │   └── SuperAdminSidebar.vue
 │   │   ├── payment
 │   │   │   └── README.md
 │   │   ├── seat
@@ -72,6 +79,7 @@
 │   ├── layouts
 │   │   ├── AdminLayout.vue
 │   │   ├── AuthLayout.vue
+│   │   ├── BlankLayout.vue
 │   │   ├── StudentLayout.vue
 │   │   └── SuperAdminLayout.vue
 │   ├── main.js
@@ -150,4 +158,4 @@
 └── .vscode
     └── extensions.json
 
-35 directories, 116 files
+35 directories, 124 files
