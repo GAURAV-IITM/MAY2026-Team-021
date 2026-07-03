@@ -2,6 +2,7 @@
   <div class="app-layout app-layout--auth">
     <AuthNavbar />
     <main class="auth-layout__main">
+      <div class="auth-layout__logo" aria-label="Smart Library App logo">Smart Library App</div>
       <section class="auth-layout__card">
         <slot>
           <RouterView />
