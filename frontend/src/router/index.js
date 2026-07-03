@@ -5,6 +5,7 @@ import adminRoutes from './admin'
 import studentRoutes from './student'
 import superAdminRoutes from './superadmin'
 
+import BlankLayout from '../layouts/BlankLayout.vue'
 import NotFound from '../pages/shared/NotFound.vue'
 
 // src/router: Central route composition and future navigation guard registration.
@@ -19,9 +20,16 @@ const routes = [
   ...superAdminRoutes,
   {
     path: '/:pathMatch(.*)*',
-    name: 'notFound',
-    component: NotFound,
+    component: BlankLayout,
     meta: { title: 'Not Found', requiresAuth: false },
+    children: [
+      {
+        path: '',
+        name: 'notFound',
+        component: NotFound,
+        meta: { title: 'Not Found', requiresAuth: false },
+      },
+    ],
   },
 ]
 
