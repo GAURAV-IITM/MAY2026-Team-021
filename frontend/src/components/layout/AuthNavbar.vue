@@ -1,5 +1,7 @@
 <template>
-  <header class="auth-navbar">My Library App</header>
+  <header class="auth-navbar">
+    <span class="auth-navbar__logo">Smart Library App</span>
+  </header>
 </template>
 
 <!--
