@@ -113,13 +113,7 @@ import { storeToRefs } from 'pinia'
 import { computed, reactive, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 
-import {
-  ADMIN_DASHBOARD,
-  LOGIN,
-  STUDENT_DASHBOARD,
-  SUPER_ADMIN_DASHBOARD,
-} from '../../constants/routes'
-import { ADMIN, STUDENT, SUPER_ADMIN } from '../../constants/roles'
+import { getDashboardRouteForRole } from '../../guards/authGuard'
 import { useAuthStore } from '../../stores/authStore'
 import {
   hasValidationErrors,
@@ -149,15 +143,6 @@ const authError = computed(() => {
   return error.value?.response?.data?.message || error.value?.message || ''
 })
 
-function getDashboardRouteNameForRole(role) {
-  const roleDashboardRoutes = {
-    [ADMIN]: ADMIN_DASHBOARD,
-    [STUDENT]: STUDENT_DASHBOARD,
-    [SUPER_ADMIN]: SUPER_ADMIN_DASHBOARD,
-  }
-
-  return roleDashboardRoutes[role] || LOGIN
-}
 
 function setValidationErrors(errors) {
   validationErrors.email = errors.email
@@ -207,7 +192,7 @@ async function handleSubmit() {
     emit('submit', response)
 
     await router.push({
-      name: getDashboardRouteNameForRole(currentRole.value),
+      name: getDashboardRouteForRole(currentRole.value),
     })
   } catch {
     // Store-owned authentication error state is rendered above the form.
