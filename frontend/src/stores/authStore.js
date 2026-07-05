@@ -29,14 +29,31 @@ export const useAuthStore = defineStore('auth', () => {
   const currentRole = computed(() => role.value)
   const currentUser = computed(() => user.value)
 
-  async function runAuthServiceRequest(serviceRequest) {
+  function syncSession(response) {
+    const session = response?.data || {}
+
+    user.value = session.user || null
+    role.value = session.role || null
+    token.value = session.token || null
+    rememberMe.value = Boolean(session.rememberMe)
+    authStatus.value = session.isAuthenticated ? 'authenticated' : 'guest'
+  }
+
+  async function runAuthServiceRequest(serviceRequest, options = {}) {
     isLoading.value = true
     error.value = null
 
     try {
-      return await serviceRequest()
+      const response = await serviceRequest()
+
+      if (options.syncSession) {
+        syncSession(response)
+      }
+
+      return response
     } catch (requestError) {
       error.value = requestError
+      authStatus.value = 'error'
       throw requestError
     } finally {
       isLoading.value = false
@@ -45,17 +62,19 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function login(credentials) {
     authStatus.value = 'checking'
-    return runAuthServiceRequest(() => authService.login(credentials))
+    return runAuthServiceRequest(() => authService.login(credentials), { syncSession: true })
   }
 
   async function logout() {
     authStatus.value = 'checking'
-    return runAuthServiceRequest(() => authService.logout())
+    return runAuthServiceRequest(() => authService.logout(), { syncSession: true })
   }
 
   async function register(registrationData) {
     authStatus.value = 'checking'
-    return runAuthServiceRequest(() => authService.registerLibrary(registrationData))
+    return runAuthServiceRequest(() => authService.registerLibrary(registrationData), {
+      syncSession: true,
+    })
   }
 
   async function forgotPassword(payload) {
@@ -65,7 +84,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function checkSession() {
     authStatus.value = 'checking'
-    return runAuthServiceRequest(() => authService.getCurrentUser())
+    return runAuthServiceRequest(() => authService.getCurrentUser(), { syncSession: true })
   }
 
   return {
