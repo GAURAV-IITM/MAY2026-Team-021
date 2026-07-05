@@ -1,4 +1,8 @@
-// src/guards: Route guard placeholders for future authentication and authorization checks.
+import { STUDENT } from '../constants/roles'
+import { ensureRequiredRole } from './authGuard'
+
+// src/guards: Student authorization check.
+// TODO: Replace role string checks with backend permission claims when authorization APIs are ready.
 export default function studentGuard() {
-  // TODO: Check for Student role before allowing student routes.
+  return ensureRequiredRole(STUDENT)
 }
