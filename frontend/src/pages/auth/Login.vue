@@ -14,41 +14,68 @@
 
       <div class="form-field">
         <label class="form-label" for="email">Email address</label>
+
         <input
           id="email"
           v-model="form.email"
           class="form-control"
+          :class="{ 'form-control--error': validationErrors.email }"
           type="email"
           autocomplete="email"
           placeholder="you@example.com"
-          required
+          :aria-invalid="Boolean(validationErrors.email)"
+          :aria-describedby="validationErrors.email ? 'email-error' : undefined"
+          @blur="validateEmailField"
+          @input="clearEmailError"
         />
-        <p class="form-help">Validation placeholder: email is required and must be valid.</p>
+
+        <p
+          v-if="validationErrors.email"
+          id="email-error"
+          class="form-error"
+          role="alert"
+        >
+          {{ validationErrors.email }}
+        </p>
       </div>
 
       <div class="form-field">
         <label class="form-label" for="password">Password</label>
+
         <div class="login-page__password-field">
           <input
             id="password"
             v-model="form.password"
             class="form-control"
+            :class="{ 'form-control--error': validationErrors.password }"
             :type="showPassword ? 'text' : 'password'"
             autocomplete="current-password"
             placeholder="Enter your password"
-            required
-            minlength="8"
+            :aria-invalid="Boolean(validationErrors.password)"
+            :aria-describedby="validationErrors.password ? 'password-error' : undefined"
+            @blur="validatePasswordField"
+            @input="clearPasswordError"
           />
+
           <button
             class="btn btn--ghost btn--sm login-page__password-toggle"
             type="button"
             :aria-pressed="String(showPassword)"
+            :aria-label="showPassword ? 'Hide password' : 'Show password'"
             @click="showPassword = !showPassword"
           >
             {{ showPassword ? 'Hide' : 'Show' }}
           </button>
         </div>
-        <p class="form-help">Validation placeholder: password is required with minimum length.</p>
+
+        <p
+          v-if="validationErrors.password"
+          id="password-error"
+          class="form-error"
+          role="alert"
+        >
+          {{ validationErrors.password }}
+        </p>
       </div>
 
       <div class="login-page__options">
@@ -86,7 +113,18 @@ import { storeToRefs } from 'pinia'
 import { computed, reactive, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 
+import {
+  ADMIN_DASHBOARD,
+  LOGIN,
+  STUDENT_DASHBOARD,
+  SUPER_ADMIN_DASHBOARD,
+} from '../../constants/routes'
+import { ADMIN, STUDENT, SUPER_ADMIN } from '../../constants/roles'
 import { useAuthStore } from '../../stores/authStore'
+import {
+  hasValidationErrors,
+  validateLoginForm,
+} from '../../utils/validators'
 
 const emit = defineEmits(['submit'])
 
@@ -102,27 +140,77 @@ const form = reactive({
   rememberMe: false,
 })
 
+const validationErrors = reactive({
+  email: '',
+  password: '',
+})
+
 const authError = computed(() => {
   return error.value?.response?.data?.message || error.value?.message || ''
 })
 
 function getDashboardRouteNameForRole(role) {
-  const dashboardRoute = router.getRoutes().find((route) => {
-    return route.meta?.role === role && route.meta?.title === 'Dashboard'
+  const roleDashboardRoutes = {
+    [ADMIN]: ADMIN_DASHBOARD,
+    [STUDENT]: STUDENT_DASHBOARD,
+    [SUPER_ADMIN]: SUPER_ADMIN_DASHBOARD,
+  }
+
+  return roleDashboardRoutes[role] || LOGIN
+}
+
+function setValidationErrors(errors) {
+  validationErrors.email = errors.email
+  validationErrors.password = errors.password
+}
+
+function validateEmailField() {
+  const errors = validateLoginForm({
+    email: form.email,
+    password: 'valid-password',
   })
 
-  return dashboardRoute?.name || 'login'
+  validationErrors.email = errors.email
+}
+
+function validatePasswordField() {
+  const errors = validateLoginForm({
+    email: 'valid@example.com',
+    password: form.password,
+  })
+
+  validationErrors.password = errors.password
+}
+
+function clearEmailError() {
+  if (validationErrors.email) {
+    validationErrors.email = ''
+  }
+}
+
+function clearPasswordError() {
+  if (validationErrors.password) {
+    validationErrors.password = ''
+  }
 }
 
 async function handleSubmit() {
-  // TODO: Replace mock authStore.login with FastAPI-backed authentication when backend is ready.
+  const errors = validateLoginForm(form)
+  setValidationErrors(errors)
+
+  if (hasValidationErrors(errors)) {
+    return
+  }
+
   try {
     const response = await authStore.login({ ...form })
     emit('submit', response)
 
-    await router.push({ name: getDashboardRouteNameForRole(currentRole.value) })
+    await router.push({
+      name: getDashboardRouteNameForRole(currentRole.value),
+    })
   } catch {
-    // Store-owned error state is rendered above the form.
+    // Store-owned authentication error state is rendered above the form.
   }
 }
 </script>
@@ -201,6 +289,16 @@ async function handleSubmit() {
   width: 100%;
 }
 
+.form-error {
+  margin: var(--space-1) 0 0;
+  color: var(--color-danger);
+  font-size: var(--font-size-sm);
+}
+
+.form-control--error {
+  border-color: var(--color-danger);
+}
+
 @media (max-width: 480px) {
   .login-page {
     gap: var(--space-5);
@@ -213,10 +311,3 @@ async function handleSubmit() {
   }
 }
 </style>
-
-<!--
-src/pages/auth: Authentication and onboarding route pages.
-TODO:
-- Replace placeholder validation messages with real validation state.
-- Connect submit to authStore and backend authentication after APIs are available.
--->
