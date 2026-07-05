@@ -8,6 +8,10 @@
     </header>
 
     <form class="login-page__form" novalidate @submit.prevent="handleSubmit">
+      <div v-if="authError" class="alert alert--danger" role="alert">
+        <p class="m-0">{{ authError }}</p>
+      </div>
+
       <div class="form-field">
         <label class="form-label" for="email">Email address</label>
         <input
@@ -78,13 +82,19 @@
 </template>
 
 <script setup>
-import { reactive, ref } from 'vue'
-import { RouterLink } from 'vue-router'
+import { storeToRefs } from 'pinia'
+import { computed, reactive, ref } from 'vue'
+import { RouterLink, useRouter } from 'vue-router'
+
+import { useAuthStore } from '../../stores/authStore'
 
 const emit = defineEmits(['submit'])
 
+const router = useRouter()
+const authStore = useAuthStore()
+const { currentRole, error, isLoading } = storeToRefs(authStore)
+
 const showPassword = ref(false)
-const isLoading = ref(false)
 
 const form = reactive({
   email: '',
@@ -92,9 +102,28 @@ const form = reactive({
   rememberMe: false,
 })
 
-function handleSubmit() {
-  // TODO: Connect this placeholder submit to authStore.login after authentication is implemented.
-  emit('submit', { ...form })
+const authError = computed(() => {
+  return error.value?.response?.data?.message || error.value?.message || ''
+})
+
+function getDashboardRouteNameForRole(role) {
+  const dashboardRoute = router.getRoutes().find((route) => {
+    return route.meta?.role === role && route.meta?.title === 'Dashboard'
+  })
+
+  return dashboardRoute?.name || 'login'
+}
+
+async function handleSubmit() {
+  // TODO: Replace mock authStore.login with FastAPI-backed authentication when backend is ready.
+  try {
+    const response = await authStore.login({ ...form })
+    emit('submit', response)
+
+    await router.push({ name: getDashboardRouteNameForRole(currentRole.value) })
+  } catch {
+    // Store-owned error state is rendered above the form.
+  }
 }
 </script>
 
