@@ -19,6 +19,10 @@ import Footer from '../components/layout/Footer.vue'
 import { RouterView } from 'vue-router'
 </script>
 
+
+
+
+
 <!--
 src/layouts: Shared page frames for route groups.
 TODO:

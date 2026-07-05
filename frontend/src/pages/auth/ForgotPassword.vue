@@ -92,25 +92,42 @@ function handleSubmit() {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 56px;
-  height: 56px;
+
+  width: 60px;
+  height: 60px;
+
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-xl);
+  border-radius: 16px;
+
   background: var(--color-primary-light);
   color: var(--color-primary);
-  font-weight: var(--font-weight-bold);
+
+  font-weight: 700;
+  letter-spacing: 0.5px;
+
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.forgot-page__logo:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.06);
 }
 
 .forgot-page__title {
   margin: 0;
   color: var(--color-text-primary);
   font-size: var(--font-size-h2);
-  line-height: var(--line-height-tight);
+  font-weight: 700;
+  line-height: 1.2;
 }
 
 .forgot-page__description {
   margin: 0;
   color: var(--color-text-muted);
+  text-align: center;
+  line-height: 1.5;
 }
 
 .forgot-page__form {
@@ -118,14 +135,66 @@ function handleSubmit() {
   gap: var(--space-5);
 }
 
+.form-label {
+  display: block;
+  margin-bottom: 0.4rem;
+  font-weight: 600;
+}
+
+.form-control {
+  border-radius: 10px;
+
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.form-control:hover {
+  border-color: var(--color-primary);
+}
+
+.form-control:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.08);
+}
+
+.form-help {
+  margin-top: 0.35rem;
+}
+
 .forgot-page__submit,
 .forgot-page__back-link {
   width: 100%;
+  border-radius: 10px;
+
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.forgot-page__submit:hover,
+.forgot-page__back-link:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.06);
+}
+
+.forgot-page__submit:active,
+.forgot-page__back-link:active {
+  transform: translateY(0);
+}
+
+.btn__loader {
+  margin-right: 0.5rem;
 }
 
 @media (max-width: 480px) {
   .forgot-page {
     gap: var(--space-5);
+  }
+
+  .forgot-page__logo {
+    width: 56px;
+    height: 56px;
   }
 }
 </style>
