@@ -25,16 +25,20 @@
         <input type="search" placeholder="Search" />
       </label>
       <button class="app-navbar__icon-button" type="button" aria-label="Notifications">N</button>
-      <span class="app-navbar__library">Library Placeholder</span>
-      <button class="app-navbar__profile" type="button">Admin User</button>
-      <button class="app-navbar__logout" type="button">Logout</button>
+      <span class="app-navbar__library">{{ currentLibrary }}</span>
+      <span class="app-navbar__role">{{ roleLabel }}</span>
+      <button class="app-navbar__profile" type="button">{{ currentUserName }}</button>
+      <button class="app-navbar__logout" type="button" @click="handleLogout">Logout</button>
     </div>
   </header>
 </template>
 
 <script setup>
+import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
+
+import { useAuthStore } from '../../stores/authStore'
 
 defineProps({
   isSidebarCollapsed: {
@@ -50,7 +54,19 @@ defineProps({
 defineEmits(['toggleSidebar'])
 
 const route = useRoute()
+const router = useRouter()
+const authStore = useAuthStore()
+const { currentUser, currentRole } = storeToRefs(authStore)
+
 const pageTitle = computed(() => route.meta.title || 'Dashboard')
+const currentUserName = computed(() => currentUser.value?.name || 'Admin User')
+const currentLibrary = computed(() => currentUser.value?.libraryName || 'Current Library')
+const roleLabel = computed(() => currentUser.value?.roleLabel || currentRole.value || 'Admin')
+
+async function handleLogout() {
+  await authStore.logout()
+  await router.push({ name: 'login' })
+}
 </script>
 
 <!--

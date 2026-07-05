@@ -1,4 +1,8 @@
-// src/guards: Route guard placeholders for future authentication and authorization checks.
+import { SUPER_ADMIN } from '../constants/roles'
+import { ensureRequiredRole } from './authGuard'
+
+// src/guards: Super Admin authorization check.
+// TODO: Replace role string checks with backend permission claims when authorization APIs are ready.
 export default function superAdminGuard() {
-  // TODO: Check for Super Admin role before allowing platform routes.
+  return ensureRequiredRole(SUPER_ADMIN)
 }
