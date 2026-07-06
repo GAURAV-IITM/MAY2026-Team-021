@@ -93,11 +93,15 @@ function buildSeatAvailability(sourceSeats = seats, filters = {}) {
   const maintenanceSeats = filteredSeats.filter(
     (seat) => seat.status === SEAT_STATUSES.MAINTENANCE,
   ).length
+  const reservedSeats = filteredSeats.filter(
+    (seat) => seat.status === SEAT_STATUSES.RESERVED,
+  ).length
 
   return {
     totalSeats,
     occupiedSeats,
     availableSeats,
+    reservedSeats,
     maintenanceSeats,
     occupancyPercentage:
       totalSeats === 0 ? 0 : Math.round((occupiedSeats / totalSeats) * 100),
@@ -119,6 +123,9 @@ function buildShiftAvailability(sourceSeats) {
       ).length,
       availableSeats: shiftSeats.filter(
         (seat) => seat.status === SEAT_STATUSES.AVAILABLE,
+      ).length,
+      reservedSeats: shiftSeats.filter(
+        (seat) => seat.status === SEAT_STATUSES.RESERVED,
       ).length,
     }
 
@@ -156,6 +163,14 @@ function ensureSeatCanBeAllocated(seat) {
       'Seat is under maintenance and cannot be allocated.',
       409,
       'SEAT_UNDER_MAINTENANCE',
+    )
+  }
+
+  if (seat.status === SEAT_STATUSES.RESERVED) {
+    throw createSeatError(
+      'Seat is reserved and cannot be allocated.',
+      409,
+      'SEAT_RESERVED',
     )
   }
 

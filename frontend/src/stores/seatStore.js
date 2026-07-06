@@ -37,13 +37,17 @@ export const useSeatStore = defineStore('seat', () => {
 
   const seatsByShift = computed(() => {
     return seats.value.reduce((groupedSeats, seat) => {
-      const shift = seat.shift || 'unassigned'
+      const shifts = Array.isArray(seat.activeShifts)
+        ? seat.activeShifts
+        : [seat.shift || 'unassigned']
 
-      if (!groupedSeats[shift]) {
-        groupedSeats[shift] = []
-      }
+      shifts.forEach((shift) => {
+        if (!groupedSeats[shift]) {
+          groupedSeats[shift] = []
+        }
 
-      groupedSeats[shift].push(seat)
+        groupedSeats[shift].push(seat)
+      })
 
       return groupedSeats
     }, {})
@@ -56,9 +60,18 @@ export const useSeatStore = defineStore('seat', () => {
   })
 
   function isOccupiedSeat(seat) {
+    if (seat?.status) {
+      return seat.status === 'occupied'
+    }
+
     return (
-      seat?.status === 'occupied' ||
-      Boolean(seat?.studentId || seat?.student?.id || seat?.student)
+      Boolean(
+        seat?.studentId ||
+          seat?.student?.id ||
+          seat?.student ||
+          seat?.assignedStudent?.id ||
+          seat?.assignedStudent,
+      )
     )
   }
 
@@ -151,6 +164,10 @@ export const useSeatStore = defineStore('seat', () => {
       seats.value = responseSeats
     }
 
+    if (data?.availability) {
+      seatAvailability.value = data.availability
+    }
+
     return response
   }
 
@@ -216,6 +233,25 @@ export const useSeatStore = defineStore('seat', () => {
   }
 
   /**
+   * Selects a seat by loading the service-confirmed record into store state.
+   * TODO: Replace mock detail fetch with FastAPI GET /seats/{seatId}.
+   */
+  async function selectSeat(seatId) {
+    const response = await runSeatServiceRequest(() =>
+      seatService.getSeatById(seatId),
+    )
+
+    const data = getResponseData(response)
+    const seat = data?.seat || data
+
+    selectedSeatRecord.value = seat
+    selectedStudent.value = seat?.assignedStudent || null
+    selectedShift.value = seat?.activeShifts?.[0] || ''
+
+    return response
+  }
+
+  /**
    * Clears seat, student, and shift selections after delegating to seatService.
    * TODO: Keep this local-only unless future backend workflows require session selection state.
    */
@@ -253,6 +289,7 @@ export const useSeatStore = defineStore('seat', () => {
     transferSeat,
     updateShift,
     refreshSeatAvailability,
+    selectSeat,
     clearSelection,
     clearError,
   }

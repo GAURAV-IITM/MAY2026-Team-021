@@ -4,6 +4,7 @@
 export const SEAT_STATUSES = Object.freeze({
   AVAILABLE: 'available',
   OCCUPIED: 'occupied',
+  RESERVED: 'reserved',
   MAINTENANCE: 'maintenance',
 })
 
@@ -59,10 +60,14 @@ export const seatMock = [
     id: 'seat-004',
     seatNumber: 'A-04',
     floor: 1,
-    status: SEAT_STATUSES.AVAILABLE,
-    assignedStudent: null,
+    status: SEAT_STATUSES.RESERVED,
+    assignedStudent: {
+      id: 'student-004',
+      name: 'Sneha Gupta',
+      email: 'sneha.gupta@example.com',
+    },
     activeShifts: [SEAT_SHIFTS.EVENING],
-    notes: 'Quiet-zone evening seat.',
+    notes: 'Reserved for evening admission confirmation.',
   },
   {
     id: 'seat-005',
