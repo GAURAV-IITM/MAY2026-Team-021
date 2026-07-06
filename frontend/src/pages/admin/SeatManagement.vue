@@ -38,6 +38,10 @@
       </button>
     </div>
 
+    <Toast v-if="successToastMessage" type="success">
+      {{ successToastMessage }}
+    </Toast>
+
     <div v-if="isInitialLoading" class="seat-management-page__loading">
       <LoadingSpinner label="Loading seat management dashboard" />
     </div>
@@ -89,6 +93,8 @@
         </StatCard>
       </section>
 
+      <SeatFilters class="seat-management-page__filters" />
+
       <div class="seat-management-page__grid">
         <section class="card seat-management-page__overview" aria-labelledby="seat-overview-title">
           <header class="card__header seat-management-page__card-header">
@@ -120,7 +126,7 @@
 
             <DataTable
               :columns="seatColumns"
-              :rows="seats"
+              :rows="filteredSeats"
               aria-label="Seat occupancy overview"
             >
               <template #cell-seatNumber="{ row }">
@@ -164,7 +170,13 @@
           </header>
 
           <div class="card__body seat-management-page__action-list">
-            <button class="btn btn--primary" type="button">Allocate Seat</button>
+            <button
+              class="btn btn--primary"
+              type="button"
+              @click="openAllocationDialog"
+            >
+              Allocate Seat
+            </button>
             <button class="btn btn--secondary" type="button">Transfer Seat</button>
             <button class="btn btn--outline" type="button">Manage Shifts</button>
             <button class="btn btn--ghost" type="button" @click="focusSeatMap">
@@ -190,26 +202,18 @@
             </p>
           </div>
 
-          <div class="seat-management-page__legend" aria-label="Seat status legend">
-            <span
-              v-for="status in seatStatuses"
-              :key="status"
-              class="seat-management-page__legend-item"
-            >
-              <span
-                class="seat-management-page__legend-dot"
-                :class="`seat-management-page__legend-dot--${status}`"
-                aria-hidden="true"
-              ></span>
-              {{ formatLabel(status) }}
-            </span>
-          </div>
+          <SeatLegend class="seat-management-page__legend" />
         </header>
 
         <div class="seat-management-page__map-layout">
-          <div class="seat-management-page__seat-grid" role="list" aria-label="Library seat map">
+          <div
+            v-if="filteredSeats.length > 0"
+            class="seat-management-page__seat-grid"
+            role="list"
+            aria-label="Library seat map"
+          >
             <button
-              v-for="seat in seats"
+              v-for="seat in filteredSeats"
               :key="seat.id"
               class="seat-management-page__seat-map-card"
               :class="[
@@ -242,6 +246,18 @@
               <span class="seat-management-page__seat-map-action">
                 View Details
               </span>
+            </button>
+          </div>
+
+          <div v-else class="card seat-management-page__empty-map" role="status">
+            <p class="text-label text-muted m-0">No Seats Found</p>
+            <h3 class="text-h4 m-0">No seats match these filters</h3>
+            <button
+              class="btn btn--secondary"
+              type="button"
+              @click="seatStore.resetSeatFilters"
+            >
+              Reset Filters
             </button>
           </div>
 
@@ -358,17 +374,32 @@
         </section>
       </div>
     </template>
+
+    <SeatAllocationDialog
+      :is-open="isAllocationDialogOpen"
+      :seats="seats"
+      :students="students"
+      :initial-seat-id="allocationInitialSeatId"
+      :is-submitting="isLoading"
+      @close="closeAllocationDialog"
+      @confirm="handleAllocationConfirm"
+    />
   </section>
 </template>
 
 <script setup>
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 
 import DataTable from '../../components/common/DataTable.vue'
 import LoadingSpinner from '../../components/common/LoadingSpinner.vue'
+import Toast from '../../components/common/Toast.vue'
 import StatCard from '../../components/dashboard/StatCard.vue'
+import SeatAllocationDialog from '../../components/seat/SeatAllocationDialog.vue'
+import SeatFilters from '../../components/seat/SeatFilters.vue'
+import SeatLegend from '../../components/seat/SeatLegend.vue'
 import { useSeatStore } from '../../stores/seatStore'
+import { useStudentStore } from '../../stores/studentStore'
 
 const seatColumns = Object.freeze([
   { key: 'seatNumber', label: 'Seat' },
@@ -385,15 +416,12 @@ const allocationColumns = Object.freeze([
   { key: 'floor', label: 'Floor' },
 ])
 
-const seatStatuses = Object.freeze([
-  'available',
-  'occupied',
-  'reserved',
-  'maintenance',
-])
-
 const seatStore = useSeatStore()
+const studentStore = useStudentStore()
 const seatMapTitle = ref(null)
+const isAllocationDialogOpen = ref(false)
+const successToastMessage = ref('')
+let successToastTimer = null
 
 const {
   seats,
@@ -402,10 +430,13 @@ const {
   totalSeats,
   occupancyPercentage,
   seatsByShift,
+  filteredSeats,
   selectedSeat,
   isLoading,
   errorMessage,
 } = storeToRefs(seatStore)
+
+const { students } = storeToRefs(studentStore)
 
 const isInitialLoading = computed(() => {
   return isLoading.value && seats.value.length === 0
@@ -424,14 +455,17 @@ const floorCount = computed(() => {
 })
 
 const recentAllocationRows = computed(() => {
-  return occupiedSeats.value.slice(0, 5).map((seat) => ({
-    id: seat.id,
-    seatNumber: seat.seatNumber,
-    student: seat.assignedStudent?.name || 'Assigned Student',
-    email: seat.assignedStudent?.email || 'Email pending',
-    shifts: seat.activeShifts || [],
-    floor: `Floor ${seat.floor}`,
-  }))
+  return filteredSeats.value
+    .filter((seat) => seat.status === 'occupied')
+    .slice(0, 5)
+    .map((seat) => ({
+      id: seat.id,
+      seatNumber: seat.seatNumber,
+      student: seat.assignedStudent?.name || 'Assigned Student',
+      email: seat.assignedStudent?.email || 'Email pending',
+      shifts: seat.activeShifts || [],
+      floor: `Floor ${seat.floor}`,
+    }))
 })
 
 const seatStatistics = computed(() => {
@@ -461,6 +495,13 @@ const seatStatistics = computed(() => {
 
 const occupancyBucket = computed(() => {
   return Math.min(100, Math.max(0, Math.round(occupancyPercentage.value / 10) * 10))
+})
+
+const allocationInitialSeatId = computed(() => {
+  if (selectedSeat.value?.status !== 'available') return ''
+  if (selectedSeat.value?.assignedStudent) return ''
+
+  return selectedSeat.value.id
 })
 
 function getShiftSeatCount(shift) {
@@ -513,6 +554,45 @@ function focusSeatMap() {
   seatMapTitle.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
+async function openAllocationDialog() {
+  if (students.value.length === 0) {
+    try {
+      await studentStore.fetchStudents()
+    } catch {
+      // Student store owns its error state. Allocation can still open empty.
+    }
+  }
+
+  isAllocationDialogOpen.value = true
+}
+
+function closeAllocationDialog() {
+  isAllocationDialogOpen.value = false
+}
+
+function showSuccessToast(message) {
+  successToastMessage.value = message
+
+  window.clearTimeout(successToastTimer)
+  successToastTimer = window.setTimeout(() => {
+    successToastMessage.value = ''
+  }, 4000)
+}
+
+async function handleAllocationConfirm(allocationPayload) {
+  try {
+    const response = await seatStore.allocateSeat(allocationPayload)
+    const allocatedSeat = response.data?.seat
+
+    closeAllocationDialog()
+    showSuccessToast(
+      `${allocatedSeat?.seatNumber || 'Seat'} allocated successfully.`,
+    )
+  } catch {
+    // Store-owned error state is rendered above the dashboard.
+  }
+}
+
 async function loadSeatDashboard() {
   try {
     await seatStore.fetchSeats()
@@ -521,7 +601,22 @@ async function loadSeatDashboard() {
   }
 }
 
-onMounted(loadSeatDashboard)
+async function loadStudentsForAllocation() {
+  try {
+    await studentStore.fetchStudents()
+  } catch {
+    // The allocation dialog can still render and show an empty student list.
+  }
+}
+
+onMounted(() => {
+  loadSeatDashboard()
+  loadStudentsForAllocation()
+})
+
+onBeforeUnmount(() => {
+  window.clearTimeout(successToastTimer)
+})
 </script>
 
 <style scoped>
@@ -597,46 +692,7 @@ onMounted(loadSeatDashboard)
 }
 
 .seat-management-page__legend {
-  display: flex;
-  flex-wrap: wrap;
   justify-content: flex-end;
-  gap: var(--space-2);
-}
-
-.seat-management-page__legend-item {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  min-height: 28px;
-  padding: 0 var(--space-3);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-pill);
-  background: var(--color-surface-elevated);
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-caption);
-  font-weight: var(--font-weight-semibold);
-}
-
-.seat-management-page__legend-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: var(--radius-pill);
-}
-
-.seat-management-page__legend-dot--available {
-  background: var(--color-success);
-}
-
-.seat-management-page__legend-dot--occupied {
-  background: var(--color-primary);
-}
-
-.seat-management-page__legend-dot--reserved {
-  background: var(--color-info);
-}
-
-.seat-management-page__legend-dot--maintenance {
-  background: var(--color-warning);
 }
 
 .seat-management-page__map-layout {
@@ -650,6 +706,14 @@ onMounted(loadSeatDashboard)
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: var(--space-3);
+}
+
+.seat-management-page__empty-map {
+  display: grid;
+  align-content: center;
+  gap: var(--space-3);
+  min-height: 220px;
+  padding: var(--space-5);
 }
 
 .seat-management-page__seat-map-card {

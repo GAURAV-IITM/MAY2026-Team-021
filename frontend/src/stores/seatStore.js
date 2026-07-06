@@ -14,6 +14,10 @@ export const useSeatStore = defineStore('seat', () => {
     search: '',
     status: '',
     shift: '',
+    floor: '',
+    seatNumber: '',
+    studentName: '',
+    availability: '',
   })
   const seatAvailability = ref(null)
   const isLoading = ref(false)
@@ -53,6 +57,64 @@ export const useSeatStore = defineStore('seat', () => {
     }, {})
   })
 
+  const availableFloors = computed(() => {
+    return [...new Set(seats.value.map((seat) => seat.floor))]
+      .filter(Boolean)
+      .sort((firstFloor, secondFloor) => firstFloor - secondFloor)
+  })
+
+  const filteredSeats = computed(() => {
+    const filters = normalizeSeatFilters(seatFilters.value)
+
+    return seats.value.filter((seat) => {
+      const assignedStudentName = seat.assignedStudent?.name || ''
+      const searchableText = [
+        seat.seatNumber,
+        seat.status,
+        seat.floor,
+        assignedStudentName,
+        seat.notes,
+        ...(seat.activeShifts || []),
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase()
+
+      const matchesSearch =
+        !filters.search || searchableText.includes(filters.search)
+      const matchesStatus = !filters.status || seat.status === filters.status
+      const matchesShift =
+        !filters.shift || seat.activeShifts?.includes(filters.shift)
+      const matchesFloor = !filters.floor || String(seat.floor) === filters.floor
+      const matchesSeatNumber =
+        !filters.seatNumber ||
+        seat.seatNumber.toLowerCase().includes(filters.seatNumber)
+      const matchesStudentName =
+        !filters.studentName ||
+        assignedStudentName.toLowerCase().includes(filters.studentName)
+      const matchesAvailability = matchesAvailabilityFilter(
+        seat,
+        filters.availability,
+      )
+
+      return (
+        matchesSearch &&
+        matchesStatus &&
+        matchesShift &&
+        matchesFloor &&
+        matchesSeatNumber &&
+        matchesStudentName &&
+        matchesAvailability
+      )
+    })
+  })
+
+  const hasActiveSeatFilters = computed(() => {
+    return Object.values(seatFilters.value).some((value) =>
+      Boolean(String(value || '').trim()),
+    )
+  })
+
   const selectedSeat = computed(() => selectedSeatRecord.value)
 
   const errorMessage = computed(() => {
@@ -77,6 +139,49 @@ export const useSeatStore = defineStore('seat', () => {
 
   function isAvailableSeat(seat) {
     return seat?.status === 'available' && !isOccupiedSeat(seat)
+  }
+
+  function normalizeSeatFilters(filters = {}) {
+    return {
+      search: String(filters.search || '').trim().toLowerCase(),
+      status: String(filters.status || '').trim().toLowerCase(),
+      shift: String(filters.shift || '').trim().toLowerCase(),
+      floor: filters.floor ? String(filters.floor) : '',
+      seatNumber: String(filters.seatNumber || '').trim().toLowerCase(),
+      studentName: String(filters.studentName || '').trim().toLowerCase(),
+      availability: String(filters.availability || '').trim().toLowerCase(),
+    }
+  }
+
+  function matchesAvailabilityFilter(seat, availability) {
+    if (!availability) return true
+
+    const hasStudent = Boolean(seat.assignedStudent)
+    const hasActiveShift = Array.isArray(seat.activeShifts)
+      ? seat.activeShifts.length > 0
+      : false
+
+    if (availability === 'available-now') {
+      return seat.status === 'available' && !hasStudent
+    }
+
+    if (availability === 'assigned') {
+      return hasStudent
+    }
+
+    if (availability === 'unassigned') {
+      return !hasStudent
+    }
+
+    if (availability === 'blocked') {
+      return seat.status === 'reserved' || seat.status === 'maintenance'
+    }
+
+    if (availability === 'has-active-shift') {
+      return hasActiveShift
+    }
+
+    return true
   }
 
   function getErrorMessage(requestError) {
@@ -152,9 +257,9 @@ export const useSeatStore = defineStore('seat', () => {
    * Fetches seat records through seatService and stores them as the frontend source of truth.
    * TODO: Replace the mock service response with FastAPI query parameters for filters.
    */
-  async function fetchSeats(filters = seatFilters.value) {
+  async function fetchSeats() {
     const response = await runSeatServiceRequest(() =>
-      seatService.getSeats({ ...filters }),
+      seatService.getSeats(),
     )
 
     const data = getResponseData(response)
@@ -263,6 +368,27 @@ export const useSeatStore = defineStore('seat', () => {
     selectedShift.value = ''
   }
 
+  function updateSeatFilter(filterName, value) {
+    if (!(filterName in seatFilters.value)) return
+
+    seatFilters.value = {
+      ...seatFilters.value,
+      [filterName]: value,
+    }
+  }
+
+  function resetSeatFilters() {
+    seatFilters.value = {
+      search: '',
+      status: '',
+      shift: '',
+      floor: '',
+      seatNumber: '',
+      studentName: '',
+      availability: '',
+    }
+  }
+
   function clearError() {
     error.value = null
   }
@@ -281,6 +407,9 @@ export const useSeatStore = defineStore('seat', () => {
     totalSeats,
     occupancyPercentage,
     seatsByShift,
+    availableFloors,
+    filteredSeats,
+    hasActiveSeatFilters,
     selectedSeat,
     errorMessage,
 
@@ -291,6 +420,8 @@ export const useSeatStore = defineStore('seat', () => {
     refreshSeatAvailability,
     selectSeat,
     clearSelection,
+    updateSeatFilter,
+    resetSeatFilters,
     clearError,
   }
 })
