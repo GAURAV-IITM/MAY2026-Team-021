@@ -177,7 +177,13 @@
             >
               Allocate Seat
             </button>
-            <button class="btn btn--secondary" type="button">Transfer Seat</button>
+            <button
+              class="btn btn--secondary"
+              type="button"
+              @click="openTransferDialog"
+            >
+              Transfer Seat
+            </button>
             <button class="btn btn--outline" type="button">Manage Shifts</button>
             <button class="btn btn--ghost" type="button" @click="focusSeatMap">
               View Seat Map
@@ -384,6 +390,15 @@
       @close="closeAllocationDialog"
       @confirm="handleAllocationConfirm"
     />
+
+    <SeatTransferDialog
+      :is-open="isTransferDialogOpen"
+      :seats="seats"
+      :initial-seat-id="transferInitialSeatId"
+      :is-submitting="isLoading"
+      @close="closeTransferDialog"
+      @confirm="handleTransferConfirm"
+    />
   </section>
 </template>
 
@@ -398,6 +413,7 @@ import StatCard from '../../components/dashboard/StatCard.vue'
 import SeatAllocationDialog from '../../components/seat/SeatAllocationDialog.vue'
 import SeatFilters from '../../components/seat/SeatFilters.vue'
 import SeatLegend from '../../components/seat/SeatLegend.vue'
+import SeatTransferDialog from '../../components/seat/SeatTransferDialog.vue'
 import { useSeatStore } from '../../stores/seatStore'
 import { useStudentStore } from '../../stores/studentStore'
 
@@ -420,6 +436,7 @@ const seatStore = useSeatStore()
 const studentStore = useStudentStore()
 const seatMapTitle = ref(null)
 const isAllocationDialogOpen = ref(false)
+const isTransferDialogOpen = ref(false)
 const successToastMessage = ref('')
 let successToastTimer = null
 
@@ -504,6 +521,13 @@ const allocationInitialSeatId = computed(() => {
   return selectedSeat.value.id
 })
 
+const transferInitialSeatId = computed(() => {
+  if (selectedSeat.value?.status !== 'occupied') return ''
+  if (!selectedSeat.value?.assignedStudent) return ''
+
+  return selectedSeat.value.id
+})
+
 function getShiftSeatCount(shift) {
   return seatsByShift.value[shift]?.length || 0
 }
@@ -570,6 +594,14 @@ function closeAllocationDialog() {
   isAllocationDialogOpen.value = false
 }
 
+function openTransferDialog() {
+  isTransferDialogOpen.value = true
+}
+
+function closeTransferDialog() {
+  isTransferDialogOpen.value = false
+}
+
 function showSuccessToast(message) {
   successToastMessage.value = message
 
@@ -587,6 +619,25 @@ async function handleAllocationConfirm(allocationPayload) {
     closeAllocationDialog()
     showSuccessToast(
       `${allocatedSeat?.seatNumber || 'Seat'} allocated successfully.`,
+    )
+  } catch {
+    // Store-owned error state is rendered above the dashboard.
+  }
+}
+
+async function handleTransferConfirm(transferPayload) {
+  try {
+    const response = await seatStore.transferSeat(transferPayload)
+    const sourceSeat = response.data?.sourceSeat
+    const targetSeat = response.data?.targetSeat
+    const transferredStudent = response.data?.student
+    const studentName = transferredStudent?.name || 'Student'
+    const sourceSeatNumber = sourceSeat?.seatNumber || 'old seat'
+    const targetSeatNumber = targetSeat?.seatNumber || 'new seat'
+
+    closeTransferDialog()
+    showSuccessToast(
+      `${studentName} transferred from ${sourceSeatNumber} to ${targetSeatNumber}.`,
     )
   } catch {
     // Store-owned error state is rendered above the dashboard.
@@ -1021,7 +1072,7 @@ src/pages/admin: Seat management dashboard for library owners and admins.
 Responsibilities:
 - Fetch seat records through the centralized seat store.
 - Render mock-service seat availability metrics.
-- Present placeholder allocation, transfer, shift, and seat map actions.
+- Present allocation, transfer, placeholder shift, and seat map actions.
 
 Milestone 3:
 - Replace mock seat service calls with FastAPI endpoints through seatService.
