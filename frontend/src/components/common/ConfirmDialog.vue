@@ -1,25 +1,55 @@
 <template>
-  <section
-    class="modal confirm-dialog"
-    role="dialog"
-    aria-modal="true"
-    aria-labelledby="confirm-dialog-title"
+  <div
+    v-if="isOpen"
+    class="modal-backdrop"
+    role="presentation"
+    @click.self="handleCancel"
   >
-    <header class="modal__header">
-      <h2 id="confirm-dialog-title" class="text-h5 m-0">{{ title }}</h2>
-    </header>
-    <div class="modal__body">
-      <p class="m-0">{{ message }}</p>
-    </div>
-    <footer class="modal__footer">
-      <button class="btn btn--secondary" type="button">Cancel</button>
-      <button class="btn btn--danger" type="button">Confirm</button>
-    </footer>
-  </section>
+    <section
+      class="modal confirm-dialog"
+      role="alertdialog"
+      aria-modal="true"
+      :aria-labelledby="titleId"
+      :aria-describedby="messageId"
+    >
+      <header class="modal__header">
+        <h2 :id="titleId" class="text-h5 m-0">{{ title }}</h2>
+      </header>
+
+      <div class="modal__body">
+        <p :id="messageId" class="m-0">{{ message }}</p>
+      </div>
+
+      <footer class="modal__footer">
+        <button
+          class="btn btn--secondary"
+          type="button"
+          :disabled="isConfirming"
+          @click="handleCancel"
+        >
+          Cancel
+        </button>
+
+        <button
+          class="btn btn--danger"
+          type="button"
+          :disabled="isConfirming"
+          @click="$emit('confirm')"
+        >
+          <span v-if="isConfirming" class="btn__loader" aria-hidden="true"></span>
+          <span>{{ isConfirming ? confirmingLabel : confirmLabel }}</span>
+        </button>
+      </footer>
+    </section>
+  </div>
 </template>
 
 <script setup>
-defineProps({
+const props = defineProps({
+  isOpen: {
+    type: Boolean,
+    default: false,
+  },
   title: {
     type: String,
     default: 'Confirm action',
@@ -28,11 +58,43 @@ defineProps({
     type: String,
     default: 'This action needs confirmation.',
   },
+  confirmLabel: {
+    type: String,
+    default: 'Confirm',
+  },
+  confirmingLabel: {
+    type: String,
+    default: 'Processing',
+  },
+  isConfirming: {
+    type: Boolean,
+    default: false,
+  },
+  titleId: {
+    type: String,
+    default: 'confirm-dialog-title',
+  },
+  messageId: {
+    type: String,
+    default: 'confirm-dialog-message',
+  },
 })
+
+const emit = defineEmits(['confirm', 'cancel'])
+
+function handleCancel() {
+  if (props.isConfirming) return
+
+  emit('cancel')
+}
 </script>
 
 <!--
-src/components: Reusable interface building blocks shared across layouts and pages.
-TODO:
-- Add focus management, keyboard support, and action emits when destructive flows are implemented.
+src/components: Reusable confirmation dialog for destructive or important actions.
+
+Responsibilities:
+- Render confirmation content inside the shared modal presentation.
+- Emit confirm and cancel actions.
+- Prevent cancellation while an action is processing.
+- Display loading state during asynchronous confirmation.
 -->
