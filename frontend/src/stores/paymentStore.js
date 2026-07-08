@@ -13,6 +13,7 @@ import * as paymentService from '../services/paymentService.js'
 
 export const usePaymentStore = defineStore('payment', () => {
   const payments = ref([])
+  const paymentMonths = ref([])
   const selectedPayment = ref(null)
   const receipts = ref([])
   const pendingPayments = ref([])
@@ -57,11 +58,7 @@ export const usePaymentStore = defineStore('payment', () => {
     }, 0)
   })
 
-  const availableMonths = computed(() => {
-    return [...new Set(payments.value.map((payment) => payment.month))]
-      .filter(Boolean)
-      .sort((firstMonth, secondMonth) => secondMonth.localeCompare(firstMonth))
-  })
+  const availableMonths = computed(() => paymentMonths.value)
 
   const hasActivePaymentFilters = computed(() => {
     return Object.values(paymentFilters.value).some((value) => Boolean(value))
@@ -81,6 +78,20 @@ export const usePaymentStore = defineStore('payment', () => {
     if (Array.isArray(data.payments)) {
       payments.value = data.payments
     }
+  }
+
+  function syncPaymentMonths(response) {
+    const data = getResponseData(response)
+
+    if (!Array.isArray(data.payments)) return
+
+    paymentMonths.value = [
+      ...new Set(data.payments.map((payment) => payment.month)),
+    ]
+      .filter(Boolean)
+      .sort((firstMonth, secondMonth) =>
+        secondMonth.localeCompare(firstMonth),
+      )
   }
 
   function syncSelectedPayment(response) {
@@ -106,6 +117,14 @@ export const usePaymentStore = defineStore('payment', () => {
   }
 
   async function fetchPayments(filters = paymentFilters.value) {
+    if (paymentMonths.value.length === 0) {
+      const monthResponse = await runPaymentServiceRequest(() =>
+        paymentService.getPayments(),
+      )
+
+      syncPaymentMonths(monthResponse)
+    }
+
     const response = await runPaymentServiceRequest(() =>
       paymentService.getPayments({ ...filters }),
     )
@@ -247,6 +266,7 @@ export const usePaymentStore = defineStore('payment', () => {
 
   return {
     payments,
+    paymentMonths,
     selectedPayment,
     receipts,
     pendingPayments,

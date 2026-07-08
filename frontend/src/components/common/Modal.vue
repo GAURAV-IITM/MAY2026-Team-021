@@ -30,7 +30,9 @@
 </template>
 
 <script setup>
-defineProps({
+import { onBeforeUnmount, watch } from 'vue'
+
+const props = defineProps({
   isOpen: {
     type: Boolean,
     default: true,
@@ -46,6 +48,24 @@ defineProps({
 })
 
 defineEmits(['close'])
+
+function setBodyScrollLocked(isLocked) {
+  if (typeof document === 'undefined') return
+
+  document.body.style.overflow = isLocked ? 'hidden' : ''
+}
+
+watch(
+  () => props.isOpen,
+  (isOpen) => {
+    setBodyScrollLocked(isOpen)
+  },
+  { immediate: true },
+)
+
+onBeforeUnmount(() => {
+  setBodyScrollLocked(false)
+})
 </script>
 
 <!--
