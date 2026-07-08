@@ -62,9 +62,13 @@
         <label class="form-label" for="shift-filter">Shift</label>
         <select id="shift-filter" v-model="shiftFilter" class="form-select">
           <option value="">All shifts</option>
-          <option value="morning">Morning</option>
-          <option value="afternoon">Afternoon</option>
-          <option value="evening">Evening</option>
+          <option
+            v-for="shift in shiftOptions"
+            :key="shift.value"
+            :value="shift.value"
+          >
+            {{ shift.label }}
+          </option>
         </select>
       </div>
 
@@ -132,8 +136,8 @@
             </div>
           </template>
 
-          <template #cell-shift="{ value }">
-            {{ formatLabel(value) }}
+          <template #cell-shift="{ row }">
+            {{ formatShiftList(row) }}
           </template>
 
           <template #cell-status="{ value }">
@@ -193,6 +197,7 @@ import EmptyState from '../../components/common/EmptyState.vue'
 import LoadingSpinner from '../../components/common/LoadingSpinner.vue'
 import Pagination from '../../components/common/Pagination.vue'
 import SearchBar from '../../components/common/SearchBar.vue'
+import { shiftMock } from '../../mocks/seatMock'
 import { useStudentStore } from '../../stores/studentStore'
 
 const PAGE_SIZE = 5
@@ -221,6 +226,15 @@ const statusFilter = ref('')
 const shiftFilter = ref('')
 const currentPage = ref(1)
 
+const shiftOptions = computed(() => {
+  return shiftMock
+    .filter((shift) => shift.isEnabled !== false)
+    .map((shift) => ({
+      value: shift.id,
+      label: shift.name,
+    }))
+})
+
 const hasActiveFilters = computed(() => {
   return Boolean(searchQuery.value.trim() || statusFilter.value || shiftFilter.value)
 })
@@ -238,7 +252,8 @@ const filteredStudents = computed(() => {
       seatNumber.includes(normalizedQuery)
 
     const matchesStatus = !statusFilter.value || student.status === statusFilter.value
-    const matchesShift = !shiftFilter.value || student.shift === shiftFilter.value
+    const matchesShift =
+      !shiftFilter.value || getStudentShifts(student).includes(shiftFilter.value)
 
     return matchesSearch && matchesStatus && matchesShift
   })
@@ -291,6 +306,22 @@ function formatLabel(value) {
   return String(value)
     .replace(/[-_]/g, ' ')
     .replace(/\b\w/g, (character) => character.toUpperCase())
+}
+
+function getStudentShifts(student) {
+  if (Array.isArray(student.activeShifts) && student.activeShifts.length > 0) {
+    return student.activeShifts
+  }
+
+  return student.shift ? [student.shift] : []
+}
+
+function formatShiftList(student) {
+  const shifts = getStudentShifts(student)
+
+  if (shifts.length === 0) return '—'
+
+  return shifts.map((shift) => formatLabel(shift)).join(', ')
 }
 
 function getFeeStatusClass(status) {

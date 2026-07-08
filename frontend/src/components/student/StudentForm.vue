@@ -133,33 +133,82 @@
       </header>
 
       <div class="card__body student-form__grid">
-        <div class="form-field" :class="{ 'form-field--error': errors.seatNumber }">
-          <label class="form-label" for="student-seat">Seat Number</label>
-          <input
-            id="student-seat"
-            v-model="form.seatNumber"
-            class="form-control"
-            type="text"
-            placeholder="Example: A-01"
-            :aria-invalid="Boolean(errors.seatNumber)"
-          />
-          <p v-if="errors.seatNumber" class="form-help">{{ errors.seatNumber }}</p>
+        <div
+          class="form-field student-form__full-row"
+          :class="{ 'form-field--error': errors.activeShifts }"
+        >
+          <div class="student-form__field-header">
+            <span class="form-label">Shifts</span>
+            <div class="student-form__shift-actions">
+              <button
+                class="btn btn--ghost btn--sm"
+                type="button"
+                :disabled="shiftOptions.length === 0"
+                @click="selectAllShifts"
+              >
+                Full Day
+              </button>
+              <button
+                class="btn btn--ghost btn--sm"
+                type="button"
+                :disabled="form.activeShifts.length === 0"
+                @click="clearSelectedShifts"
+              >
+                Clear
+              </button>
+            </div>
+          </div>
+
+          <div
+            class="student-form__shift-options"
+            role="group"
+            aria-label="Select one or more shifts"
+          >
+            <label
+              v-for="shift in shiftOptions"
+              :key="shift.value"
+              class="checkbox student-form__shift-option"
+            >
+              <input
+                v-model="form.activeShifts"
+                type="checkbox"
+                :value="shift.value"
+              />
+              <span>{{ shift.label }}</span>
+            </label>
+
+            <p v-if="shiftOptions.length === 0" class="text-small text-muted m-0">
+              No enabled shifts are available.
+            </p>
+          </div>
+
+          <p v-if="errors.activeShifts" class="form-help">
+            {{ errors.activeShifts }}
+          </p>
         </div>
 
-        <div class="form-field" :class="{ 'form-field--error': errors.shift }">
-          <label class="form-label" for="student-shift">Shift</label>
+        <div class="form-field" :class="{ 'form-field--error': errors.seatNumber }">
+          <label class="form-label" for="student-seat">Seat Number</label>
           <select
-            id="student-shift"
-            v-model="form.shift"
+            id="student-seat"
+            v-model="form.seatNumber"
             class="form-select"
-            :aria-invalid="Boolean(errors.shift)"
+            :disabled="form.activeShifts.length === 0 || seatOptions.length === 0"
+            :aria-invalid="Boolean(errors.seatNumber)"
           >
-            <option value="">Select shift</option>
-            <option value="morning">Morning</option>
-            <option value="afternoon">Afternoon</option>
-            <option value="evening">Evening</option>
+            <option value="">{{ seatPlaceholder }}</option>
+            <option
+              v-for="seat in seatOptions"
+              :key="seat.key"
+              :value="seat.value"
+            >
+              {{ seat.label }}
+            </option>
           </select>
-          <p v-if="errors.shift" class="form-help">{{ errors.shift }}</p>
+          <p v-if="errors.seatNumber" class="form-help">{{ errors.seatNumber }}</p>
+          <p class="text-small text-muted m-0">
+            Seats are filtered by selected shifts.
+          </p>
         </div>
       </div>
     </section>
@@ -221,7 +270,7 @@
 </template>
 
 <script setup>
-import { reactive, watch } from 'vue'
+import { computed, reactive, watch } from 'vue'
 
 import {
   isPositiveNumber,
@@ -247,6 +296,14 @@ const props = defineProps({
     type: String,
     default: 'Saving Student',
   },
+  seats: {
+    type: Array,
+    default: () => [],
+  },
+  shifts: {
+    type: Array,
+    default: () => [],
+  },
 })
 
 const emit = defineEmits(['submit', 'cancel'])
@@ -261,7 +318,7 @@ function createInitialForm(values = {}) {
     guardianName: values.guardianName || '',
     guardianPhone: values.guardianPhone || '',
     seatNumber: values.seatNumber || '',
-    shift: values.shift || '',
+    activeShifts: normalizeInitialShifts(values),
     feeAmount: values.feeAmount ?? '',
     feeStatus: values.feeStatus || 'pending',
     feeDueDate: values.feeDueDate || '',
@@ -273,6 +330,53 @@ function createInitialForm(values = {}) {
 const form = reactive(createInitialForm(props.initialValues))
 const errors = reactive({})
 
+const shiftOptions = computed(() => {
+  return props.shifts
+    .filter((shift) => shift.isEnabled !== false)
+    .map((shift) => ({
+      value: shift.id,
+      label: shift.name,
+    }))
+})
+
+const seatOptions = computed(() => {
+  if (form.activeShifts.length === 0) {
+    return []
+  }
+
+  const availableSeats = props.seats
+    .filter((seat) => isSeatAvailableForSelectedShifts(seat))
+    .map((seat) => ({
+      key: seat.id,
+      value: seat.seatNumber,
+      label: `${seat.seatNumber} · Floor ${seat.floor}`,
+    }))
+
+  if (
+    form.seatNumber &&
+    isInitialSeatNumber(form.seatNumber) &&
+    !availableSeats.some((seat) => seat.value === form.seatNumber)
+  ) {
+    return [
+      {
+        key: `current-${form.seatNumber}`,
+        value: form.seatNumber,
+        label: `${form.seatNumber} · Current assignment`,
+      },
+      ...availableSeats,
+    ]
+  }
+
+  return availableSeats
+})
+
+const seatPlaceholder = computed(() => {
+  if (form.activeShifts.length === 0) return 'Select shifts first'
+  if (seatOptions.value.length === 0) return 'No available seats for selected shifts'
+
+  return 'Select available seat'
+})
+
 watch(
   () => props.initialValues,
   (values) => {
@@ -281,6 +385,45 @@ watch(
   },
   { deep: true },
 )
+
+watch(
+  () => [...form.activeShifts],
+  () => {
+    if (!form.seatNumber) return
+
+    const isSeatStillSelectable = seatOptions.value.some((seat) => {
+      return seat.value === form.seatNumber
+    })
+
+    if (!isSeatStillSelectable) {
+      form.seatNumber = ''
+    }
+  },
+)
+
+function normalizeInitialShifts(values = {}) {
+  const shifts = Array.isArray(values.activeShifts)
+    ? values.activeShifts
+    : [values.shift]
+
+  return shifts.filter(Boolean).map((shift) => String(shift))
+}
+
+function isInitialSeatNumber(seatNumber) {
+  return Boolean(props.initialValues?.seatNumber === seatNumber)
+}
+
+function isSeatAvailableForSelectedShifts(seat) {
+  if (seat.physicalStatus === 'maintenance') return false
+
+  return form.activeShifts.every((shiftId) => {
+    const shiftAvailability = seat.shiftAvailability?.find((shift) => {
+      return shift.shiftId === shiftId
+    })
+
+    return shiftAvailability?.status === 'available'
+  })
+}
 
 function clearErrors() {
   Object.keys(errors).forEach((key) => {
@@ -315,8 +458,14 @@ function validateForm() {
     errors.seatNumber = 'Seat selection is required.'
   }
 
-  if (!isRequired(form.shift)) {
-    errors.shift = 'Shift selection is required.'
+  if (form.activeShifts.length === 0) {
+    errors.activeShifts = 'Select at least one shift.'
+  } else {
+    const overlappingShifts = getOverlappingSelectedShifts(form.activeShifts)
+
+    if (overlappingShifts.length > 0) {
+      errors.activeShifts = `${overlappingShifts[0].name} overlaps with ${overlappingShifts[1].name}. Select non-overlapping shifts.`
+    }
   }
 
   if (!isPositiveNumber(form.feeAmount)) {
@@ -337,6 +486,8 @@ function validateForm() {
 function handleSubmit() {
   if (!validateForm()) return
 
+  const activeShifts = [...form.activeShifts]
+
   emit('submit', {
     ...form,
     firstName: form.firstName.trim(),
@@ -347,8 +498,72 @@ function handleSubmit() {
     guardianName: form.guardianName.trim(),
     guardianPhone: form.guardianPhone.trim(),
     seatNumber: form.seatNumber.trim(),
+    activeShifts,
     feeAmount: Number(form.feeAmount),
   })
+}
+
+function selectAllShifts() {
+  form.activeShifts = shiftOptions.value.map((shift) => shift.value)
+}
+
+function clearSelectedShifts() {
+  form.activeShifts = []
+}
+
+function parseTimeToMinutes(time) {
+  const [hour = '0', minute = '0'] = String(time || '00:00').split(':')
+
+  return Number(hour) * 60 + Number(minute)
+}
+
+function normalizeTimeInterval(startTime, endTime) {
+  const start = parseTimeToMinutes(startTime)
+  let end = parseTimeToMinutes(endTime)
+
+  if (end <= start) {
+    end += 24 * 60
+  }
+
+  return { start, end }
+}
+
+function doShiftTimingsOverlap(firstShift, secondShift) {
+  const firstInterval = normalizeTimeInterval(
+    firstShift.startTime,
+    firstShift.endTime,
+  )
+  const secondInterval = normalizeTimeInterval(
+    secondShift.startTime,
+    secondShift.endTime,
+  )
+
+  return (
+    firstInterval.start < secondInterval.end &&
+    secondInterval.start < firstInterval.end
+  )
+}
+
+function getOverlappingSelectedShifts(shiftIds = []) {
+  const selectedShifts = shiftIds
+    .map((shiftId) => props.shifts.find((shift) => shift.id === shiftId))
+    .filter(Boolean)
+
+  for (let index = 0; index < selectedShifts.length; index += 1) {
+    for (
+      let compareIndex = index + 1;
+      compareIndex < selectedShifts.length;
+      compareIndex += 1
+    ) {
+      if (
+        doShiftTimingsOverlap(selectedShifts[index], selectedShifts[compareIndex])
+      ) {
+        return [selectedShifts[index], selectedShifts[compareIndex]]
+      }
+    }
+  }
+
+  return []
 }
 </script>
 
@@ -378,6 +593,34 @@ function handleSubmit() {
   gap: var(--space-3);
 }
 
+.student-form__field-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.student-form__shift-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.student-form__shift-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--space-2);
+}
+
+.student-form__shift-option {
+  min-height: 40px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-elevated);
+}
+
 .form-field--error .form-help {
   color: var(--color-danger);
 }
@@ -389,6 +632,11 @@ function handleSubmit() {
 
   .student-form__full-row {
     grid-column: auto;
+  }
+
+  .student-form__field-header {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
 

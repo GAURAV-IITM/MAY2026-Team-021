@@ -18,7 +18,9 @@
 <script setup>
 const legendItems = Object.freeze([
   { status: 'available', label: 'Available' },
+  { status: 'partial', label: 'Partially Available' },
   { status: 'occupied', label: 'Occupied' },
+  { status: 'blocked', label: 'Blocked by other shift' },
   { status: 'reserved', label: 'Reserved' },
   { status: 'maintenance', label: 'Maintenance' },
 ])
@@ -57,6 +59,14 @@ const legendItems = Object.freeze([
 
 .seat-legend__indicator--occupied {
   background: var(--color-primary);
+}
+
+.seat-legend__indicator--partial {
+  background: var(--color-text-muted);
+}
+
+.seat-legend__indicator--blocked {
+  background: var(--color-danger);
 }
 
 .seat-legend__indicator--reserved {

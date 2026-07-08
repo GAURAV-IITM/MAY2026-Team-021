@@ -60,6 +60,21 @@ function generateStudentId() {
   return `student-${String(nextId).padStart(3, '0')}`
 }
 
+function normalizeStudentRecord(studentData = {}) {
+  const student = clone(studentData)
+  const activeShifts = Array.isArray(student.activeShifts)
+    ? student.activeShifts
+    : [student.shift]
+
+  student.activeShifts = [
+    ...new Set(activeShifts.filter(Boolean).map((shift) => String(shift))),
+  ]
+
+  delete student.shift
+
+  return student
+}
+
 export async function getStudents() {
   await delay()
 
@@ -82,11 +97,12 @@ export async function createStudent(studentData = {}) {
   await delay()
 
   const now = new Date().toISOString()
+  const normalizedStudentData = normalizeStudentRecord(studentData)
 
   const student = {
-    ...clone(studentData),
+    ...normalizedStudentData,
     id: generateStudentId(),
-    status: studentData.status || STUDENT_STATUSES.ACTIVE,
+    status: normalizedStudentData.status || STUDENT_STATUSES.ACTIVE,
     createdAt: now,
     updatedAt: now,
   }
@@ -107,13 +123,13 @@ export async function updateStudent(studentId, studentData = {}) {
 
   const existingStudent = students[studentIndex]
 
-  const updatedStudent = {
+  const updatedStudent = normalizeStudentRecord({
     ...existingStudent,
     ...clone(studentData),
     id: existingStudent.id,
     createdAt: existingStudent.createdAt,
     updatedAt: new Date().toISOString(),
-  }
+  })
 
   students[studentIndex] = updatedStudent
 

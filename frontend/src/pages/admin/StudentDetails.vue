@@ -159,8 +159,8 @@
             </div>
 
             <div>
-              <dt>Shift</dt>
-              <dd>{{ formatLabel(selectedStudent.shift) }}</dd>
+              <dt>Shifts</dt>
+              <dd>{{ formatShiftList(selectedStudent) }}</dd>
             </div>
           </dl>
         </section>
@@ -270,6 +270,22 @@ function formatLabel(value) {
   return String(value)
     .replace(/[-_]/g, ' ')
     .replace(/\b\w/g, (character) => character.toUpperCase())
+}
+
+function getStudentShifts(student) {
+  if (Array.isArray(student.activeShifts) && student.activeShifts.length > 0) {
+    return student.activeShifts
+  }
+
+  return student?.shift ? [student.shift] : []
+}
+
+function formatShiftList(student) {
+  const shifts = getStudentShifts(student)
+
+  if (shifts.length === 0) return '—'
+
+  return shifts.map((shift) => formatLabel(shift)).join(', ')
 }
 
 function formatDate(value) {

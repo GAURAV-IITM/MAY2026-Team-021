@@ -48,30 +48,64 @@
           >
             <option value="">Select seat</option>
             <option v-for="seat in seats" :key="seat.id" :value="seat.id">
-              {{ seat.seatNumber }} · {{ formatLabel(seat.status) }}
+              {{ seat.seatNumber }} · {{ seat.availableShiftCount || 0 }} shifts available
             </option>
           </select>
           <p v-if="errors.seatId" class="form-help">{{ errors.seatId }}</p>
         </div>
 
-        <div class="form-field" :class="{ 'form-field--error': errors.shift }">
-          <label class="form-label" for="allocation-shift">Shift</label>
-          <select
-            id="allocation-shift"
-            v-model="form.shift"
-            class="form-select"
-            :aria-invalid="Boolean(errors.shift)"
+        <div
+          class="form-field seat-allocation-dialog__full-row"
+          :class="{ 'form-field--error': errors.activeShifts }"
+        >
+          <div class="seat-allocation-dialog__field-header">
+            <span class="form-label">Shifts</span>
+            <div class="seat-allocation-dialog__shift-actions">
+              <button
+                class="btn btn--ghost btn--sm"
+                type="button"
+                :disabled="shiftOptions.length === 0"
+                @click="selectAllShifts"
+              >
+                Full Day
+              </button>
+              <button
+                class="btn btn--ghost btn--sm"
+                type="button"
+                :disabled="form.activeShifts.length === 0"
+                @click="clearSelectedShifts"
+              >
+                Clear
+              </button>
+            </div>
+          </div>
+
+          <div
+            class="seat-allocation-dialog__shift-options"
+            role="group"
+            aria-label="Select one or more shifts"
           >
-            <option value="">Select shift</option>
-            <option
+            <label
               v-for="shift in shiftOptions"
               :key="shift.value"
-              :value="shift.value"
+              class="checkbox seat-allocation-dialog__shift-option"
             >
-              {{ shift.label }}
-            </option>
-          </select>
-          <p v-if="errors.shift" class="form-help">{{ errors.shift }}</p>
+              <input
+                v-model="form.activeShifts"
+                type="checkbox"
+                :value="shift.value"
+              />
+              <span>{{ shift.label }}</span>
+            </label>
+
+            <p v-if="shiftOptions.length === 0" class="text-small text-muted m-0">
+              No enabled shifts are available.
+            </p>
+          </div>
+
+          <p v-if="errors.activeShifts" class="form-help">
+            {{ errors.activeShifts }}
+          </p>
         </div>
 
         <div class="form-field seat-allocation-dialog__full-row">
@@ -127,6 +161,10 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
+  shifts: {
+    type: Array,
+    default: () => [],
+  },
   initialSeatId: {
     type: String,
     default: '',
@@ -139,16 +177,10 @@ const props = defineProps({
 
 const emit = defineEmits(['close', 'confirm'])
 
-const shiftOptions = Object.freeze([
-  { value: 'morning', label: 'Morning' },
-  { value: 'afternoon', label: 'Afternoon' },
-  { value: 'evening', label: 'Evening' },
-])
-
 const form = reactive({
   studentId: '',
   seatId: '',
-  shift: '',
+  activeShifts: [],
   notes: '',
 })
 
@@ -166,10 +198,21 @@ const activeStudents = computed(() => {
   return props.students.filter((student) => student.status !== 'inactive')
 })
 
+const shiftOptions = computed(() => {
+  return props.shifts
+    .filter((shift) => shift.isEnabled !== false)
+    .map((shift) => ({
+      value: shift.id,
+      label: shift.name,
+    }))
+})
+
 const availabilityStatus = computed(() => {
   if (!selectedSeat.value) return 'Select a seat'
+  if (selectedSeat.value.physicalStatus === 'maintenance') return 'Maintenance'
+  if (form.activeShifts.length === 0) return 'Select shifts'
 
-  return formatLabel(selectedSeat.value.status)
+  return isSeatAvailable(selectedSeat.value) ? 'Available' : 'Unavailable'
 })
 
 const availabilityTitle = computed(() => {
@@ -177,18 +220,23 @@ const availabilityTitle = computed(() => {
     return 'Choose a seat to inspect availability.'
   }
 
-  if (isSeatAvailable(selectedSeat.value)) {
-    return `${selectedSeat.value.seatNumber} is available for allocation.`
+  if (form.activeShifts.length === 0) {
+    return 'Select shifts to check this seat.'
   }
 
-  return `${selectedSeat.value.seatNumber} cannot be allocated right now.`
+  if (isSeatAvailable(selectedSeat.value)) {
+    return `${selectedSeat.value.seatNumber} is available for selected shifts.`
+  }
+
+  return `${selectedSeat.value.seatNumber} has a conflict in one or more selected shifts.`
 })
 
 const availabilityBadgeClass = computed(() => {
   if (!selectedSeat.value) return 'badge--pending'
-  if (selectedSeat.value.status === 'available') return 'badge--success'
-  if (selectedSeat.value.status === 'maintenance') return 'badge--warning'
-  if (selectedSeat.value.status === 'reserved') return 'seat-allocation-dialog__badge--reserved'
+  if (selectedSeat.value.physicalStatus === 'maintenance') return 'badge--warning'
+  if (form.activeShifts.length === 0) return 'badge--pending'
+  if (isSeatAvailable(selectedSeat.value)) return 'badge--success'
+  if (selectedSeat.value.reservedShiftCount > 0) return 'seat-allocation-dialog__badge--reserved'
 
   return 'seat-allocation-dialog__badge--occupied'
 })
@@ -214,7 +262,7 @@ watch(
 function resetForm() {
   form.studentId = ''
   form.seatId = props.initialSeatId || ''
-  form.shift = ''
+  form.activeShifts = []
   form.notes = ''
   clearErrors()
 }
@@ -242,27 +290,100 @@ function validateForm() {
     errors.seatId = 'Select an available seat.'
   }
 
-  if (!form.shift) {
-    errors.shift = 'Select a shift.'
+  if (form.activeShifts.length === 0) {
+    errors.activeShifts = 'Select at least one shift.'
+  } else {
+    const overlappingShifts = getOverlappingSelectedShifts(form.activeShifts)
+
+    if (overlappingShifts.length > 0) {
+      errors.activeShifts = `${overlappingShifts[0].name} overlaps with ${overlappingShifts[1].name}. Select non-overlapping shifts.`
+    }
   }
 
   return Object.keys(errors).length === 0
 }
 
 function isSeatAvailable(seat) {
-  return seat?.status === 'available' && !seat.assignedStudent
+  if (!seat || seat.physicalStatus === 'maintenance') return false
+
+  if (form.activeShifts.length === 0) {
+    return Number(seat.availableShiftCount || 0) > 0
+  }
+
+  return form.activeShifts.every((shiftId) => {
+    const shiftAvailability = seat.shiftAvailability?.find((shift) => {
+      return shift.shiftId === shiftId
+    })
+
+    return shiftAvailability?.status === 'available'
+  })
 }
 
 function getStudentName(student) {
   return [student.firstName, student.lastName].filter(Boolean).join(' ')
 }
 
-function formatLabel(value) {
-  if (!value) return 'Not selected'
+function selectAllShifts() {
+  form.activeShifts = shiftOptions.value.map((shift) => shift.value)
+}
 
-  return String(value)
-    .replace(/[-_]/g, ' ')
-    .replace(/\b\w/g, (character) => character.toUpperCase())
+function clearSelectedShifts() {
+  form.activeShifts = []
+}
+
+function parseTimeToMinutes(time) {
+  const [hour = '0', minute = '0'] = String(time || '00:00').split(':')
+
+  return Number(hour) * 60 + Number(minute)
+}
+
+function normalizeTimeInterval(startTime, endTime) {
+  const start = parseTimeToMinutes(startTime)
+  let end = parseTimeToMinutes(endTime)
+
+  if (end <= start) {
+    end += 24 * 60
+  }
+
+  return { start, end }
+}
+
+function doShiftTimingsOverlap(firstShift, secondShift) {
+  const firstInterval = normalizeTimeInterval(
+    firstShift.startTime,
+    firstShift.endTime,
+  )
+  const secondInterval = normalizeTimeInterval(
+    secondShift.startTime,
+    secondShift.endTime,
+  )
+
+  return (
+    firstInterval.start < secondInterval.end &&
+    secondInterval.start < firstInterval.end
+  )
+}
+
+function getOverlappingSelectedShifts(shiftIds = []) {
+  const selectedShifts = shiftIds
+    .map((shiftId) => props.shifts.find((shift) => shift.id === shiftId))
+    .filter(Boolean)
+
+  for (let index = 0; index < selectedShifts.length; index += 1) {
+    for (
+      let compareIndex = index + 1;
+      compareIndex < selectedShifts.length;
+      compareIndex += 1
+    ) {
+      if (
+        doShiftTimingsOverlap(selectedShifts[index], selectedShifts[compareIndex])
+      ) {
+        return [selectedShifts[index], selectedShifts[compareIndex]]
+      }
+    }
+  }
+
+  return []
 }
 
 function handleSubmit() {
@@ -275,7 +396,8 @@ function handleSubmit() {
       name: getStudentName(selectedStudent.value),
       email: selectedStudent.value.email,
     },
-    shift: form.shift,
+    shift: form.activeShifts[0],
+    activeShifts: [...form.activeShifts],
     notes: form.notes,
   })
 }
@@ -314,6 +436,34 @@ function handleClose() {
   grid-column: 1 / -1;
 }
 
+.seat-allocation-dialog__field-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.seat-allocation-dialog__shift-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.seat-allocation-dialog__shift-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--space-2);
+}
+
+.seat-allocation-dialog__shift-option {
+  min-height: 40px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-elevated);
+}
+
 .form-field--error .form-help {
   color: var(--color-danger);
 }
@@ -339,6 +489,11 @@ function handleClose() {
 
   .seat-allocation-dialog__full-row {
     grid-column: auto;
+  }
+
+  .seat-allocation-dialog__field-header {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
 </style>

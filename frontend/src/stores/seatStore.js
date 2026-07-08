@@ -7,17 +7,14 @@ import * as seatService from '../services/seatService'
 // TODO: Keep this store as the single frontend state boundary when FastAPI seat APIs are added.
 export const useSeatStore = defineStore('seat', () => {
   const seats = ref([])
+  const studyShifts = ref([])
   const selectedSeatRecord = ref(null)
   const selectedStudent = ref(null)
   const selectedShift = ref('')
   const seatFilters = ref({
     search: '',
     status: '',
-    shift: '',
     floor: '',
-    seatNumber: '',
-    studentName: '',
-    availability: '',
   })
   const seatAvailability = ref(null)
   const isLoading = ref(false)
@@ -28,7 +25,9 @@ export const useSeatStore = defineStore('seat', () => {
   })
 
   const availableSeats = computed(() => {
-    return seats.value.filter((seat) => isAvailableSeat(seat))
+    return seats.value.filter((seat) => {
+      return seat.physicalStatus === 'available' && !isOccupiedSeat(seat)
+    })
   })
 
   const totalSeats = computed(() => seats.value.length)
@@ -57,6 +56,17 @@ export const useSeatStore = defineStore('seat', () => {
     }, {})
   })
 
+  const enabledShifts = computed(() => {
+    return studyShifts.value.filter((shift) => shift.isEnabled !== false)
+  })
+
+  const shiftRows = computed(() => {
+    return studyShifts.value.map((shift) => ({
+      ...shift,
+      ...getShiftSeatCounts(shift.id),
+    }))
+  })
+
   const availableFloors = computed(() => {
     return [...new Set(seats.value.map((seat) => seat.floor))]
       .filter(Boolean)
@@ -67,14 +77,11 @@ export const useSeatStore = defineStore('seat', () => {
     const filters = normalizeSeatFilters(seatFilters.value)
 
     return seats.value.filter((seat) => {
-      const assignedStudentName = seat.assignedStudent?.name || ''
       const searchableText = [
         seat.seatNumber,
-        seat.status,
+        seat.physicalStatus,
         seat.floor,
-        assignedStudentName,
         seat.notes,
-        ...(seat.activeShifts || []),
       ]
         .filter(Boolean)
         .join(' ')
@@ -82,30 +89,17 @@ export const useSeatStore = defineStore('seat', () => {
 
       const matchesSearch =
         !filters.search || searchableText.includes(filters.search)
-      const matchesStatus = !filters.status || seat.status === filters.status
-      const matchesShift =
-        !filters.shift || seat.activeShifts?.includes(filters.shift)
+      const matchesStatus =
+        !filters.status ||
+        (filters.status === 'occupied' && isOccupiedSeat(seat)) ||
+        (filters.status === 'available' &&
+          seat.physicalStatus === 'available' &&
+          !isOccupiedSeat(seat)) ||
+        (!['available', 'occupied'].includes(filters.status) &&
+          seat.physicalStatus === filters.status)
       const matchesFloor = !filters.floor || String(seat.floor) === filters.floor
-      const matchesSeatNumber =
-        !filters.seatNumber ||
-        seat.seatNumber.toLowerCase().includes(filters.seatNumber)
-      const matchesStudentName =
-        !filters.studentName ||
-        assignedStudentName.toLowerCase().includes(filters.studentName)
-      const matchesAvailability = matchesAvailabilityFilter(
-        seat,
-        filters.availability,
-      )
 
-      return (
-        matchesSearch &&
-        matchesStatus &&
-        matchesShift &&
-        matchesFloor &&
-        matchesSeatNumber &&
-        matchesStudentName &&
-        matchesAvailability
-      )
+      return matchesSearch && matchesStatus && matchesFloor
     })
   })
 
@@ -122,66 +116,58 @@ export const useSeatStore = defineStore('seat', () => {
   })
 
   function isOccupiedSeat(seat) {
-    if (seat?.status) {
-      return seat.status === 'occupied'
-    }
-
-    return (
-      Boolean(
-        seat?.studentId ||
-          seat?.student?.id ||
-          seat?.student ||
-          seat?.assignedStudent?.id ||
-          seat?.assignedStudent,
-      )
-    )
+    return Boolean(seat?.isOccupied) || Number(seat?.occupiedShiftCount || 0) > 0
   }
 
-  function isAvailableSeat(seat) {
-    return seat?.status === 'available' && !isOccupiedSeat(seat)
+  function getShiftSeatCounts(shiftId) {
+    const shiftSeats = seats.value.filter((seat) => {
+      return seat.shiftAvailability?.some((shift) => shift.shiftId === shiftId)
+    })
+    const getShiftStatus = (seat) => {
+      return seat.shiftAvailability?.find((shift) => shift.shiftId === shiftId)
+        ?.status
+    }
+
+    return {
+      totalSeatCount: shiftSeats.length,
+      occupiedSeatCount: shiftSeats.filter((seat) => {
+        const shiftAvailability = seat.shiftAvailability?.find((shift) => {
+          return shift.shiftId === shiftId
+        })
+
+        return (
+          shiftAvailability?.status === 'occupied' &&
+          !shiftAvailability.isPartialBlock
+        )
+      }).length,
+      blockedSeatCount: shiftSeats.filter((seat) => {
+        return Boolean(
+          seat.shiftAvailability?.find((shift) => shift.shiftId === shiftId)
+            ?.isPartialBlock,
+        )
+      }).length,
+      availableSeatCount: shiftSeats.filter((seat) => {
+        return getShiftStatus(seat) === 'available'
+      }).length,
+      reservedSeatCount: shiftSeats.filter((seat) => {
+        const shiftAvailability = seat.shiftAvailability?.find((shift) => {
+          return shift.shiftId === shiftId
+        })
+
+        return (
+          shiftAvailability?.status === 'reserved' &&
+          !shiftAvailability.isPartialBlock
+        )
+      }).length,
+    }
   }
 
   function normalizeSeatFilters(filters = {}) {
     return {
       search: String(filters.search || '').trim().toLowerCase(),
       status: String(filters.status || '').trim().toLowerCase(),
-      shift: String(filters.shift || '').trim().toLowerCase(),
       floor: filters.floor ? String(filters.floor) : '',
-      seatNumber: String(filters.seatNumber || '').trim().toLowerCase(),
-      studentName: String(filters.studentName || '').trim().toLowerCase(),
-      availability: String(filters.availability || '').trim().toLowerCase(),
     }
-  }
-
-  function matchesAvailabilityFilter(seat, availability) {
-    if (!availability) return true
-
-    const hasStudent = Boolean(seat.assignedStudent)
-    const hasActiveShift = Array.isArray(seat.activeShifts)
-      ? seat.activeShifts.length > 0
-      : false
-
-    if (availability === 'available-now') {
-      return seat.status === 'available' && !hasStudent
-    }
-
-    if (availability === 'assigned') {
-      return hasStudent
-    }
-
-    if (availability === 'unassigned') {
-      return !hasStudent
-    }
-
-    if (availability === 'blocked') {
-      return seat.status === 'reserved' || seat.status === 'maintenance'
-    }
-
-    if (availability === 'has-active-shift') {
-      return hasActiveShift
-    }
-
-    return true
   }
 
   function getErrorMessage(requestError) {
@@ -234,7 +220,21 @@ export const useSeatStore = defineStore('seat', () => {
     }
 
     if (Array.isArray(data.seats)) {
-      data.seats.forEach((seat) => replaceSeatInList(seat))
+      seats.value = data.seats
+    }
+
+    if (Array.isArray(data.deletedSeatIds)) {
+      const deletedSeatIds = new Set(data.deletedSeatIds.map((seatId) => String(seatId)))
+
+      seats.value = seats.value.filter((seat) => !deletedSeatIds.has(seat.id))
+
+      if (deletedSeatIds.has(selectedSeatRecord.value?.id)) {
+        selectedSeatRecord.value = null
+      }
+    }
+
+    if (Array.isArray(data.shifts)) {
+      studyShifts.value = data.shifts
     }
 
     const updatedSeat = data.seat || data.updatedSeat || data.targetSeat
@@ -273,6 +273,150 @@ export const useSeatStore = defineStore('seat', () => {
       seatAvailability.value = data.availability
     }
 
+    if (Array.isArray(data?.shifts)) {
+      studyShifts.value = data.shifts
+    }
+
+    return response
+  }
+
+  async function createSeat(seatPayload) {
+    const response = await runSeatServiceRequest(() =>
+      seatService.createSeat(seatPayload),
+    )
+
+    syncSeatStateFromResponse(response)
+
+    return response
+  }
+
+  async function updateSeat(seatId, seatPayload) {
+    const response = await runSeatServiceRequest(() =>
+      seatService.updateSeat(seatId, seatPayload),
+    )
+
+    syncSeatStateFromResponse(response)
+
+    return response
+  }
+
+  async function deleteSeat(seatId) {
+    const response = await runSeatServiceRequest(() =>
+      seatService.deleteSeat(seatId),
+    )
+
+    syncSeatStateFromResponse(response)
+
+    return response
+  }
+
+  async function bulkUpdateSeatStatus(seatIds, statusPayload) {
+    const response = await runSeatServiceRequest(() =>
+      seatService.bulkUpdateSeatStatus(seatIds, statusPayload),
+    )
+
+    syncSeatStateFromResponse(response)
+
+    return response
+  }
+
+  async function bulkDeleteSeats(seatIds) {
+    const response = await runSeatServiceRequest(() =>
+      seatService.bulkDeleteSeats(seatIds),
+    )
+
+    syncSeatStateFromResponse(response)
+
+    return response
+  }
+
+  /**
+   * Fetches study shifts through seatService and stores them for dynamic shift workflows.
+   * TODO: Replace the mock service response with FastAPI GET /shifts.
+   */
+  async function fetchShifts() {
+    const response = await runSeatServiceRequest(() =>
+      seatService.fetchShifts(),
+    )
+
+    syncSeatStateFromResponse(response)
+
+    const data = getResponseData(response)
+
+    if (data?.availability) {
+      seatAvailability.value = data.availability
+    }
+
+    return response
+  }
+
+  /**
+   * Creates a study shift through seatService.
+   * TODO: Persist unlimited tenant-defined shifts through FastAPI.
+   */
+  async function createShift(shiftPayload) {
+    const response = await runSeatServiceRequest(() =>
+      seatService.createShift(shiftPayload),
+    )
+
+    syncSeatStateFromResponse(response)
+
+    return response
+  }
+
+  /**
+   * Updates shift name, status, and timing through seatService.
+   * TODO: Add backend validation for tenant-specific shift overlaps in FastAPI.
+   */
+  async function updateStudyShift(shiftId, shiftPayload) {
+    const response = await runSeatServiceRequest(() =>
+      seatService.updateStudyShift(shiftId, shiftPayload),
+    )
+
+    syncSeatStateFromResponse(response)
+
+    return response
+  }
+
+  /**
+   * Updates only shift timing through seatService.
+   * TODO: Replace mock timing updates with FastAPI PATCH /shifts/{id}/timing.
+   */
+  async function updateShiftTiming(shiftId, timingPayload) {
+    const response = await runSeatServiceRequest(() =>
+      seatService.updateShiftTiming(shiftId, timingPayload),
+    )
+
+    syncSeatStateFromResponse(response)
+
+    return response
+  }
+
+  /**
+   * Enables or disables a study shift through seatService.
+   * TODO: Let FastAPI enforce whether disabled shifts can accept new allocations.
+   */
+  async function toggleStudyShift(shiftId, isEnabled) {
+    const response = await runSeatServiceRequest(() =>
+      seatService.toggleStudyShift(shiftId, isEnabled),
+    )
+
+    syncSeatStateFromResponse(response)
+
+    return response
+  }
+
+  /**
+   * Deletes a study shift through seatService and syncs affected seat availability.
+   * TODO: Replace mock deletion with FastAPI delete semantics and audit logging.
+   */
+  async function deleteStudyShift(shiftId) {
+    const response = await runSeatServiceRequest(() =>
+      seatService.deleteStudyShift(shiftId),
+    )
+
+    syncSeatStateFromResponse(response)
+
     return response
   }
 
@@ -291,12 +435,12 @@ export const useSeatStore = defineStore('seat', () => {
   }
 
   /**
-   * Transfers a student between seats through seatService and updates affected seat records.
-   * TODO: Replace mock transfer responses with transactional FastAPI endpoints.
+   * Updates a seat's operational status through seatService.
+   * TODO: Replace mock status updates with FastAPI PATCH /seats/{id}/status and audit logging.
    */
-  async function transferSeat(transferPayload) {
+  async function updateSeatStatus(seatId, statusPayload) {
     const response = await runSeatServiceRequest(() =>
-      seatService.transferSeat(transferPayload),
+      seatService.updateSeatStatus(seatId, statusPayload),
     )
 
     syncSeatStateFromResponse(response)
@@ -381,11 +525,7 @@ export const useSeatStore = defineStore('seat', () => {
     seatFilters.value = {
       search: '',
       status: '',
-      shift: '',
       floor: '',
-      seatNumber: '',
-      studentName: '',
-      availability: '',
     }
   }
 
@@ -395,6 +535,7 @@ export const useSeatStore = defineStore('seat', () => {
 
   return {
     seats,
+    studyShifts,
     selectedStudent,
     selectedShift,
     seatFilters,
@@ -407,6 +548,8 @@ export const useSeatStore = defineStore('seat', () => {
     totalSeats,
     occupancyPercentage,
     seatsByShift,
+    enabledShifts,
+    shiftRows,
     availableFloors,
     filteredSeats,
     hasActiveSeatFilters,
@@ -414,8 +557,19 @@ export const useSeatStore = defineStore('seat', () => {
     errorMessage,
 
     fetchSeats,
+    createSeat,
+    updateSeat,
+    deleteSeat,
+    bulkUpdateSeatStatus,
+    bulkDeleteSeats,
+    fetchShifts,
     allocateSeat,
-    transferSeat,
+    createShift,
+    updateStudyShift,
+    updateShiftTiming,
+    toggleStudyShift,
+    deleteStudyShift,
+    updateSeatStatus,
     updateShift,
     refreshSeatAvailability,
     selectSeat,

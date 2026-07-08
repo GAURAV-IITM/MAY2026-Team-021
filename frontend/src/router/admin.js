@@ -6,6 +6,8 @@ import AdminStudentDetails from '../pages/admin/StudentDetails.vue'
 import AdminAddStudent from '../pages/admin/AddStudent.vue'
 import AdminEditStudent from '../pages/admin/EditStudent.vue'
 import AdminSeatManagement from '../pages/admin/SeatManagement.vue'
+import AdminSeatAvailability from '../pages/admin/SeatAvailability.vue'
+import AdminShiftManagement from '../pages/admin/ShiftManagement.vue'
 import AdminPayments from '../pages/admin/Payments.vue'
 import AdminReports from '../pages/admin/Reports.vue'
 import AdminAnnouncements from '../pages/admin/Announcements.vue'
@@ -59,6 +61,18 @@ const adminRoutes = [
         name: 'adminSeatManagement',
         component: AdminSeatManagement,
         meta: { title: 'Seat Management', role: 'admin', requiresAuth: true },
+      },
+      {
+        path: 'seats/map',
+        name: 'adminSeatMap',
+        component: AdminSeatAvailability,
+        meta: { title: 'Seat Map', role: 'admin', requiresAuth: true },
+      },
+      {
+        path: 'shift-management',
+        name: 'adminShiftManagement',
+        component: AdminShiftManagement,
+        meta: { title: 'Shift Management', role: 'admin', requiresAuth: true },
       },
       {
         path: 'payments',

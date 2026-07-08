@@ -3,401 +3,148 @@
     <header class="seat-management-page__header">
       <div>
         <p class="text-label text-muted seat-management-page__eyebrow">
-          Seat Management
+          Seat Operations
         </p>
         <h1 id="seat-management-title" class="text-h2 seat-management-page__title">
           Seat Management
         </h1>
         <p class="text-body seat-management-page__description">
-          Monitor availability, allocation status, and shift coverage across library seats.
+          Create, update, and maintain the seats available in the library.
         </p>
       </div>
 
-      <button
-        class="btn btn--secondary seat-management-page__refresh-button"
-        type="button"
-        :disabled="isLoading"
-        @click="loadSeatDashboard"
-      >
-        {{ isLoading ? 'Refreshing' : 'Refresh Seats' }}
-      </button>
-    </header>
-
-    <div v-if="errorMessage" class="alert alert--danger" role="alert">
-      <div>
-        <strong>Unable to load seat dashboard.</strong>
-        <p class="m-0">{{ errorMessage }}</p>
+      <div class="seat-management-page__actions">
+        <button class="btn btn--primary" type="button" @click="openAddSeatModal">
+          + Add Seat
+        </button>
+        <button
+          class="btn btn--secondary"
+          type="button"
+          :disabled="isLoading"
+          @click="loadSeats"
+        >
+          {{ isLoading ? 'Refreshing' : 'Refresh' }}
+        </button>
+        <BulkActionMenu
+          :selected-count="selectedSeatIds.length"
+          :disabled="selectedSeatIds.length === 0 || isLoading"
+          @action="handleBulkAction"
+        />
       </div>
-
-      <button
-        class="btn btn--secondary btn--sm"
-        type="button"
-        @click="loadSeatDashboard"
-      >
-        Retry
-      </button>
-    </div>
+    </header>
 
     <Toast v-if="successToastMessage" type="success">
       {{ successToastMessage }}
     </Toast>
 
+    <div v-if="errorMessage" class="alert alert--danger" role="alert">
+      <div>
+        <strong>Unable to load seats.</strong>
+        <p class="m-0">{{ errorMessage }}</p>
+      </div>
+
+      <button class="btn btn--secondary btn--sm" type="button" @click="loadSeats">
+        Retry
+      </button>
+    </div>
+
     <div v-if="isInitialLoading" class="seat-management-page__loading">
-      <LoadingSpinner label="Loading seat management dashboard" />
+      <LoadingSpinner label="Loading physical seats" />
     </div>
 
     <template v-else-if="!errorMessage">
-      <section class="seat-management-page__summary" aria-label="Seat summary">
-        <StatCard
-          title="Total Seats"
-          :value="String(totalSeats)"
-          icon="T"
-          trend="All configured study seats"
-        >
-          <template #footer>
-            {{ floorCount }} active floors
-          </template>
-        </StatCard>
+      <SeatSummaryCards :summary="summaryCards" />
 
-        <StatCard
-          title="Occupied Seats"
-          :value="String(occupiedSeats.length)"
-          icon="O"
-          trend="Currently assigned"
-        >
-          <template #footer>
-            {{ occupancyPercentage }}% occupancy
-          </template>
-        </StatCard>
+      <SeatFilters
+        :filters="seatFilters"
+        :floors="availableFloors"
+        :has-active-filters="hasActiveSeatFilters"
+        @update="seatStore.updateSeatFilter"
+        @reset="seatStore.resetSeatFilters"
+      />
 
-        <StatCard
-          title="Available Seats"
-          :value="String(availableSeats.length)"
-          icon="A"
-          trend="Ready for allocation"
-        >
-          <template #footer>
-            {{ reservedSeats.length }} reserved · {{ maintenanceSeats.length }} maintenance
-          </template>
-        </StatCard>
+      <EmptyState
+        v-if="seats.length === 0"
+        title="No seats created yet."
+        description="Create seats before managing availability or viewing the seat map."
+      >
+        <template #icon>
+          <span class="seat-management-page__empty-illustration">S</span>
+        </template>
+        <template #primary-action>
+          <button class="btn btn--primary" type="button" @click="openAddSeatModal">
+            Add Seat
+          </button>
+        </template>
+        <template #secondary-action>
+          <span></span>
+        </template>
+      </EmptyState>
 
-        <StatCard
-          title="Occupancy Percentage"
-          :value="`${occupancyPercentage}%`"
-          icon="%"
-          trend="Mock availability snapshot"
-        >
-          <template #footer>
-            Updated from seat service
-          </template>
-        </StatCard>
-      </section>
-
-      <SeatFilters class="seat-management-page__filters" />
-
-      <div class="seat-management-page__grid">
-        <section class="card seat-management-page__overview" aria-labelledby="seat-overview-title">
-          <header class="card__header seat-management-page__card-header">
-            <div>
-              <h2 id="seat-overview-title" class="text-h4 m-0">
-                Seat Occupancy Overview
-              </h2>
-              <p class="text-small text-muted m-0">
-                Current allocation state from the mock seat service.
-              </p>
-            </div>
-          </header>
-
-          <div class="card__body seat-management-page__overview-body">
-            <div class="seat-management-page__meter" aria-label="Occupancy percentage">
-              <div class="seat-management-page__meter-track">
-                <span
-                  class="seat-management-page__meter-fill"
-                  :class="`seat-management-page__meter-fill--${occupancyBucket}`"
-                ></span>
-              </div>
-
-              <div class="seat-management-page__meter-labels">
-                <span>0%</span>
-                <strong>{{ occupancyPercentage }}% occupied</strong>
-                <span>100%</span>
-              </div>
-            </div>
-
-            <DataTable
-              :columns="seatColumns"
-              :rows="filteredSeats"
-              aria-label="Seat occupancy overview"
-            >
-              <template #cell-seatNumber="{ row }">
-                <div class="seat-management-page__seat-cell">
-                  <strong>{{ row.seatNumber }}</strong>
-                  <span class="text-caption text-muted">Floor {{ row.floor }}</span>
-                </div>
-              </template>
-
-              <template #cell-status="{ value }">
-                <span class="badge" :class="getStatusBadgeClass(value)">
-                  {{ formatLabel(value) }}
-                </span>
-              </template>
-
-              <template #cell-assignedStudent="{ value }">
-                {{ value?.name || 'Unassigned' }}
-              </template>
-
-              <template #cell-activeShifts="{ value }">
-                <span class="seat-management-page__shift-list">
-                  {{ formatShiftList(value) }}
-                </span>
-              </template>
-
-              <template #empty>
-                Seat records will appear after the mock service responds.
-              </template>
-            </DataTable>
-          </div>
-        </section>
-
-        <aside class="card seat-management-page__quick-actions" aria-labelledby="quick-actions-title">
-          <header class="card__header seat-management-page__card-header">
-            <div>
-              <h2 id="quick-actions-title" class="text-h4 m-0">Quick Actions</h2>
-              <p class="text-small text-muted m-0">
-                Admin workflows reserved for the next milestone.
-              </p>
-            </div>
-          </header>
-
-          <div class="card__body seat-management-page__action-list">
-            <button
-              class="btn btn--primary"
-              type="button"
-              @click="openAllocationDialog"
-            >
-              Allocate Seat
-            </button>
-            <button
-              class="btn btn--secondary"
-              type="button"
-              @click="openTransferDialog"
-            >
-              Transfer Seat
-            </button>
-            <button class="btn btn--outline" type="button">Manage Shifts</button>
-            <button class="btn btn--ghost" type="button" @click="focusSeatMap">
-              View Seat Map
-            </button>
-          </div>
-        </aside>
-      </div>
-
-      <section class="seat-management-page__map-section" aria-labelledby="seat-map-title">
-        <header class="seat-management-page__section-header">
+      <section
+        v-else
+        class="card seat-management-page__table-card"
+        aria-labelledby="seat-table-title"
+      >
+        <header class="card__header seat-management-page__card-header">
           <div>
-            <h2
-              id="seat-map-title"
-              ref="seatMapTitle"
-              class="text-h4 m-0"
-              tabindex="-1"
-            >
-              Seat Availability View
-            </h2>
+            <h2 id="seat-table-title" class="text-h4 m-0">Seat List</h2>
             <p class="text-small text-muted m-0">
-              Click a seat to view details and inspect its current allocation state.
+              Manage seat records, status, floor, type, and notes.
             </p>
           </div>
 
-          <SeatLegend class="seat-management-page__legend" />
+          <label class="checkbox seat-management-page__select-all">
+            <input
+              type="checkbox"
+              :checked="areVisibleSeatsSelected"
+              :disabled="filteredSeats.length === 0"
+              @change="toggleAllVisibleSeats"
+            />
+            <span>Select visible</span>
+          </label>
         </header>
 
-        <div class="seat-management-page__map-layout">
-          <div
-            v-if="filteredSeats.length > 0"
-            class="seat-management-page__seat-grid"
-            role="list"
-            aria-label="Library seat map"
-          >
-            <button
-              v-for="seat in filteredSeats"
-              :key="seat.id"
-              class="seat-management-page__seat-map-card"
-              :class="[
-                getSeatStatusClass(seat.status),
-                {
-                  'seat-management-page__seat-map-card--selected':
-                    selectedSeat?.id === seat.id,
-                },
-              ]"
-              type="button"
-              role="listitem"
-              :aria-pressed="String(selectedSeat?.id === seat.id)"
-              @click="handleSeatClick(seat)"
-            >
-              <span class="seat-management-page__seat-map-topline">
-                <strong>{{ seat.seatNumber }}</strong>
-                <span class="badge" :class="getStatusBadgeClass(seat.status)">
-                  {{ formatLabel(seat.status) }}
-                </span>
-              </span>
-
-              <span class="seat-management-page__seat-map-meta">
-                Student: {{ seat.assignedStudent?.name || 'Unassigned' }}
-              </span>
-
-              <span class="seat-management-page__seat-map-meta">
-                Shift: {{ getCurrentShift(seat) }}
-              </span>
-
-              <span class="seat-management-page__seat-map-action">
-                View Details
-              </span>
-            </button>
-          </div>
-
-          <div v-else class="card seat-management-page__empty-map" role="status">
-            <p class="text-label text-muted m-0">No Seats Found</p>
-            <h3 class="text-h4 m-0">No seats match these filters</h3>
-            <button
-              class="btn btn--secondary"
-              type="button"
-              @click="seatStore.resetSeatFilters"
-            >
-              Reset Filters
-            </button>
-          </div>
-
-          <aside class="card seat-management-page__seat-panel" aria-label="Selected seat information">
-            <template v-if="selectedSeat">
-              <header class="card__header seat-management-page__card-header">
-                <div>
-                  <p class="text-label text-muted m-0">Selected Seat</p>
-                  <h3 class="text-h4 m-0">{{ selectedSeat.seatNumber }}</h3>
-                </div>
-                <span class="badge" :class="getStatusBadgeClass(selectedSeat.status)">
-                  {{ formatLabel(selectedSeat.status) }}
-                </span>
-              </header>
-
-              <div class="card__body seat-management-page__seat-panel-body">
-                <div class="seat-management-page__detail-row">
-                  <span class="text-small text-muted">Assigned Student</span>
-                  <strong>{{ selectedSeat.assignedStudent?.name || 'Unassigned' }}</strong>
-                </div>
-
-                <div class="seat-management-page__detail-row">
-                  <span class="text-small text-muted">Current Shift</span>
-                  <strong>{{ getCurrentShift(selectedSeat) }}</strong>
-                </div>
-
-                <div class="seat-management-page__detail-row">
-                  <span class="text-small text-muted">Floor</span>
-                  <strong>Floor {{ selectedSeat.floor }}</strong>
-                </div>
-
-                <div class="seat-management-page__detail-row">
-                  <span class="text-small text-muted">Active Shifts</span>
-                  <strong>{{ formatShiftList(selectedSeat.activeShifts) }}</strong>
-                </div>
-
-                <div class="seat-management-page__detail-row">
-                  <span class="text-small text-muted">Notes</span>
-                  <strong>{{ selectedSeat.notes || 'No notes available' }}</strong>
-                </div>
-              </div>
-            </template>
-
-            <div v-else class="card__body seat-management-page__seat-panel-empty">
-              <p class="text-label text-muted m-0">Seat Details</p>
-              <h3 class="text-h4 m-0">No seat selected</h3>
-              <p class="text-small text-muted m-0">
-                Choose any seat from the map to view status, student, shift, floor, and notes.
-              </p>
-            </div>
-          </aside>
+        <div class="card__body">
+          <SeatTable
+            :seats="filteredSeats"
+            :selected-seat-ids="selectedSeatIds"
+            @toggle-seat="toggleSeatSelection"
+            @edit="openEditSeatModal"
+            @delete="openDeleteSeatConfirm"
+            @change-status="handleSeatStatusChange"
+            @view-map="handleViewSeatMap"
+          />
         </div>
       </section>
-
-      <div class="seat-management-page__secondary-grid">
-        <section class="card" aria-labelledby="recent-allocations-title">
-          <header class="card__header seat-management-page__card-header">
-            <div>
-              <h2 id="recent-allocations-title" class="text-h4 m-0">
-                Recent Allocations
-              </h2>
-              <p class="text-small text-muted m-0">
-                Placeholder allocation feed based on current occupied seats.
-              </p>
-            </div>
-          </header>
-
-          <div class="card__body">
-            <DataTable
-              :columns="allocationColumns"
-              :rows="recentAllocationRows"
-              aria-label="Recent seat allocations"
-            >
-              <template #cell-student="{ row }">
-                <div class="seat-management-page__seat-cell">
-                  <strong>{{ row.student }}</strong>
-                  <span class="text-caption text-muted">{{ row.email }}</span>
-                </div>
-              </template>
-
-              <template #cell-shifts="{ value }">
-                {{ formatShiftList(value) }}
-              </template>
-
-              <template #empty>
-                Recent allocation history will appear here.
-              </template>
-            </DataTable>
-          </div>
-        </section>
-
-        <section class="card" aria-labelledby="seat-statistics-title">
-          <header class="card__header seat-management-page__card-header">
-            <div>
-              <h2 id="seat-statistics-title" class="text-h4 m-0">
-                Seat Statistics
-              </h2>
-              <p class="text-small text-muted m-0">
-                Placeholder operating metrics for seat planning.
-              </p>
-            </div>
-          </header>
-
-          <div class="card__body seat-management-page__stats-list">
-            <div
-              v-for="statistic in seatStatistics"
-              :key="statistic.label"
-              class="seat-management-page__stat-row"
-            >
-              <span class="text-small text-muted">{{ statistic.label }}</span>
-              <strong>{{ statistic.value }}</strong>
-            </div>
-          </div>
-        </section>
-      </div>
     </template>
 
-    <SeatAllocationDialog
-      :is-open="isAllocationDialogOpen"
+    <AddSeatModal
+      :is-open="isAddSeatModalOpen"
       :seats="seats"
-      :students="students"
-      :initial-seat-id="allocationInitialSeatId"
       :is-submitting="isLoading"
-      @close="closeAllocationDialog"
-      @confirm="handleAllocationConfirm"
+      @close="closeAddSeatModal"
+      @create="handleCreateSeat"
     />
 
-    <SeatTransferDialog
-      :is-open="isTransferDialogOpen"
+    <EditSeatModal
+      :is-open="isEditSeatModalOpen"
+      :seat="selectedSeatForEdit"
       :seats="seats"
-      :initial-seat-id="transferInitialSeatId"
       :is-submitting="isLoading"
-      @close="closeTransferDialog"
-      @confirm="handleTransferConfirm"
+      @close="closeEditSeatModal"
+      @save="handleUpdateSeat"
+    />
+
+    <ConfirmDialog
+      :is-open="Boolean(deleteTarget)"
+      :title="deleteConfirmTitle"
+      :message="deleteConfirmMessage"
+      confirm-label="Delete"
+      confirming-label="Deleting"
+      :is-confirming="isLoading"
+      @cancel="closeDeleteConfirm"
+      @confirm="handleDeleteConfirm"
     />
   </section>
 </template>
@@ -405,201 +152,157 @@
 <script setup>
 import { storeToRefs } from 'pinia'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 
-import DataTable from '../../components/common/DataTable.vue'
+import ConfirmDialog from '../../components/common/ConfirmDialog.vue'
+import EmptyState from '../../components/common/EmptyState.vue'
 import LoadingSpinner from '../../components/common/LoadingSpinner.vue'
 import Toast from '../../components/common/Toast.vue'
-import StatCard from '../../components/dashboard/StatCard.vue'
-import SeatAllocationDialog from '../../components/seat/SeatAllocationDialog.vue'
+import AddSeatModal from '../../components/seat/AddSeatModal.vue'
+import BulkActionMenu from '../../components/seat/BulkActionMenu.vue'
+import EditSeatModal from '../../components/seat/EditSeatModal.vue'
 import SeatFilters from '../../components/seat/SeatFilters.vue'
-import SeatLegend from '../../components/seat/SeatLegend.vue'
-import SeatTransferDialog from '../../components/seat/SeatTransferDialog.vue'
+import SeatSummaryCards from '../../components/seat/SeatSummaryCards.vue'
+import SeatTable from '../../components/seat/SeatTable.vue'
 import { useSeatStore } from '../../stores/seatStore'
-import { useStudentStore } from '../../stores/studentStore'
 
-const seatColumns = Object.freeze([
-  { key: 'seatNumber', label: 'Seat' },
-  { key: 'status', label: 'Status' },
-  { key: 'assignedStudent', label: 'Assigned Student' },
-  { key: 'activeShifts', label: 'Active Shifts' },
-  { key: 'notes', label: 'Notes' },
-])
-
-const allocationColumns = Object.freeze([
-  { key: 'seatNumber', label: 'Seat' },
-  { key: 'student', label: 'Student' },
-  { key: 'shifts', label: 'Shifts' },
-  { key: 'floor', label: 'Floor' },
-])
-
+const router = useRouter()
 const seatStore = useSeatStore()
-const studentStore = useStudentStore()
-const seatMapTitle = ref(null)
-const isAllocationDialogOpen = ref(false)
-const isTransferDialogOpen = ref(false)
+const isAddSeatModalOpen = ref(false)
+const isEditSeatModalOpen = ref(false)
+const selectedSeatForEdit = ref(null)
+const selectedSeatIds = ref([])
+const deleteTarget = ref(null)
 const successToastMessage = ref('')
 let successToastTimer = null
 
 const {
   seats,
-  occupiedSeats,
   availableSeats,
+  occupiedSeats,
   totalSeats,
-  occupancyPercentage,
-  seatsByShift,
+  availableFloors,
   filteredSeats,
-  selectedSeat,
+  seatFilters,
+  hasActiveSeatFilters,
   isLoading,
   errorMessage,
 } = storeToRefs(seatStore)
-
-const { students } = storeToRefs(studentStore)
 
 const isInitialLoading = computed(() => {
   return isLoading.value && seats.value.length === 0
 })
 
 const maintenanceSeats = computed(() => {
-  return seats.value.filter((seat) => seat.status === 'maintenance')
+  return seats.value.filter((seat) => seat.physicalStatus === 'maintenance')
 })
 
-const reservedSeats = computed(() => {
-  return seats.value.filter((seat) => seat.status === 'reserved')
+const summaryCards = computed(() => ({
+  total: totalSeats.value,
+  available: availableSeats.value.length,
+  occupied: occupiedSeats.value.length,
+  maintenance: maintenanceSeats.value.length,
+}))
+
+const areVisibleSeatsSelected = computed(() => {
+  if (filteredSeats.value.length === 0) return false
+
+  return filteredSeats.value.every((seat) => selectedSeatIds.value.includes(seat.id))
 })
 
-const floorCount = computed(() => {
-  return new Set(seats.value.map((seat) => seat.floor)).size
+const deleteConfirmTitle = computed(() => {
+  if (!deleteTarget.value) return 'Delete Seat'
+
+  if (deleteTarget.value.type === 'bulk') {
+    return `Delete ${deleteTarget.value.seatIds.length} selected seats?`
+  }
+
+  return `Delete Seat ${deleteTarget.value.seat.seatNumber}?`
 })
 
-const recentAllocationRows = computed(() => {
-  return filteredSeats.value
-    .filter((seat) => seat.status === 'occupied')
-    .slice(0, 5)
-    .map((seat) => ({
-      id: seat.id,
-      seatNumber: seat.seatNumber,
-      student: seat.assignedStudent?.name || 'Assigned Student',
-      email: seat.assignedStudent?.email || 'Email pending',
-      shifts: seat.activeShifts || [],
-      floor: `Floor ${seat.floor}`,
-    }))
+const deleteConfirmMessage = computed(() => {
+  return 'This action cannot be undone.'
 })
 
-const seatStatistics = computed(() => {
-  return [
-    {
-      label: 'Morning shift coverage',
-      value: `${getShiftSeatCount('morning')} seats`,
-    },
-    {
-      label: 'Afternoon shift coverage',
-      value: `${getShiftSeatCount('afternoon')} seats`,
-    },
-    {
-      label: 'Evening shift coverage',
-      value: `${getShiftSeatCount('evening')} seats`,
-    },
-    {
-      label: 'Maintenance queue',
-      value: `${maintenanceSeats.value.length} seats`,
-    },
-    {
-      label: 'Reserved seats',
-      value: `${reservedSeats.value.length} seats`,
-    },
-  ]
-})
-
-const occupancyBucket = computed(() => {
-  return Math.min(100, Math.max(0, Math.round(occupancyPercentage.value / 10) * 10))
-})
-
-const allocationInitialSeatId = computed(() => {
-  if (selectedSeat.value?.status !== 'available') return ''
-  if (selectedSeat.value?.assignedStudent) return ''
-
-  return selectedSeat.value.id
-})
-
-const transferInitialSeatId = computed(() => {
-  if (selectedSeat.value?.status !== 'occupied') return ''
-  if (!selectedSeat.value?.assignedStudent) return ''
-
-  return selectedSeat.value.id
-})
-
-function getShiftSeatCount(shift) {
-  return seatsByShift.value[shift]?.length || 0
+function openAddSeatModal() {
+  isAddSeatModalOpen.value = true
 }
 
-function formatLabel(value) {
-  if (!value) return 'Unassigned'
+function closeAddSeatModal() {
+  if (isLoading.value) return
 
-  return String(value)
-    .replace(/[-_]/g, ' ')
-    .replace(/\b\w/g, (character) => character.toUpperCase())
+  isAddSeatModalOpen.value = false
 }
 
-function formatShiftList(shifts = []) {
-  if (!Array.isArray(shifts) || shifts.length === 0) return 'No active shifts'
-
-  return shifts.map((shift) => formatLabel(shift)).join(', ')
+function openEditSeatModal(seat) {
+  selectedSeatForEdit.value = seat
+  isEditSeatModalOpen.value = true
 }
 
-function getCurrentShift(seat) {
-  const shift = seat?.activeShifts?.[0]
+function closeEditSeatModal() {
+  if (isLoading.value) return
 
-  return shift ? formatLabel(shift) : 'No active shift'
+  isEditSeatModalOpen.value = false
+  selectedSeatForEdit.value = null
 }
 
-function getStatusBadgeClass(status) {
-  if (status === 'available') return 'badge--success'
-  if (status === 'occupied') return 'seat-management-page__badge--occupied'
-  if (status === 'reserved') return 'seat-management-page__badge--reserved'
-  if (status === 'maintenance') return 'badge--warning'
-
-  return 'badge--active'
-}
-
-function getSeatStatusClass(status) {
-  return `seat-management-page__seat-map-card--${status || 'unknown'}`
-}
-
-async function handleSeatClick(seat) {
-  try {
-    await seatStore.selectSeat(seat.id)
-  } catch {
-    // Store-owned error state is rendered above the dashboard.
+function openDeleteSeatConfirm(seat) {
+  deleteTarget.value = {
+    type: 'single',
+    seat,
   }
 }
 
-function focusSeatMap() {
-  seatMapTitle.value?.focus()
-  seatMapTitle.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+function openBulkDeleteConfirm() {
+  deleteTarget.value = {
+    type: 'bulk',
+    seatIds: [...selectedSeatIds.value],
+  }
 }
 
-async function openAllocationDialog() {
-  if (students.value.length === 0) {
-    try {
-      await studentStore.fetchStudents()
-    } catch {
-      // Student store owns its error state. Allocation can still open empty.
-    }
+function closeDeleteConfirm() {
+  if (isLoading.value) return
+
+  deleteTarget.value = null
+}
+
+function toggleSeatSelection(seatId) {
+  if (selectedSeatIds.value.includes(seatId)) {
+    selectedSeatIds.value = selectedSeatIds.value.filter((id) => id !== seatId)
+    return
   }
 
-  isAllocationDialogOpen.value = true
+  selectedSeatIds.value = [...selectedSeatIds.value, seatId]
 }
 
-function closeAllocationDialog() {
-  isAllocationDialogOpen.value = false
+function toggleAllVisibleSeats() {
+  const visibleSeatIds = filteredSeats.value.map((seat) => seat.id)
+
+  if (areVisibleSeatsSelected.value) {
+    selectedSeatIds.value = selectedSeatIds.value.filter((seatId) => {
+      return !visibleSeatIds.includes(seatId)
+    })
+    return
+  }
+
+  selectedSeatIds.value = [...new Set([...selectedSeatIds.value, ...visibleSeatIds])]
 }
 
-function openTransferDialog() {
-  isTransferDialogOpen.value = true
+function clearDeletedSelections(deletedSeatIds = []) {
+  selectedSeatIds.value = selectedSeatIds.value.filter((seatId) => {
+    return !deletedSeatIds.includes(seatId)
+  })
 }
 
-function closeTransferDialog() {
-  isTransferDialogOpen.value = false
+function handleBulkAction(action) {
+  if (selectedSeatIds.value.length === 0) return
+
+  if (action === 'delete') {
+    openBulkDeleteConfirm()
+    return
+  }
+
+  handleBulkStatusChange(action)
 }
 
 function showSuccessToast(message) {
@@ -611,59 +314,98 @@ function showSuccessToast(message) {
   }, 4000)
 }
 
-async function handleAllocationConfirm(allocationPayload) {
+async function handleCreateSeat(seatPayload) {
   try {
-    const response = await seatStore.allocateSeat(allocationPayload)
-    const allocatedSeat = response.data?.seat
-
-    closeAllocationDialog()
-    showSuccessToast(
-      `${allocatedSeat?.seatNumber || 'Seat'} allocated successfully.`,
-    )
+    await seatStore.createSeat(seatPayload)
+    closeAddSeatModal()
+    showSuccessToast(`${seatPayload.seatNumber} created successfully.`)
   } catch {
-    // Store-owned error state is rendered above the dashboard.
+    // Store-owned error state is rendered above the page.
   }
 }
 
-async function handleTransferConfirm(transferPayload) {
-  try {
-    const response = await seatStore.transferSeat(transferPayload)
-    const sourceSeat = response.data?.sourceSeat
-    const targetSeat = response.data?.targetSeat
-    const transferredStudent = response.data?.student
-    const studentName = transferredStudent?.name || 'Student'
-    const sourceSeatNumber = sourceSeat?.seatNumber || 'old seat'
-    const targetSeatNumber = targetSeat?.seatNumber || 'new seat'
+async function handleUpdateSeat(seatPayload) {
+  if (!selectedSeatForEdit.value) return
 
-    closeTransferDialog()
-    showSuccessToast(
-      `${studentName} transferred from ${sourceSeatNumber} to ${targetSeatNumber}.`,
-    )
+  try {
+    await seatStore.updateSeat(selectedSeatForEdit.value.id, seatPayload)
+    closeEditSeatModal()
+    showSuccessToast(`${seatPayload.seatNumber} updated successfully.`)
   } catch {
-    // Store-owned error state is rendered above the dashboard.
+    // Store-owned error state is rendered above the page.
   }
 }
 
-async function loadSeatDashboard() {
+async function handleSeatStatusChange(seat, status) {
+  if (seat.physicalStatus === status) {
+    showSuccessToast(`${seat.seatNumber} is already ${formatLabel(status)}.`)
+    return
+  }
+
+  try {
+    await seatStore.updateSeatStatus(seat.id, { status })
+    showSuccessToast(`${seat.seatNumber} marked ${formatLabel(status)}.`)
+  } catch {
+    // Store-owned error state is rendered above the page.
+  }
+}
+
+async function handleBulkStatusChange(status) {
+  try {
+    await seatStore.bulkUpdateSeatStatus(selectedSeatIds.value, { status })
+    showSuccessToast(
+      `${selectedSeatIds.value.length} seats marked ${formatLabel(status)}.`,
+    )
+  } catch {
+    // Store-owned error state is rendered above the page.
+  }
+}
+
+async function handleDeleteConfirm() {
+  if (!deleteTarget.value) return
+
+  try {
+    if (deleteTarget.value.type === 'bulk') {
+      const seatIds = [...deleteTarget.value.seatIds]
+
+      await seatStore.bulkDeleteSeats(seatIds)
+      clearDeletedSelections(seatIds)
+      showSuccessToast(`${seatIds.length} seats deleted successfully.`)
+    } else {
+      const seat = deleteTarget.value.seat
+
+      await seatStore.deleteSeat(seat.id)
+      clearDeletedSelections([seat.id])
+      showSuccessToast(`${seat.seatNumber} deleted successfully.`)
+    }
+
+    closeDeleteConfirm()
+  } catch {
+    // Store-owned error state is rendered above the page.
+  }
+}
+
+function handleViewSeatMap() {
+  router.push({ name: 'adminSeatMap' })
+}
+
+function formatLabel(value) {
+  if (!value) return 'Unassigned'
+
+  return String(value)
+    .replace(/[-_]/g, ' ')
+    .replace(/\b\w/g, (character) => character.toUpperCase())
+}
+
+async function loadSeats() {
   try {
     await seatStore.fetchSeats()
   } catch {
-    // Store-owned error state is rendered above the dashboard.
+    // Store-owned error state is rendered above the page.
   }
 }
 
-async function loadStudentsForAllocation() {
-  try {
-    await studentStore.fetchStudents()
-  } catch {
-    // The allocation dialog can still render and show an empty student list.
-  }
-}
-
-onMounted(() => {
-  loadSeatDashboard()
-  loadStudentsForAllocation()
-})
+onMounted(loadSeats)
 
 onBeforeUnmount(() => {
   window.clearTimeout(successToastTimer)
@@ -699,14 +441,11 @@ onBeforeUnmount(() => {
   color: var(--color-text-muted);
 }
 
-.seat-management-page__refresh-button {
-  flex-shrink: 0;
-}
-
-.seat-management-page__summary {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: var(--space-4);
+.seat-management-page__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  justify-content: flex-end;
 }
 
 .seat-management-page__loading {
@@ -718,362 +457,43 @@ onBeforeUnmount(() => {
   background: var(--color-surface-elevated);
 }
 
-.seat-management-page__grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(240px, 320px);
-  gap: var(--space-5);
-  align-items: start;
-}
-
-.seat-management-page__map-section {
-  display: grid;
-  gap: var(--space-4);
-}
-
-.seat-management-page__section-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-5);
-}
-
-.seat-management-page__section-header h2:focus {
-  outline: 3px solid var(--color-focus-ring);
-  outline-offset: 4px;
-}
-
-.seat-management-page__legend {
-  justify-content: flex-end;
-}
-
-.seat-management-page__map-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(260px, 360px);
-  gap: var(--space-5);
-  align-items: start;
-}
-
-.seat-management-page__seat-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: var(--space-3);
-}
-
-.seat-management-page__empty-map {
-  display: grid;
-  align-content: center;
-  gap: var(--space-3);
-  min-height: 220px;
-  padding: var(--space-5);
-}
-
-.seat-management-page__seat-map-card {
-  display: grid;
-  gap: var(--space-2);
-  min-height: 148px;
-  padding: var(--space-4);
-  border: 1px solid var(--color-border);
-  border-left-width: 4px;
-  border-radius: var(--radius-md);
-  background: var(--color-surface-elevated);
-  color: var(--color-text-primary);
-  text-align: left;
-  box-shadow: var(--shadow-sm);
-  cursor: pointer;
-  transition:
-    border-color var(--transition-fast),
-    box-shadow var(--transition-fast),
-    transform var(--transition-fast);
-}
-
-.seat-management-page__seat-map-card:hover {
-  transform: translateY(-2px);
-  border-color: var(--color-primary);
-  box-shadow: var(--shadow-md);
-}
-
-.seat-management-page__seat-map-card:focus-visible {
-  outline: 3px solid var(--color-focus-ring);
-  outline-offset: 2px;
-}
-
-.seat-management-page__seat-map-card--selected {
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px var(--color-primary-light), var(--shadow-md);
-}
-
-.seat-management-page__seat-map-card--available {
-  border-left-color: var(--color-success);
-}
-
-.seat-management-page__seat-map-card--occupied {
-  border-left-color: var(--color-primary);
-}
-
-.seat-management-page__seat-map-card--reserved {
-  border-left-color: var(--color-info);
-}
-
-.seat-management-page__seat-map-card--maintenance {
-  border-left-color: var(--color-warning);
-}
-
-.seat-management-page__seat-map-topline {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-2);
-}
-
-.seat-management-page__seat-map-meta {
-  color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
-  line-height: var(--line-height-normal);
-}
-
-.seat-management-page__seat-map-action {
-  align-self: end;
-  color: var(--color-primary);
-  font-size: var(--font-size-caption);
-  font-weight: var(--font-weight-semibold);
-}
-
-.seat-management-page__seat-panel {
-  position: sticky;
-  top: var(--space-5);
-}
-
-.seat-management-page__seat-panel-body,
-.seat-management-page__seat-panel-empty {
-  display: grid;
-  gap: var(--space-4);
-}
-
-.seat-management-page__detail-row {
-  display: grid;
-  gap: var(--space-1);
-  padding-bottom: var(--space-3);
-  border-bottom: 1px solid var(--color-divider);
-}
-
-.seat-management-page__detail-row:last-child {
-  padding-bottom: 0;
-  border-bottom: 0;
-}
-
-.seat-management-page__badge--occupied {
-  background: var(--color-primary-light);
-  color: var(--color-primary);
-}
-
-.seat-management-page__badge--reserved {
-  background: var(--color-info-light);
-  color: var(--color-info);
-}
-
-.seat-management-page__secondary-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(260px, 0.6fr);
-  gap: var(--space-5);
-  align-items: start;
+.seat-management-page__table-card {
+  overflow: visible;
 }
 
 .seat-management-page__card-header {
   align-items: flex-start;
 }
 
-.seat-management-page__overview-body {
-  display: grid;
-  gap: var(--space-5);
-}
-
-.seat-management-page__meter {
-  display: grid;
-  gap: var(--space-2);
-}
-
-.seat-management-page__meter-track {
-  overflow: hidden;
-  height: 12px;
-  border-radius: var(--radius-full);
-  background: var(--color-surface-muted);
-}
-
-.seat-management-page__meter-fill {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: var(--color-primary);
-}
-
-.seat-management-page__meter-fill--0 {
-  width: 0;
-}
-
-.seat-management-page__meter-fill--10 {
-  width: 10%;
-}
-
-.seat-management-page__meter-fill--20 {
-  width: 20%;
-}
-
-.seat-management-page__meter-fill--30 {
-  width: 30%;
-}
-
-.seat-management-page__meter-fill--40 {
-  width: 40%;
-}
-
-.seat-management-page__meter-fill--50 {
-  width: 50%;
-}
-
-.seat-management-page__meter-fill--60 {
-  width: 60%;
-}
-
-.seat-management-page__meter-fill--70 {
-  width: 70%;
-}
-
-.seat-management-page__meter-fill--80 {
-  width: 80%;
-}
-
-.seat-management-page__meter-fill--90 {
-  width: 90%;
-}
-
-.seat-management-page__meter-fill--100 {
-  width: 100%;
-}
-
-.seat-management-page__meter-labels {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
-}
-
-.seat-management-page__meter-labels strong {
-  color: var(--color-text-primary);
-}
-
-.seat-management-page__quick-actions {
-  position: sticky;
-  top: var(--space-5);
-}
-
-.seat-management-page__action-list {
-  display: grid;
-  gap: var(--space-3);
-}
-
-.seat-management-page__action-list .btn {
-  justify-content: center;
-  width: 100%;
-}
-
-.seat-management-page__seat-cell {
-  display: grid;
-  gap: var(--space-1);
-  min-width: 150px;
-}
-
-.seat-management-page__shift-list {
+.seat-management-page__select-all {
   white-space: nowrap;
 }
 
-.seat-management-page__stats-list {
+.seat-management-page__empty-illustration {
   display: grid;
-  gap: var(--space-3);
+  width: 56px;
+  height: 56px;
+  place-items: center;
+  border-radius: var(--radius-full);
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  font-weight: var(--font-weight-bold);
 }
 
-.seat-management-page__stat-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-4);
-  padding-bottom: var(--space-3);
-  border-bottom: 1px solid var(--color-border);
-}
-
-.seat-management-page__stat-row:last-child {
-  padding-bottom: 0;
-  border-bottom: 0;
-}
-
-@media (max-width: 1200px) {
-  .seat-management-page__summary {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .seat-management-page__grid,
-  .seat-management-page__map-layout,
-  .seat-management-page__secondary-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .seat-management-page__quick-actions,
-  .seat-management-page__seat-panel {
-    position: static;
-  }
-}
-
-@media (max-width: 768px) {
-  .seat-management-page__header,
-  .seat-management-page__section-header {
+@media (max-width: 760px) {
+  .seat-management-page__header {
     align-items: stretch;
     flex-direction: column;
   }
 
-  .seat-management-page__refresh-button {
-    align-self: flex-start;
-  }
-
-  .seat-management-page__summary {
-    grid-template-columns: 1fr;
-  }
-
-  .seat-management-page__meter-labels {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .seat-management-page__legend {
+  .seat-management-page__actions {
     justify-content: flex-start;
-  }
-}
-
-@media (max-width: 480px) {
-  .seat-management-page__seat-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .seat-management-page__stat-row {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: var(--space-1);
-  }
-
-  .seat-management-page__shift-list {
-    white-space: normal;
   }
 }
 </style>
 
 <!--
-src/pages/admin: Seat management dashboard for library owners and admins.
-
-Responsibilities:
-- Fetch seat records through the centralized seat store.
-- Render mock-service seat availability metrics.
-- Present allocation, transfer, placeholder shift, and seat map actions.
-
-Milestone 3:
-- Replace mock seat service calls with FastAPI endpoints through seatService.
+src/pages/admin: Physical seat CRUD page for library owners.
+Allocation, transfer, student assignment, shift management, and seat-map workflows
+live in their own modules.
 -->
