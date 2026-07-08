@@ -36,6 +36,16 @@
   >
     Payment History
   </button>
+
+  <button
+  class="btn"
+  :class="activeView === 'reminders' ? 'btn--primary' : 'btn--secondary'"
+  type="button"
+  :aria-pressed="activeView === 'reminders'"
+  @click="setActiveView('reminders')"
+>
+  Fee Reminders
+</button>
 </nav>
 
     <section class="payments-page__summary" aria-label="Payment summary">
@@ -79,16 +89,17 @@
     </section>
 
     <PaymentFilters
-      :search="paymentFilters.search"
-      :month="paymentFilters.month"
-      :status="paymentFilters.status"
-      :months="availableMonths"
-      :has-active-filters="hasActivePaymentFilters"
-      @update:search="updateFilter('search', $event)"
-      @update:month="updateFilter('month', $event)"
-      @update:status="updateFilter('status', $event)"
-      @clear="clearFilters"
-    />
+  :search="paymentFilters.search"
+  :month="paymentFilters.month"
+  :status="paymentFilters.status"
+  :months="availableMonths"
+  :has-active-filters="hasActivePaymentFilters"
+  :hide-status="activeView === 'reminders'"
+  @update:search="updateFilter('search', $event)"
+  @update:month="updateFilter('month', $event)"
+  @update:status="updateFilter('status', $event)"
+  @clear="clearFilters"
+/>
 
     <div v-if="errorMessage" class="alert alert--danger" role="alert">
       <div>
@@ -106,7 +117,7 @@
     </div>
 
     <div
-      v-if="isLoading && payments.length === 0"
+      v-if="isLoading && activePayments.length === 0"
       class="payments-page__loading"
     >
       <LoadingSpinner label="Loading payments" />
@@ -114,7 +125,7 @@
 
     <template v-else-if="!errorMessage">
       <EmptyState
-        v-if="payments.length === 0"
+        v-if="activePayments.length === 0"
         title="No payments found"
         :description="emptyStateDescription"
       >
@@ -170,20 +181,30 @@
           </template>
 
           <template #actions="{ row }">
-            <button
-              class="btn btn--secondary btn--sm"
-              type="button"
-              @click="openStatusDialog(row)"
-            >
-              Update Status
-            </button>
-          </template>
+  <button
+    v-if="activeView !== 'reminders'"
+    class="btn btn--secondary btn--sm"
+    type="button"
+    @click="openStatusDialog(row)"
+  >
+    Update Status
+  </button>
+
+  <button
+    v-else
+    class="btn btn--primary btn--sm"
+    type="button"
+    @click="openReminderDialog(row)"
+  >
+    Send Reminder
+  </button>
+</template>
         </DataTable>
 
         <footer class="payments-page__pagination">
           <p class="text-small text-muted m-0">
             Showing {{ paginationStart }}–{{ paginationEnd }} of
-            {{ payments.length }} payments
+            {{ activePayments.length }} payments
           </p>
 
           <Pagination
@@ -201,6 +222,15 @@
       @close="closeStatusDialog"
       @confirm="handleStatusUpdate"
     />
+    <WhatsAppReminderDialog
+  :is-open="isReminderDialogOpen"
+  :payment="selectedPayment"
+  :reminder="selectedReminder"
+  :is-submitting="isGeneratingReminder"
+  @close="closeReminderDialog"
+  @generate="handleGenerateReminder"
+  @open-whatsapp="handleOpenWhatsApp"
+/>
   </section>
 </template>
 
@@ -214,6 +244,7 @@ import LoadingSpinner from '../../components/common/LoadingSpinner.vue'
 import Pagination from '../../components/common/Pagination.vue'
 import PaymentFilters from '../../components/payment/PaymentFilters.vue'
 import PaymentStatusDialog from '../../components/payment/PaymentStatusDialog.vue'
+import WhatsAppReminderDialog from '../../components/payment/WhatsAppReminderDialog.vue'
 import { usePaymentStore } from '../../stores/paymentStore'
 
 const PAGE_SIZE = 5
@@ -230,7 +261,9 @@ const paymentStore = usePaymentStore()
 
 const {
   payments,
+  pendingPayments,
   selectedPayment,
+  selectedReminder,
   paymentFilters,
   isLoading,
   errorMessage,
@@ -246,55 +279,88 @@ const currentPage = ref(1)
 const activeView = ref('monthly')
 const isStatusDialogOpen = ref(false)
 const isUpdatingStatus = ref(false)
+const isReminderDialogOpen = ref(false)
+const isGeneratingReminder = ref(false)
+
+const activePayments = computed(() => {
+  return activeView.value === 'reminders'
+    ? pendingPayments.value
+    : payments.value
+})
 
 const totalPages = computed(() => {
-  return Math.max(1, Math.ceil(payments.value.length / PAGE_SIZE))
+  return Math.max(1, Math.ceil(activePayments.value.length / PAGE_SIZE))
 })
 
 const paginatedPayments = computed(() => {
   const startIndex = (currentPage.value - 1) * PAGE_SIZE
 
-  return payments.value.slice(startIndex, startIndex + PAGE_SIZE)
+  return activePayments.value.slice(startIndex, startIndex + PAGE_SIZE)
 })
 
 const paginationStart = computed(() => {
-  if (payments.value.length === 0) return 0
+  if (activePayments.value.length === 0) return 0
 
   return (currentPage.value - 1) * PAGE_SIZE + 1
 })
 
 const paginationEnd = computed(() => {
-  return Math.min(currentPage.value * PAGE_SIZE, payments.value.length)
+  return Math.min(
+    currentPage.value * PAGE_SIZE,
+    activePayments.value.length,
+  )
 })
 
 const emptyStateDescription = computed(() => {
   if (hasActivePaymentFilters.value) {
-    return activeView.value === 'history'
-      ? 'No payment history records match the current search and filters.'
-      : 'No payment records match the current search and filters.'
+    if (activeView.value === 'history') {
+      return 'No payment history records match the current search and filters.'
+    }
+
+    if (activeView.value === 'reminders') {
+      return 'No pending payments match the current search and filters.'
+    }
+
+    return 'No payment records match the current search and filters.'
   }
 
-  return activeView.value === 'history'
-    ? 'Previous payment transactions will appear here when they are available.'
-    : 'Monthly payment records will appear here when they are available.'
+  if (activeView.value === 'history') {
+    return 'Previous payment transactions will appear here when they are available.'
+  }
+
+  if (activeView.value === 'reminders') {
+    return 'Students with pending fees will appear here when reminders are needed.'
+  }
+
+  return 'Monthly payment records will appear here when they are available.'
 })
 
 const pageTitle = computed(() => {
-  return activeView.value === 'history'
-    ? 'Payment History'
-    : 'Monthly Payments'
+  if (activeView.value === 'history') return 'Payment History'
+  if (activeView.value === 'reminders') return 'Fee Reminders'
+
+  return 'Monthly Payments'
 })
 
 const pageDescription = computed(() => {
-  return activeView.value === 'history'
-    ? 'Review previous payment transactions using student, month, and status filters.'
-    : 'Track monthly fees, review payment status, and manage student payments.'
+  if (activeView.value === 'history') {
+    return 'Review previous payment transactions using student, month, and status filters.'
+  }
+
+  if (activeView.value === 'reminders') {
+    return 'Review pending student fees, preview reminder messages, and open WhatsApp reminders.'
+  }
+
+  return 'Track monthly fees, review payment status, and manage student payments.'
 })
 
 const tableAriaLabel = computed(() => {
-  return activeView.value === 'history'
-    ? 'Payment history records'
-    : 'Monthly payment records'
+  if (activeView.value === 'history') return 'Payment history records'
+  if (activeView.value === 'reminders') {
+    return 'Pending payment reminder records'
+  }
+
+  return 'Monthly payment records'
 })
 
 watch(
@@ -316,11 +382,16 @@ watch(totalPages, (pageCount) => {
 })
 
 function setActiveView(view) {
-  if (!['monthly', 'history'].includes(view)) return
+  if (!['monthly', 'history', 'reminders'].includes(view)) return
   if (activeView.value === view) return
 
   activeView.value = view
   currentPage.value = 1
+
+  if (view === 'reminders' && paymentFilters.value.status) {
+    paymentStore.updatePaymentFilter('status', '')
+    return
+  }
 
   loadPayments()
 }
@@ -343,6 +414,43 @@ function closeStatusDialog() {
 
   isStatusDialogOpen.value = false
   paymentStore.clearSelectedPayment()
+}
+
+function openReminderDialog(payment) {
+  paymentStore.selectedPayment = payment
+  paymentStore.clearSelectedReminder()
+  isReminderDialogOpen.value = true
+}
+
+function closeReminderDialog() {
+  if (isGeneratingReminder.value) return
+
+  isReminderDialogOpen.value = false
+  paymentStore.clearSelectedPayment()
+  paymentStore.clearSelectedReminder()
+}
+
+async function handleGenerateReminder(reminderPayload) {
+  if (!selectedPayment.value) return
+
+  isGeneratingReminder.value = true
+
+  try {
+    await paymentStore.generateWhatsAppReminder(
+      selectedPayment.value.id,
+      reminderPayload,
+    )
+  } catch {
+    // Store-owned error state is rendered by the page.
+  } finally {
+    isGeneratingReminder.value = false
+  }
+}
+
+function handleOpenWhatsApp(whatsappUrl) {
+  if (!whatsappUrl) return
+
+  window.open(whatsappUrl, '_blank', 'noopener,noreferrer')
 }
 
 async function handleStatusUpdate(statusPayload) {
@@ -369,6 +477,14 @@ async function loadPayments() {
   try {
     if (activeView.value === 'history') {
       await paymentStore.fetchPaymentHistory()
+      return
+    }
+
+    if (activeView.value === 'reminders') {
+      await paymentStore.fetchPendingPayments({
+        search: paymentFilters.value.search,
+        month: paymentFilters.value.month,
+      })
       return
     }
 

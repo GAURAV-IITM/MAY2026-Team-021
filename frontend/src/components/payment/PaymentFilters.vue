@@ -30,7 +30,10 @@
       </select>
     </div>
 
-    <div class="payment-filters__field">
+    <div
+  v-if="!hideStatus"
+  class="payment-filters__field"
+>
       <label class="form-label" for="payment-status-filter">Status</label>
 
       <select
@@ -80,6 +83,10 @@ defineProps({
     type: Boolean,
     default: false,
   },
+  hideStatus: {
+  type: Boolean,
+  default: false,
+},
 })
 
 defineEmits([
