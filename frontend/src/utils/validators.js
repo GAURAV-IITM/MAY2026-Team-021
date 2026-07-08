@@ -1,7 +1,11 @@
-// src/utils: Framework-agnostic validation helpers shared across the frontend.
+// src/utils: Framework-agnostic validation helpers shared across frontend forms.
 
 export function isRequired(value) {
-  return value !== null && value !== undefined && String(value).trim() !== ''
+  if (typeof value === 'string') {
+    return value.trim() !== ''
+  }
+
+  return value !== null && value !== undefined && value !== ''
 }
 
 export function isValidEmail(value) {
@@ -16,6 +20,28 @@ export function hasMinLength(value, minLength) {
   if (!isRequired(value)) return false
 
   return String(value).length >= minLength
+}
+
+export function isValidIndianPhone(value) {
+  if (!isRequired(value)) return false
+
+  return /^[6-9]\d{9}$/.test(String(value).trim())
+}
+
+export function isNonNegativeNumber(value) {
+  if (!isRequired(value)) return false
+
+  const number = Number(value)
+
+  return Number.isFinite(number) && number >= 0
+}
+
+export function isPositiveNumber(value) {
+  if (!isRequired(value)) return false
+
+  const number = Number(value)
+
+  return Number.isFinite(number) && number > 0
 }
 
 export function validateLoginForm({ email, password }) {

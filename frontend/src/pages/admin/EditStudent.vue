@@ -1,9 +1,188 @@
 <template>
-  <section>Admin EditStudent</section>
+  <section class="edit-student-page" aria-labelledby="edit-student-title">
+    <header class="edit-student-page__header">
+      <div>
+        <RouterLink
+          class="edit-student-page__back-link"
+          :to="{ name: 'adminStudents' }"
+        >
+          ← Back to Students
+        </RouterLink>
+
+        <h1 id="edit-student-title" class="text-h2 edit-student-page__title">
+          Edit Student
+        </h1>
+
+        <p class="edit-student-page__description">
+          Update student information and library details.
+        </p>
+      </div>
+    </header>
+
+    <div v-if="errorMessage" class="alert alert--danger" role="alert">
+      <div>
+        <strong>Unable to process student information.</strong>
+        <p class="m-0">{{ errorMessage }}</p>
+      </div>
+
+      <button
+        class="btn btn--secondary btn--sm"
+        type="button"
+        @click="studentStore.clearError"
+      >
+        Dismiss
+      </button>
+    </div>
+
+    <div
+      v-if="successMessage"
+      class="alert alert--success"
+      role="status"
+      aria-live="polite"
+    >
+      <p class="m-0">{{ successMessage }}</p>
+    </div>
+
+    <div
+      v-if="isLoading && !selectedStudent"
+      class="edit-student-page__loading"
+    >
+      <LoadingSpinner label="Loading student information" />
+    </div>
+
+    <StudentForm
+      v-else-if="selectedStudent"
+      :initial-values="selectedStudent"
+      :is-submitting="isLoading"
+      submit-label="Save Changes"
+      submitting-label="Saving Changes"
+      @submit="handleUpdateStudent"
+      @cancel="handleCancel"
+    />
+  </section>
 </template>
 
+<script setup>
+import { storeToRefs } from 'pinia'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
+
+import LoadingSpinner from '../../components/common/LoadingSpinner.vue'
+import StudentForm from '../../components/student/StudentForm.vue'
+import { useStudentStore } from '../../stores/studentStore'
+
+const SUCCESS_REDIRECT_DELAY_MS = 700
+
+const route = useRoute()
+const router = useRouter()
+const studentStore = useStudentStore()
+
+const { selectedStudent, isLoading, errorMessage } = storeToRefs(studentStore)
+
+const successMessage = ref('')
+let redirectTimer = null
+
+const studentId = computed(() => String(route.params.studentId))
+
+async function loadStudent() {
+  try {
+    await studentStore.fetchStudentById(studentId.value)
+  } catch {
+    // Store-owned error state is rendered above the page content.
+  }
+}
+
+async function handleUpdateStudent(studentData) {
+  successMessage.value = ''
+
+  try {
+    const response = await studentStore.updateStudent(
+      studentId.value,
+      studentData,
+    )
+
+    const updatedStudent = response.data
+
+    successMessage.value =
+      `${updatedStudent.firstName} ${updatedStudent.lastName} was updated successfully.`
+
+    redirectTimer = window.setTimeout(() => {
+      router.push({
+        name: 'adminStudentDetails',
+        params: { studentId: updatedStudent.id },
+      })
+    }, SUCCESS_REDIRECT_DELAY_MS)
+  } catch {
+    // Store-owned error state is rendered above the form.
+  }
+}
+
+function handleCancel() {
+  router.push({
+    name: 'adminStudentDetails',
+    params: { studentId: studentId.value },
+  })
+}
+
+onMounted(loadStudent)
+
+onBeforeUnmount(() => {
+  if (redirectTimer) {
+    window.clearTimeout(redirectTimer)
+  }
+
+  studentStore.clearSelectedStudent()
+  studentStore.clearError()
+})
+</script>
+
+<style scoped>
+.edit-student-page {
+  display: grid;
+  gap: var(--space-6);
+}
+
+.edit-student-page__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-5);
+}
+
+.edit-student-page__back-link {
+  display: inline-flex;
+  margin-bottom: var(--space-3);
+  font-weight: var(--font-weight-medium);
+}
+
+.edit-student-page__title,
+.edit-student-page__description {
+  margin: 0;
+}
+
+.edit-student-page__description {
+  margin-top: var(--space-2);
+  color: var(--color-text-muted);
+}
+
+.edit-student-page__loading {
+  display: grid;
+  min-height: 280px;
+  place-items: center;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-elevated);
+}
+</style>
+
 <!--
-src/pages/admin: Library owner and admin route pages.
-TODO:
-- Add student edit form after CRUD requirements are approved.
+src/pages/admin: Student editing page.
+
+Responsibilities:
+- Load the existing student using the route parameter.
+- Populate the reusable StudentForm with existing student data.
+- Validate changes through the shared form component.
+- Update the student through the centralized student store.
+- Display service errors and successful update feedback.
+- Redirect to the updated Student Details page.
 -->

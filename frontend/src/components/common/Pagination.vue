@@ -1,15 +1,35 @@
 <template>
   <nav class="pagination" aria-label="Pagination">
-    <button class="btn btn--secondary btn--sm" type="button" aria-label="Previous page">
+    <button
+      class="btn btn--secondary btn--sm"
+      type="button"
+      aria-label="Previous page"
+      :disabled="currentPage <= 1"
+      @click="$emit('update:currentPage', currentPage - 1)"
+    >
       Previous
     </button>
-    <span class="pagination__status">Page {{ currentPage }} of {{ totalPages }}</span>
-    <button class="btn btn--secondary btn--sm" type="button" aria-label="Next page">Next</button>
+
+    <span class="pagination__status">
+      Page {{ currentPage }} of {{ normalizedTotalPages }}
+    </span>
+
+    <button
+      class="btn btn--secondary btn--sm"
+      type="button"
+      aria-label="Next page"
+      :disabled="currentPage >= normalizedTotalPages"
+      @click="$emit('update:currentPage', currentPage + 1)"
+    >
+      Next
+    </button>
   </nav>
 </template>
 
 <script setup>
-defineProps({
+import { computed } from 'vue'
+
+const props = defineProps({
   currentPage: {
     type: Number,
     default: 1,
@@ -19,10 +39,12 @@ defineProps({
     default: 1,
   },
 })
+
+defineEmits(['update:currentPage'])
+
+const normalizedTotalPages = computed(() => Math.max(1, props.totalPages))
 </script>
 
 <!--
-src/components: Reusable interface building blocks shared across layouts and pages.
-TODO:
-- Wire controls to real pagination state when data-backed pages are implemented.
+src/components: Reusable pagination control shared across data-backed pages.
 -->

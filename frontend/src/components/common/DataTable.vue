@@ -1,13 +1,5 @@
 <template>
-  <section class="data-table" aria-label="Data table">
-    <header class="data-table__toolbar">
-      <SearchBar placeholder="Search table" />
-      <div class="data-table__actions">
-        <button class="btn btn--secondary btn--sm" type="button">Filter</button>
-        <button class="btn btn--secondary btn--sm" type="button">Sort</button>
-      </div>
-    </header>
-
+  <section class="data-table" :aria-label="ariaLabel">
     <div class="data-table__scroll">
       <table class="table">
         <thead>
@@ -15,52 +7,77 @@
             <th v-for="column in columns" :key="column.key" scope="col">
               {{ column.label }}
             </th>
+
+            <th v-if="$slots.actions" scope="col">
+              Actions
+            </th>
           </tr>
         </thead>
+
         <tbody>
           <tr v-if="rows.length === 0">
-            <td :colspan="columns.length">
-              <div class="table-empty">No rows to display</div>
+            <td :colspan="columnCount">
+              <div class="table-empty">
+                <slot name="empty">No rows to display</slot>
+              </div>
             </td>
           </tr>
-          <tr v-for="(row, rowIndex) in rows" :key="rowIndex">
+
+          <tr v-for="row in rows" :key="getRowKey(row)">
             <td v-for="column in columns" :key="column.key">
-              {{ row[column.key] }}
+              <slot
+                :name="`cell-${column.key}`"
+                :row="row"
+                :value="row[column.key]"
+              >
+                {{ row[column.key] }}
+              </slot>
+            </td>
+
+            <td v-if="$slots.actions">
+              <slot name="actions" :row="row" />
             </td>
           </tr>
         </tbody>
       </table>
     </div>
-
-    <footer class="data-table__footer">
-      <span class="text-small text-muted">Pagination placeholder</span>
-      <Pagination />
-    </footer>
   </section>
 </template>
 
 <script setup>
-import Pagination from './Pagination.vue'
-import SearchBar from './SearchBar.vue'
+import { computed, useSlots } from 'vue'
 
-defineProps({
+const props = defineProps({
   columns: {
     type: Array,
-    default: () => [
-      { key: 'name', label: 'Name' },
-      { key: 'status', label: 'Status' },
-    ],
+    default: () => [],
   },
   rows: {
     type: Array,
     default: () => [],
   },
+  rowKey: {
+    type: String,
+    default: 'id',
+  },
+  ariaLabel: {
+    type: String,
+    default: 'Data table',
+  },
 })
+
+const slots = useSlots()
+
+const columnCount = computed(() => {
+  return props.columns.length + (slots.actions ? 1 : 0)
+})
+
+function getRowKey(row) {
+  return row[props.rowKey]
+}
 </script>
 
 <!--
-src/components: Reusable interface building blocks shared across layouts and pages.
-TODO:
-- Add typed column definitions, sorting, empty states, and row actions.
-- Connect filtering, sorting, search, and pagination when feature pages are implemented.
+src/components: Reusable data table shared across data-backed pages.
+Feature pages own search, filtering, sorting, pagination, and row actions.
 -->
