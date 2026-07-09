@@ -272,6 +272,7 @@
 <script setup>
 import { computed, reactive, watch } from 'vue'
 
+import { doShiftTimingsOverlap } from '../../utils/timeIntervals'
 import {
   isPositiveNumber,
   isRequired,
@@ -509,39 +510,6 @@ function selectAllShifts() {
 
 function clearSelectedShifts() {
   form.activeShifts = []
-}
-
-function parseTimeToMinutes(time) {
-  const [hour = '0', minute = '0'] = String(time || '00:00').split(':')
-
-  return Number(hour) * 60 + Number(minute)
-}
-
-function normalizeTimeInterval(startTime, endTime) {
-  const start = parseTimeToMinutes(startTime)
-  let end = parseTimeToMinutes(endTime)
-
-  if (end <= start) {
-    end += 24 * 60
-  }
-
-  return { start, end }
-}
-
-function doShiftTimingsOverlap(firstShift, secondShift) {
-  const firstInterval = normalizeTimeInterval(
-    firstShift.startTime,
-    firstShift.endTime,
-  )
-  const secondInterval = normalizeTimeInterval(
-    secondShift.startTime,
-    secondShift.endTime,
-  )
-
-  return (
-    firstInterval.start < secondInterval.end &&
-    secondInterval.start < firstInterval.end
-  )
 }
 
 function getOverlappingSelectedShifts(shiftIds = []) {

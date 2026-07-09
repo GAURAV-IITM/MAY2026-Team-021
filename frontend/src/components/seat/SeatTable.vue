@@ -46,24 +46,11 @@
             <button class="btn btn--danger btn--sm" type="button" @click="$emit('delete', row)">
               Delete
             </button>
-            <details class="seat-table__more">
-              <summary class="btn btn--secondary btn--sm">More</summary>
-              <div class="seat-table__menu">
-                <span class="text-caption text-muted">Change Status</span>
-                <button type="button" @click="$emit('change-status', row, 'available')">
-                  Mark Available
-                </button>
-                <button type="button" @click="$emit('change-status', row, 'maintenance')">
-                  Mark Maintenance
-                </button>
-                <button type="button" @click="$emit('change-status', row, 'blocked')">
-                  Mark Blocked
-                </button>
-                <button type="button" @click="$emit('view-map', row)">
-                  View in Seat Map
-                </button>
-              </div>
-            </details>
+            <SeatActionMenu
+              :seat="row"
+              @change-status="(seat, status) => $emit('change-status', seat, status)"
+              @view-map="$emit('view-map', $event)"
+            />
           </div>
         </template>
 
@@ -92,6 +79,7 @@
 
 <script setup>
 import DataTable from '../common/DataTable.vue'
+import SeatActionMenu from './SeatActionMenu.vue'
 import SeatRow from './SeatRow.vue'
 
 defineProps({
@@ -161,49 +149,6 @@ function formatLabel(value) {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
-}
-
-.seat-table__more {
-  position: relative;
-}
-
-.seat-table__more summary {
-  list-style: none;
-}
-
-.seat-table__more summary::-webkit-details-marker {
-  display: none;
-}
-
-.seat-table__menu {
-  position: absolute;
-  right: 0;
-  top: calc(100% + var(--space-2));
-  z-index: 10;
-  display: grid;
-  gap: var(--space-1);
-  min-width: 190px;
-  padding: var(--space-2);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-surface-elevated);
-  box-shadow: var(--shadow-lg);
-}
-
-.seat-table__menu button {
-  min-height: 34px;
-  padding: 0 var(--space-2);
-  border: 0;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--color-text-primary);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.seat-table__menu button:hover {
-  background: var(--color-hover);
 }
 
 .seat-table__badge--blocked {

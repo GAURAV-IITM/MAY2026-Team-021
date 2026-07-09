@@ -77,6 +77,7 @@
 <script setup>
 import { computed, reactive, watch } from 'vue'
 
+import { isSameDayTimeRange } from '../../utils/timeIntervals'
 import Modal from '../common/Modal.vue'
 
 const props = defineProps({
@@ -162,8 +163,8 @@ function validateForm() {
 
   if (!form.endTime) {
     errors.endTime = 'End time is required.'
-  } else if (form.startTime && form.startTime === form.endTime) {
-    errors.endTime = 'End time must be different from start time.'
+  } else if (form.startTime && !isSameDayTimeRange(form.startTime, form.endTime)) {
+    errors.endTime = 'End time must be later than start time.'
   }
 
   return Object.keys(errors).length === 0

@@ -55,7 +55,7 @@ export const shiftMock = [
     id: SEAT_SHIFTS.EVENING,
     name: 'Evening',
     startTime: '18:00',
-    endTime: '00:00',
+    endTime: '23:59',
     isEnabled: true,
     isDefault: true,
     createdAt: '2026-01-01T06:00:00.000Z',

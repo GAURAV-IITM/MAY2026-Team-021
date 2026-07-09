@@ -4,6 +4,12 @@ import {
   seatMock,
   shiftMock,
 } from '../mocks/seatMock'
+import {
+  doShiftTimingsOverlap,
+  getTimeInterval,
+  intervalsOverlap,
+  isSameDayTimeRange,
+} from '../utils/timeIntervals'
 
 // src/services: Mock seat service used during Milestone 2.
 // TODO: Replace these mock operations with Axios-backed FastAPI requests in Milestone 3.
@@ -101,40 +107,12 @@ function buildInitialSeatAllocations(sourceSeats = []) {
   })
 }
 
-function parseTimeToMinutes(time) {
-  const [hour = '0', minute = '0'] = String(time || '00:00').split(':')
-
-  return Number(hour) * 60 + Number(minute)
-}
-
-function normalizeTimeInterval(startTime, endTime) {
-  const start = parseTimeToMinutes(startTime)
-  let end = parseTimeToMinutes(endTime)
-
-  if (end <= start) {
-    end += 24 * 60
-  }
-
-  return { start, end }
-}
-
 function getShiftInterval(shift) {
-  return normalizeTimeInterval(shift.startTime, shift.endTime)
+  return getTimeInterval(shift.startTime, shift.endTime)
 }
 
 function getAllocationInterval(allocation) {
-  return normalizeTimeInterval(allocation.startTime, allocation.endTime)
-}
-
-function intervalsOverlap(firstInterval, secondInterval) {
-  return (
-    firstInterval.start < secondInterval.end &&
-    secondInterval.start < firstInterval.end
-  )
-}
-
-function doShiftTimingsOverlap(firstShift, secondShift) {
-  return intervalsOverlap(getShiftInterval(firstShift), getShiftInterval(secondShift))
+  return getTimeInterval(allocation.startTime, allocation.endTime)
 }
 
 function findOverlappingSelectedShifts(shiftIds = []) {
@@ -847,9 +825,9 @@ function normalizeShiftPayload(payload = {}, existingShift = {}) {
     )
   }
 
-  if (startTime === endTime) {
+  if (!isSameDayTimeRange(startTime, endTime)) {
     throw createSeatError(
-      'Shift start and end time must be different.',
+      'Shift end time must be later than start time. Overnight shifts are not supported.',
       422,
       'SHIFT_TIMING_INVALID',
     )

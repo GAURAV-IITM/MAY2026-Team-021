@@ -1,14 +1,18 @@
 <template>
-  <details class="bulk-action-menu">
-    <summary
+  <div ref="menuRef" class="bulk-action-menu">
+    <button
       class="btn btn--secondary bulk-action-menu__trigger"
       :class="{ 'is-disabled': disabled }"
-      @click="handleTriggerClick"
+      type="button"
+      aria-haspopup="menu"
+      :aria-expanded="String(isMenuOpen)"
+      :disabled="disabled"
+      @click="toggleMenu"
     >
       Bulk Actions
-    </summary>
+    </button>
 
-    <div class="bulk-action-menu__content" role="menu">
+    <div v-if="isMenuOpen" class="bulk-action-menu__content" role="menu">
       <p class="text-caption text-muted m-0">
         {{ selectedCount }} selected
       </p>
@@ -17,7 +21,7 @@
         type="button"
         role="menuitem"
         :disabled="disabled"
-        @click="$emit('action', 'delete')"
+        @click="handleAction('delete')"
       >
         Delete Selected Seats
       </button>
@@ -26,7 +30,7 @@
         type="button"
         role="menuitem"
         :disabled="disabled"
-        @click="$emit('action', 'available')"
+        @click="handleAction('available')"
       >
         Mark Available
       </button>
@@ -35,7 +39,7 @@
         type="button"
         role="menuitem"
         :disabled="disabled"
-        @click="$emit('action', 'maintenance')"
+        @click="handleAction('maintenance')"
       >
         Mark Maintenance
       </button>
@@ -44,15 +48,19 @@
         type="button"
         role="menuitem"
         :disabled="disabled"
-        @click="$emit('action', 'blocked')"
+        @click="handleAction('blocked')"
       >
         Mark Blocked
       </button>
     </div>
-  </details>
+  </div>
 </template>
 
 <script setup>
+import { watch } from 'vue'
+
+import { useDismissibleMenu } from '../../composables/useDismissibleMenu'
+
 const props = defineProps({
   selectedCount: {
     type: Number,
@@ -64,13 +72,21 @@ const props = defineProps({
   },
 })
 
-defineEmits(['action'])
+const emit = defineEmits(['action'])
+const { menuRef, isMenuOpen, closeMenu, toggleMenu } = useDismissibleMenu()
 
-function handleTriggerClick(event) {
-  if (!props.disabled) return
+watch(
+  () => props.disabled,
+  (isDisabled) => {
+    if (isDisabled) {
+      closeMenu()
+    }
+  },
+)
 
-  event.preventDefault()
-  event.currentTarget.parentElement?.removeAttribute('open')
+function handleAction(action) {
+  closeMenu()
+  emit('action', action)
 }
 </script>
 
@@ -81,17 +97,11 @@ function handleTriggerClick(event) {
 }
 
 .bulk-action-menu__trigger {
-  list-style: none;
   cursor: pointer;
-}
-
-.bulk-action-menu__trigger::-webkit-details-marker {
-  display: none;
 }
 
 .bulk-action-menu__trigger.is-disabled {
   opacity: 0.6;
-  pointer-events: none;
 }
 
 .bulk-action-menu__content {

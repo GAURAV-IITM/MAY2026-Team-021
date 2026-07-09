@@ -40,30 +40,20 @@
       <button class="btn btn--danger btn--sm" type="button" @click="$emit('delete', seat)">
         Delete
       </button>
-      <details class="seat-row__more">
-        <summary class="btn btn--secondary btn--sm">More</summary>
-        <div class="seat-row__menu">
-          <span class="text-caption text-muted">Change Status</span>
-          <button type="button" @click="$emit('change-status', seat, 'available')">
-            Mark Available
-          </button>
-          <button type="button" @click="$emit('change-status', seat, 'maintenance')">
-            Mark Maintenance
-          </button>
-          <button type="button" @click="$emit('change-status', seat, 'blocked')">
-            Mark Blocked
-          </button>
-          <button type="button" @click="$emit('view-map', seat)">
-            View in Seat Map
-          </button>
-        </div>
-      </details>
+      <SeatActionMenu
+        :seat="seat"
+        placement="top"
+        @change-status="(rowSeat, status) => $emit('change-status', rowSeat, status)"
+        @view-map="$emit('view-map', $event)"
+      />
     </footer>
   </article>
 </template>
 
 <script setup>
 import { computed } from 'vue'
+
+import SeatActionMenu from './SeatActionMenu.vue'
 
 const props = defineProps({
   seat: {
@@ -148,49 +138,6 @@ function formatLabel(value) {
 .seat-row__details dd {
   margin: 0;
   color: var(--color-text-primary);
-}
-
-.seat-row__more {
-  position: relative;
-}
-
-.seat-row__more summary {
-  list-style: none;
-}
-
-.seat-row__more summary::-webkit-details-marker {
-  display: none;
-}
-
-.seat-row__menu {
-  position: absolute;
-  right: 0;
-  bottom: calc(100% + var(--space-2));
-  z-index: 10;
-  display: grid;
-  gap: var(--space-1);
-  min-width: 180px;
-  padding: var(--space-2);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-surface-elevated);
-  box-shadow: var(--shadow-lg);
-}
-
-.seat-row__menu button {
-  min-height: 34px;
-  padding: 0 var(--space-2);
-  border: 0;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--color-text-primary);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.seat-row__menu button:hover {
-  background: var(--color-hover);
 }
 
 .seat-row__badge--blocked {
