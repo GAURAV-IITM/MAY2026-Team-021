@@ -155,6 +155,16 @@ export const usePaymentStore = defineStore('payment', () => {
     return response
   }
 
+  async function generateMonthlyPayments(month, studentRecords) {
+    const response = await runPaymentServiceRequest(() =>
+      paymentService.generateMonthlyPayments(month, studentRecords),
+    )
+
+    syncPaymentList(response)
+
+    return response
+  }
+
   async function updatePaymentStatus(paymentId, statusPayload) {
     const response = await runPaymentServiceRequest(() =>
       paymentService.updatePaymentStatus(paymentId, statusPayload),
@@ -187,7 +197,7 @@ export const usePaymentStore = defineStore('payment', () => {
     return response
   }
 
-  async function fetchReceipts(filters = paymentFilters.value) {
+  async function fetchReceipts(filters = {}) {
     const response = await runPaymentServiceRequest(() =>
       paymentService.getReceipts({ ...filters }),
     )
@@ -290,6 +300,7 @@ export const usePaymentStore = defineStore('payment', () => {
     fetchPayments,
     fetchPaymentById,
     createPayment,
+    generateMonthlyPayments,
     updatePaymentStatus,
     fetchPaymentHistory,
     fetchPendingPayments,

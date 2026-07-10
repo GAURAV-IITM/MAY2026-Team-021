@@ -2,9 +2,7 @@
   <section class="payments-page" aria-labelledby="payments-title">
     <header class="payments-page__header">
       <div>
-        <p class="text-label text-muted payments-page__eyebrow">
-          Payment Management
-        </p>
+        <p class="text-label text-muted payments-page__eyebrow">Payment Management</p>
 
         <h1 id="payments-title" class="text-h2 payments-page__title">
           {{ pageTitle }}
@@ -17,89 +15,151 @@
     </header>
 
     <nav class="payments-page__views" aria-label="Payment views">
-  <button
-    class="btn"
-    :class="activeView === 'monthly' ? 'btn--primary' : 'btn--secondary'"
-    type="button"
-    :aria-pressed="activeView === 'monthly'"
-    @click="setActiveView('monthly')"
-  >
-    Monthly Payments
-  </button>
+      <button
+        class="btn"
+        :class="activeView === 'monthly' ? 'btn--primary' : 'btn--secondary'"
+        type="button"
+        :aria-pressed="activeView === 'monthly'"
+        @click="setActiveView('monthly')"
+      >
+        Monthly Payments
+      </button>
 
-  <button
-    class="btn"
-    :class="activeView === 'history' ? 'btn--primary' : 'btn--secondary'"
-    type="button"
-    :aria-pressed="activeView === 'history'"
-    @click="setActiveView('history')"
-  >
-    Payment History
-  </button>
+      <button
+        class="btn"
+        :class="activeView === 'history' ? 'btn--primary' : 'btn--secondary'"
+        type="button"
+        :aria-pressed="activeView === 'history'"
+        @click="setActiveView('history')"
+      >
+        Payment History
+      </button>
 
-  <button
-  class="btn"
-  :class="activeView === 'reminders' ? 'btn--primary' : 'btn--secondary'"
-  type="button"
-  :aria-pressed="activeView === 'reminders'"
-  @click="setActiveView('reminders')"
->
-  Fee Reminders
-</button>
-</nav>
+      <button
+        class="btn"
+        :class="activeView === 'reminders' ? 'btn--primary' : 'btn--secondary'"
+        type="button"
+        :aria-pressed="activeView === 'reminders'"
+        @click="setActiveView('reminders')"
+      >
+        Fee Reminders
+      </button>
+    </nav>
 
-    <section class="payments-page__summary" aria-label="Payment summary">
+    <div v-if="activeView === 'monthly'" class="payments-page__generation">
+      <button
+        class="btn btn--primary"
+        type="button"
+        :disabled="!paymentFilters.month || isGeneratingMonthlyPayments || isLoading"
+        @click="handleGenerateMonthlyPayments"
+      >
+        {{ isGeneratingMonthlyPayments ? 'Generating Payments...' : 'Generate Monthly Payments' }}
+      </button>
+
+      <p class="text-small text-muted m-0">
+        Generate unpaid payment records for active students for
+        {{ formatMonth(paymentFilters.month) }}.
+      </p>
+    </div>
+    <div
+      v-if="activeView === 'monthly' && generationResult"
+      class="alert alert--info"
+      role="status"
+    >
+      <div>
+        <strong>Monthly payment generation completed.</strong>
+
+        <p class="m-0">
+          {{ generationResult.createdCount }} created, {{ generationResult.skippedCount }} skipped
+          from {{ generationResult.activeStudentCount }} active students for
+          {{ formatMonth(generationResult.month) }}.
+        </p>
+      </div>
+    </div>
+
+    <section
+      class="payments-page__summary"
+      :aria-label="activeView === 'reminders' ? 'Fee reminder summary' : 'Payment summary'"
+    >
       <article class="stat-card stat-card--dashboard">
         <div class="stat-card__header">
-          <span class="text-label text-muted">Total Payments</span>
-          <span class="stat-card__icon" aria-hidden="true">T</span>
+          <span class="text-label text-muted">
+            {{ activeView === 'reminders' ? 'Pending Payments' : 'Total Payments' }}
+          </span>
+
+          <span class="stat-card__icon" aria-hidden="true">
+            {{ activeView === 'reminders' ? 'P' : 'T' }}
+          </span>
         </div>
 
-        <strong class="stat-card__value">{{ paymentCount }}</strong>
+        <strong class="stat-card__value">
+          {{ activeView === 'reminders' ? reminderPaymentCount : paymentCount }}
+        </strong>
       </article>
 
       <article class="stat-card stat-card--dashboard">
         <div class="stat-card__header">
-          <span class="text-label text-muted">Paid</span>
-          <span class="stat-card__icon" aria-hidden="true">P</span>
+          <span class="text-label text-muted">
+            {{ activeView === 'reminders' ? 'Students Pending' : 'Paid' }}
+          </span>
+
+          <span class="stat-card__icon" aria-hidden="true">
+            {{ activeView === 'reminders' ? 'S' : 'P' }}
+          </span>
         </div>
 
-        <strong class="stat-card__value">{{ paidPaymentCount }}</strong>
+        <strong class="stat-card__value">
+          {{ activeView === 'reminders' ? reminderStudentCount : paidPaymentCount }}
+        </strong>
       </article>
 
       <article class="stat-card stat-card--dashboard">
         <div class="stat-card__header">
-          <span class="text-label text-muted">Unpaid</span>
-          <span class="stat-card__icon" aria-hidden="true">U</span>
+          <span class="text-label text-muted">
+            {{ activeView === 'reminders' ? 'Months Pending' : 'Unpaid' }}
+          </span>
+
+          <span class="stat-card__icon" aria-hidden="true">
+            {{ activeView === 'reminders' ? 'M' : 'U' }}
+          </span>
         </div>
 
-        <strong class="stat-card__value">{{ unpaidPaymentCount }}</strong>
+        <strong class="stat-card__value">
+          {{ activeView === 'reminders' ? reminderMonthCount : unpaidPaymentCount }}
+        </strong>
       </article>
 
       <article class="stat-card stat-card--dashboard">
         <div class="stat-card__header">
-          <span class="text-label text-muted">Collected</span>
+          <span class="text-label text-muted">
+            {{ activeView === 'reminders' ? 'Total Due' : 'Collected' }}
+          </span>
+
           <span class="stat-card__icon" aria-hidden="true">₹</span>
         </div>
 
         <strong class="stat-card__value">
-          {{ formatCurrency(totalCollectedAmount) }}
+          {{
+            formatCurrency(
+              activeView === 'reminders' ? reminderTotalDueAmount : totalCollectedAmount,
+            )
+          }}
         </strong>
       </article>
     </section>
 
     <PaymentFilters
-  :search="paymentFilters.search"
-  :month="paymentFilters.month"
-  :status="paymentFilters.status"
-  :months="availableMonths"
-  :has-active-filters="hasActivePaymentFilters"
-  :hide-status="activeView === 'reminders'"
-  @update:search="updateFilter('search', $event)"
-  @update:month="updateFilter('month', $event)"
-  @update:status="updateFilter('status', $event)"
-  @clear="clearFilters"
-/>
+      :search="paymentFilters.search"
+      :month="paymentFilters.month"
+      :status="paymentFilters.status"
+      :months="availableMonths"
+      :has-active-filters="hasActivePaymentFilters"
+      :hide-status="activeView === 'reminders' || activeView === 'history'"
+      @update:search="updateFilter('search', $event)"
+      @update:month="updateFilter('month', $event)"
+      @update:status="updateFilter('status', $event)"
+      @clear="clearFilters"
+    />
 
     <div v-if="errorMessage" class="alert alert--danger" role="alert">
       <div>
@@ -107,19 +167,10 @@
         <p class="m-0">{{ errorMessage }}</p>
       </div>
 
-      <button
-        class="btn btn--secondary btn--sm"
-        type="button"
-        @click="loadPayments"
-      >
-        Retry
-      </button>
+      <button class="btn btn--secondary btn--sm" type="button" @click="loadPayments">Retry</button>
     </div>
 
-    <div
-      v-if="isLoading && activePayments.length === 0"
-      class="payments-page__loading"
-    >
+    <div v-if="isLoading && activePayments.length === 0" class="payments-page__loading">
       <LoadingSpinner label="Loading payments" />
     </div>
 
@@ -148,11 +199,7 @@
       </EmptyState>
 
       <template v-else>
-        <DataTable
-          :columns="columns"
-          :rows="paginatedPayments"
-          :aria-label="tableAriaLabel"
-        >
+        <DataTable :columns="columns" :rows="paginatedPayments" :aria-label="tableAriaLabel">
           <template #cell-studentName="{ row }">
             <div class="payments-page__student">
               <strong>{{ row.studentName }}</strong>
@@ -180,25 +227,45 @@
             {{ formatLabel(value) }}
           </template>
 
-          <template #actions="{ row }">
-  <button
-    v-if="activeView !== 'reminders'"
-    class="btn btn--secondary btn--sm"
-    type="button"
-    @click="openStatusDialog(row)"
-  >
-    Update Status
-  </button>
+          <template #cell-transactionId="{ value }">
+            {{ value || '—' }}
+          </template>
 
-  <button
-    v-else
-    class="btn btn--primary btn--sm"
-    type="button"
-    @click="openReminderDialog(row)"
-  >
-    Send Reminder
-  </button>
-</template>
+          <template #cell-paidAt="{ value }">
+            {{ formatDateTime(value) }}
+          </template>
+
+          <template #actions="{ row }">
+            <div class="payments-page__actions">
+              <button
+                v-if="activeView === 'monthly'"
+                class="btn btn--secondary btn--sm"
+                type="button"
+                @click="openStatusDialog(row)"
+              >
+                Update Status
+              </button>
+
+              <button
+                v-if="activeView !== 'reminders' && row.status === 'paid'"
+                class="btn btn--secondary btn--sm"
+                type="button"
+                :disabled="isLoadingReceipt"
+                @click="openReceiptDialog(row)"
+              >
+                View Receipt
+              </button>
+
+              <button
+                v-if="activeView === 'reminders'"
+                class="btn btn--primary btn--sm"
+                type="button"
+                @click="openReminderDialog(row)"
+              >
+                Send Reminder
+              </button>
+            </div>
+          </template>
         </DataTable>
 
         <footer class="payments-page__pagination">
@@ -207,10 +274,7 @@
             {{ activePayments.length }} payments
           </p>
 
-          <Pagination
-            v-model:current-page="currentPage"
-            :total-pages="totalPages"
-          />
+          <Pagination v-model:current-page="currentPage" :total-pages="totalPages" />
         </footer>
       </template>
     </template>
@@ -222,15 +286,21 @@
       @close="closeStatusDialog"
       @confirm="handleStatusUpdate"
     />
+    <ReceiptPreviewDialog
+      :is-open="isReceiptDialogOpen"
+      :receipt="selectedReceipt"
+      @close="closeReceiptDialog"
+      @download="handleReceiptDownload"
+    />
     <WhatsAppReminderDialog
-  :is-open="isReminderDialogOpen"
-  :payment="selectedPayment"
-  :reminder="selectedReminder"
-  :is-submitting="isGeneratingReminder"
-  @close="closeReminderDialog"
-  @generate="handleGenerateReminder"
-  @open-whatsapp="handleOpenWhatsApp"
-/>
+      :is-open="isReminderDialogOpen"
+      :payment="selectedPayment"
+      :reminder="selectedReminder"
+      :is-submitting="isGeneratingReminder"
+      @close="closeReminderDialog"
+      @generate="handleGenerateReminder"
+      @open-whatsapp="handleOpenWhatsApp"
+    />
   </section>
 </template>
 
@@ -244,25 +314,50 @@ import LoadingSpinner from '../../components/common/LoadingSpinner.vue'
 import Pagination from '../../components/common/Pagination.vue'
 import PaymentFilters from '../../components/payment/PaymentFilters.vue'
 import PaymentStatusDialog from '../../components/payment/PaymentStatusDialog.vue'
+import ReceiptPreviewDialog from '../../components/payment/ReceiptPreviewDialog.vue'
 import WhatsAppReminderDialog from '../../components/payment/WhatsAppReminderDialog.vue'
 import { usePaymentStore } from '../../stores/paymentStore'
+import { useStudentStore } from '../../stores/studentStore'
 
 const PAGE_SIZE = 5
 
-const columns = Object.freeze([
-  { key: 'studentName', label: 'Student' },
-  { key: 'month', label: 'Month' },
-  { key: 'amount', label: 'Amount' },
-  { key: 'status', label: 'Status' },
-  { key: 'paymentMethod', label: 'Payment Method' },
-])
+function getCurrentMonth() {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+
+  return `${year}-${month}`
+}
+
+const columns = computed(() => {
+  if (activeView.value === 'history') {
+    return [
+      { key: 'studentName', label: 'Student' },
+      { key: 'month', label: 'Month' },
+      { key: 'amount', label: 'Amount' },
+      { key: 'paymentMethod', label: 'Payment Method' },
+      { key: 'transactionId', label: 'Transaction ID' },
+      { key: 'paidAt', label: 'Paid Date' },
+    ]
+  }
+
+  return [
+    { key: 'studentName', label: 'Student' },
+    { key: 'month', label: 'Month' },
+    { key: 'amount', label: 'Amount' },
+    { key: 'status', label: 'Status' },
+    { key: 'paymentMethod', label: 'Payment Method' },
+  ]
+})
 
 const paymentStore = usePaymentStore()
+const studentStore = useStudentStore()
 
 const {
   payments,
   pendingPayments,
   selectedPayment,
+  selectedReceipt,
   selectedReminder,
   paymentFilters,
   isLoading,
@@ -275,17 +370,42 @@ const {
   hasActivePaymentFilters,
 } = storeToRefs(paymentStore)
 
+const { students } = storeToRefs(studentStore)
+
 const currentPage = ref(1)
+const isGeneratingMonthlyPayments = ref(false)
+const generationResult = ref(null)
 const activeView = ref('monthly')
+
+paymentStore.updatePaymentFilter('month', getCurrentMonth())
+
 const isStatusDialogOpen = ref(false)
 const isUpdatingStatus = ref(false)
+const isReceiptDialogOpen = ref(false)
+const isLoadingReceipt = ref(false)
 const isReminderDialogOpen = ref(false)
 const isGeneratingReminder = ref(false)
 
 const activePayments = computed(() => {
-  return activeView.value === 'reminders'
-    ? pendingPayments.value
-    : payments.value
+  return activeView.value === 'reminders' ? pendingPayments.value : payments.value
+})
+
+const reminderPaymentCount = computed(() => {
+  return pendingPayments.value.length
+})
+
+const reminderTotalDueAmount = computed(() => {
+  return pendingPayments.value.reduce((total, payment) => {
+    return total + Number(payment.amount || 0)
+  }, 0)
+})
+
+const reminderStudentCount = computed(() => {
+  return new Set(pendingPayments.value.map((payment) => payment.studentId)).size
+})
+
+const reminderMonthCount = computed(() => {
+  return new Set(pendingPayments.value.map((payment) => payment.month)).size
 })
 
 const totalPages = computed(() => {
@@ -305,10 +425,7 @@ const paginationStart = computed(() => {
 })
 
 const paginationEnd = computed(() => {
-  return Math.min(
-    currentPage.value * PAGE_SIZE,
-    activePayments.value.length,
-  )
+  return Math.min(currentPage.value * PAGE_SIZE, activePayments.value.length)
 })
 
 const emptyStateDescription = computed(() => {
@@ -364,11 +481,7 @@ const tableAriaLabel = computed(() => {
 })
 
 watch(
-  () => [
-    paymentFilters.value.search,
-    paymentFilters.value.month,
-    paymentFilters.value.status,
-  ],
+  () => [paymentFilters.value.search, paymentFilters.value.month, paymentFilters.value.status],
   () => {
     currentPage.value = 1
     loadPayments()
@@ -388,12 +501,28 @@ function setActiveView(view) {
   activeView.value = view
   currentPage.value = 1
 
-  if (view === 'reminders' && paymentFilters.value.status) {
-    paymentStore.updatePaymentFilter('status', '')
+  if (view === 'monthly') {
+    paymentStore.setPaymentFilters({
+      month: getCurrentMonth(),
+      status: '',
+    })
     return
   }
 
-  loadPayments()
+  if (view === 'history') {
+    paymentStore.setPaymentFilters({
+      month: '',
+      status: '',
+    })
+    return
+  }
+
+  if (view === 'reminders') {
+    paymentStore.setPaymentFilters({
+      month: '',
+      status: '',
+    })
+  }
 }
 
 function updateFilter(filterName, value) {
@@ -402,6 +531,35 @@ function updateFilter(filterName, value) {
 
 function clearFilters() {
   paymentStore.resetPaymentFilters()
+}
+
+async function handleGenerateMonthlyPayments() {
+  const month = paymentFilters.value.month
+
+  if (!month || isGeneratingMonthlyPayments.value) return
+
+  isGeneratingMonthlyPayments.value = true
+  generationResult.value = null
+
+  try {
+    await studentStore.fetchStudents()
+
+    const response = await paymentStore.generateMonthlyPayments(month, students.value)
+
+    generationResult.value = {
+      month,
+      createdCount: response.meta?.createdCount || 0,
+      skippedCount: response.meta?.skippedCount || 0,
+      activeStudentCount: response.meta?.activeStudentCount || 0,
+    }
+
+    currentPage.value = 1
+    await paymentStore.fetchPayments()
+  } catch {
+    // Store-owned error state is rendered by the page.
+  } finally {
+    isGeneratingMonthlyPayments.value = false
+  }
 }
 
 function openStatusDialog(payment) {
@@ -414,6 +572,33 @@ function closeStatusDialog() {
 
   isStatusDialogOpen.value = false
   paymentStore.clearSelectedPayment()
+}
+
+async function openReceiptDialog(payment) {
+  if (!payment || payment.status !== 'paid' || isLoadingReceipt.value) return
+
+  paymentStore.clearSelectedReceipt()
+  isLoadingReceipt.value = true
+
+  try {
+    await paymentStore.generateReceipt(payment.id)
+    isReceiptDialogOpen.value = true
+  } catch {
+    // Store-owned error state is rendered by the page.
+  } finally {
+    isLoadingReceipt.value = false
+  }
+}
+
+function closeReceiptDialog() {
+  isReceiptDialogOpen.value = false
+  paymentStore.clearSelectedReceipt()
+}
+
+function handleReceiptDownload(receipt) {
+  if (!receipt) return
+
+  // Milestone 2 placeholder until backend receipt download is available.
 }
 
 function openReminderDialog(payment) {
@@ -436,10 +621,7 @@ async function handleGenerateReminder(reminderPayload) {
   isGeneratingReminder.value = true
 
   try {
-    await paymentStore.generateWhatsAppReminder(
-      selectedPayment.value.id,
-      reminderPayload,
-    )
+    await paymentStore.generateWhatsAppReminder(selectedPayment.value.id, reminderPayload)
   } catch {
     // Store-owned error state is rendered by the page.
   } finally {
@@ -459,10 +641,7 @@ async function handleStatusUpdate(statusPayload) {
   isUpdatingStatus.value = true
 
   try {
-    await paymentStore.updatePaymentStatus(
-      selectedPayment.value.id,
-      statusPayload,
-    )
+    await paymentStore.updatePaymentStatus(selectedPayment.value.id, statusPayload)
 
     isStatusDialogOpen.value = false
     paymentStore.clearSelectedPayment()
@@ -514,6 +693,19 @@ function formatMonth(month) {
   }).format(date)
 }
 
+function formatDateTime(value) {
+  if (!value) return '—'
+
+  const date = new Date(value)
+
+  if (Number.isNaN(date.getTime())) return value
+
+  return new Intl.DateTimeFormat('en-IN', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(date)
+}
+
 function formatLabel(value) {
   if (!value) return '—'
 
@@ -543,6 +735,13 @@ onMounted(loadPayments)
 }
 
 .payments-page__views {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.payments-page__generation {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
@@ -583,6 +782,13 @@ onMounted(loadPayments)
   display: grid;
   gap: var(--space-1);
   min-width: 180px;
+}
+
+.payments-page__actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
 }
 
 .payments-page__pagination {

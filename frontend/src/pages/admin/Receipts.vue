@@ -408,7 +408,7 @@ function formatPaymentMethod(method) {
 </style>
 
 <!--
-src/pages/student: Student-facing payment receipt history and preview page.
+src/pages/admin: Library owner receipt history and receipt preview page.
 TODO:
 - Replace client-side receipt filtering and download placeholders with backend receipt APIs in Milestone 3.
 -->

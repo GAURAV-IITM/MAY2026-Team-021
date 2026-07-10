@@ -305,6 +305,104 @@ export async function createPayment(paymentPayload = {}) {
   })
 }
 
+export async function generateMonthlyPayments(month, studentRecords = []) {
+  await delay()
+
+  const normalizedMonth = String(month || '').trim()
+
+  if (!/^\d{4}-\d{2}$/.test(normalizedMonth)) {
+    throw createPaymentError(
+      'A valid payment month is required.',
+      422,
+      'PAYMENT_MONTH_INVALID',
+    )
+  }
+
+  if (!Array.isArray(studentRecords)) {
+    throw createPaymentError(
+      'Student records are required to generate monthly payments.',
+      422,
+      'PAYMENT_STUDENTS_INVALID',
+    )
+  }
+
+  const activeStudents = studentRecords.filter(
+    (student) => student.status === 'active',
+  )
+
+  const createdPayments = []
+  const skippedStudents = []
+
+  for (const student of activeStudents) {
+    const duplicatePayment = payments.some((payment) => {
+      return (
+        payment.studentId === student.id &&
+        payment.month === normalizedMonth
+      )
+    })
+
+    if (duplicatePayment) {
+      skippedStudents.push({
+        studentId: student.id,
+        studentName: `${student.firstName} ${student.lastName}`.trim(),
+        reason: 'payment-already-exists',
+      })
+
+      continue
+    }
+
+    const amount = Number(student.feeAmount)
+
+    if (!Number.isFinite(amount) || amount <= 0) {
+      skippedStudents.push({
+        studentId: student.id,
+        studentName: `${student.firstName} ${student.lastName}`.trim(),
+        reason: 'invalid-fee-amount',
+      })
+
+      continue
+    }
+
+    const now = new Date().toISOString()
+
+    const payment = {
+      id: `payment-${Date.now()}-${student.id}`,
+      studentId: student.id,
+      studentName: `${student.firstName} ${student.lastName}`.trim(),
+      studentEmail: String(student.email || '').trim(),
+      studentPhone: String(student.phone || '').trim(),
+      seatNumber: String(student.seatNumber || '').trim(),
+      month: normalizedMonth,
+      amount,
+      status: PAYMENT_STATUSES.UNPAID,
+      paidAt: null,
+      paymentMethod: null,
+      transactionId: null,
+      receiptNumber: null,
+      createdAt: now,
+      updatedAt: now,
+    }
+
+    payments.push(payment)
+    createdPayments.push(payment)
+  }
+
+  return createSuccessResponse(
+    'Monthly payment generation completed.',
+    {
+      createdPayments,
+      skippedStudents,
+      payments: sortPaymentsNewestFirst(payments),
+    },
+    {
+      month: normalizedMonth,
+      activeStudentCount: activeStudents.length,
+      createdCount: createdPayments.length,
+      skippedCount: skippedStudents.length,
+    },
+  )
+}
+
 export async function updatePaymentStatus(paymentId, statusPayload = {}) {
   await delay()
 
@@ -394,7 +492,12 @@ export async function getReceipts(filters = {}) {
 export async function getPaymentHistory(filters = {}) {
   await delay()
 
-  const history = sortPaymentsNewestFirst(filterPayments(payments, filters))
+  const history = sortPaymentsNewestFirst(
+    filterPayments(payments, {
+      ...filters,
+      status: PAYMENT_STATUSES.PAID,
+    }),
+  )
 
   return createSuccessResponse(
     'Payment history fetched successfully.',
@@ -403,7 +506,10 @@ export async function getPaymentHistory(filters = {}) {
     },
     {
       count: history.length,
-      filters: normalizeFilters(filters),
+      filters: normalizeFilters({
+        ...filters,
+        status: PAYMENT_STATUSES.PAID,
+      }),
     },
   )
 }

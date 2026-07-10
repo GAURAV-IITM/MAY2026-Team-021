@@ -56,6 +56,7 @@ const menuItems = [
   { label: 'Students', routeName: 'adminStudents' },
   { label: 'Seat Management', routeName: 'adminSeatManagement' },
   { label: 'Payments', routeName: 'adminPayments' },
+  { label: 'Receipts', routeName: 'adminReceipts' },
   { label: 'Reports', routeName: 'adminReports' },
   { label: 'Announcements', routeName: 'adminAnnouncements' },
   { label: 'Settings', routeName: 'adminSettings' },
