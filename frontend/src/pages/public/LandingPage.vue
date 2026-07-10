@@ -117,183 +117,261 @@
 
 <style scoped>
 *{
-box-sizing:border-box;
+  box-sizing:border-box;
 }
 
 .landing-page{
-font-family:Inter,Arial,sans-serif;
-background:#f8fafc;
-color:#1e293b;
+  font-family:Inter,Arial,sans-serif;
+  background:#f8fafc;
+  color:#1e293b;
 }
 
+/* ---------------- Navbar ---------------- */
+
 .navbar{
-display:flex;
-justify-content:space-between;
-align-items:center;
-padding:18px 8%;
-background:white;
-box-shadow:0 2px 10px rgba(0,0,0,.05);
-position:sticky;
-top:0;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:18px 8%;
+  background:rgba(255,255,255,.92);
+  backdrop-filter:blur(10px);
+  border-bottom:1px solid #e5e7eb;
+  position:sticky;
+  top:0;
+  z-index:100;
 }
 
 .logo{
-display:flex;
-align-items:center;
-gap:10px;
-font-size:1.3rem;
-font-weight:700;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  font-size:1.3rem;
+  font-weight:700;
 }
 
 .logo-icon{
-font-size:28px;
+  font-size:28px;
 }
+
+/* ---------------- Buttons ---------------- */
 
 .login-btn,
 .primary-btn,
 .secondary-btn{
-text-decoration:none;
-padding:12px 24px;
-border-radius:8px;
-font-weight:600;
-transition:.2s;
+  text-decoration:none;
+  padding:12px 24px;
+  border-radius:12px;
+  font-weight:600;
+  transition:all .25s ease;
 }
 
 .login-btn,
 .primary-btn{
-background:#2563eb;
-color:white;
+  background:#2563eb;
+  color:white;
+  box-shadow:0 4px 12px rgba(37,99,235,.20);
 }
 
 .login-btn:hover,
 .primary-btn:hover{
-background:#1d4ed8;
+  background:#1d4ed8;
+  transform:translateY(-2px);
+  box-shadow:0 10px 22px rgba(37,99,235,.25);
 }
 
 .secondary-btn{
-border:2px solid #2563eb;
-color:#2563eb;
+  border:1px solid #2563eb;
+  color:#2563eb;
+  background:white;
 }
 
+.secondary-btn:hover{
+  background:#eff6ff;
+  transform:translateY(-2px);
+}
+
+/* ---------------- Hero ---------------- */
+
 .hero{
-padding:80px 8%;
-display:grid;
-grid-template-columns:1fr 1fr;
-gap:60px;
-align-items:center;
+  padding:90px 8%;
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:70px;
+  align-items:center;
 }
 
 .hero h1{
-font-size:3rem;
-margin-bottom:20px;
+  font-size:3rem;
+  line-height:1.15;
+  margin-bottom:20px;
 }
 
 .hero p{
-line-height:1.8;
-color:#475569;
-margin-bottom:30px;
+  line-height:1.8;
+  color:#64748b;
+  margin-bottom:32px;
 }
 
 .hero-buttons{
-display:flex;
-gap:15px;
+  display:flex;
+  gap:16px;
 }
 
+/* ---------------- Right Cards ---------------- */
+
 .hero-card{
-display:grid;
-gap:20px;
+  display:grid;
+  gap:22px;
 }
 
 .card{
-background:white;
-padding:24px;
-border-radius:12px;
-box-shadow:0 6px 20px rgba(0,0,0,.08);
+  background:white;
+  padding:26px;
+  border-radius:18px;
+  border:1px solid #e5e7eb;
+  box-shadow:
+      0 8px 24px rgba(15,23,42,.05),
+      0 2px 6px rgba(15,23,42,.03);
+  transition:all .25s ease;
 }
 
+.card:hover{
+  transform:translateY(-5px);
+  box-shadow:
+      0 18px 40px rgba(15,23,42,.10),
+      0 6px 16px rgba(15,23,42,.06);
+}
+
+.card h3{
+  margin-bottom:10px;
+}
+
+.card p{
+  margin:0;
+  color:#64748b;
+}
+
+/* ---------------- Features ---------------- */
+
 .features{
-padding:70px 8%;
-background:white;
+  padding:80px 8%;
+  background:white;
 }
 
 .features h2,
 .steps h2{
-text-align:center;
-margin-bottom:45px;
+  text-align:center;
+  margin-bottom:50px;
+  font-size:2rem;
 }
 
 .feature-grid{
-display:grid;
-grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
-gap:25px;
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  gap:26px;
 }
 
 .feature{
-background:#f8fafc;
-padding:25px;
-border-radius:12px;
-text-align:center;
+  background:white;
+  padding:28px;
+  border-radius:18px;
+  border:1px solid #e5e7eb;
+  text-align:center;
+  transition:all .25s ease;
+  box-shadow:
+      0 6px 18px rgba(15,23,42,.04),
+      0 2px 6px rgba(15,23,42,.02);
+}
+
+.feature:hover{
+  transform:translateY(-6px);
+  box-shadow:
+      0 18px 36px rgba(15,23,42,.08),
+      0 6px 14px rgba(15,23,42,.05);
 }
 
 .icon{
-font-size:38px;
-margin-bottom:15px;
+  font-size:40px;
+  margin-bottom:16px;
 }
 
+.feature h3{
+  margin-bottom:10px;
+}
+
+.feature p{
+  color:#64748b;
+}
+
+/* ---------------- Steps ---------------- */
+
 .steps{
-padding:70px 8%;
+  padding:80px 8%;
 }
 
 .step-container{
-display:flex;
-justify-content:center;
-align-items:center;
-gap:18px;
-flex-wrap:wrap;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  gap:18px;
+  flex-wrap:wrap;
 }
 
 .step{
-background:white;
-padding:16px 24px;
-border-radius:10px;
-box-shadow:0 4px 12px rgba(0,0,0,.08);
+  background:white;
+  padding:18px 26px;
+  border-radius:14px;
+  border:1px solid #e5e7eb;
+  box-shadow:
+      0 6px 18px rgba(15,23,42,.05),
+      0 2px 6px rgba(15,23,42,.03);
+  transition:all .25s ease;
+}
+
+.step:hover{
+  transform:translateY(-4px);
 }
 
 .arrow{
-font-size:22px;
+  font-size:22px;
+  color:#64748b;
 }
 
+/* ---------------- Footer ---------------- */
+
 footer{
-margin-top:50px;
-padding:30px;
-text-align:center;
-background:#0f172a;
-color:white;
+  margin-top:40px;
+  padding:34px;
+  text-align:center;
+  background:#0f172a;
+  color:white;
 }
+
+/* ---------------- Responsive ---------------- */
 
 @media(max-width:900px){
 
 .hero{
-grid-template-columns:1fr;
-text-align:center;
+  grid-template-columns:1fr;
+  text-align:center;
 }
 
 .hero-buttons{
-justify-content:center;
+  justify-content:center;
 }
 
 .navbar{
-padding:18px 20px;
+  padding:18px 20px;
 }
 
 .hero,
 .features,
 .steps{
-padding:60px 20px;
+  padding:60px 20px;
 }
 
 .hero h1{
-font-size:2.2rem;
+  font-size:2.3rem;
 }
 
 }
