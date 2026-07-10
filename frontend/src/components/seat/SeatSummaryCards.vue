@@ -1,10 +1,6 @@
 <template>
   <section class="seat-summary-cards" aria-label="Seat summary">
-    <article
-      v-for="card in cards"
-      :key="card.key"
-      class="seat-summary-cards__card"
-    >
+    <article v-for="card in cards" :key="card.key" class="seat-summary-cards__card">
       <span class="text-label text-muted">{{ card.label }}</span>
       <strong>{{ card.value }}</strong>
     </article>
@@ -54,7 +50,8 @@ const cards = computed(() => [
 
 .seat-summary-cards__card strong {
   color: var(--color-text-primary);
-  font-size: var(--font-size-2xl);
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-bold);
   line-height: var(--line-height-tight);
 }
 
