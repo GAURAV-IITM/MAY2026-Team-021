@@ -161,6 +161,7 @@ export const usePaymentStore = defineStore('payment', () => {
     )
 
     syncPaymentList(response)
+    syncPaymentMonths(response)
 
     return response
   }
