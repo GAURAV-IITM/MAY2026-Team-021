@@ -3,7 +3,6 @@ import StudentLayout from '../layouts/StudentLayout.vue'
 import StudentDashboard from '../pages/student/Dashboard.vue'
 import StudentMySeat from '../pages/student/MySeat.vue'
 import StudentFees from '../pages/student/Fees.vue'
-import StudentReceipts from '../pages/student/Receipts.vue'
 import StudentRequests from '../pages/student/Requests.vue'
 import StudentAnnouncements from '../pages/student/Announcements.vue'
 import StudentProfile from '../pages/student/Profile.vue'
@@ -38,12 +37,6 @@ const studentRoutes = [
         name: 'studentFees',
         component: StudentFees,
         meta: { title: 'Fees', role: 'student', requiresAuth: true },
-      },
-      {
-        path: 'receipts',
-        name: 'studentReceipts',
-        component: StudentReceipts,
-        meta: { title: 'Receipts', role: 'student', requiresAuth: true },
       },
       {
         path: 'requests',

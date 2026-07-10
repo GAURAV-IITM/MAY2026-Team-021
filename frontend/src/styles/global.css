@@ -675,11 +675,17 @@ textarea[readonly] {
   display: grid;
   place-items: center;
   padding: var(--space-4);
+  overflow-y: auto;
   background: var(--color-overlay);
 }
 
 .modal {
+  display: flex;
+  flex-direction: column;
   width: min(100%, 560px);
+  max-height: calc(100dvh - (4 * var(--space-4)));
+  margin: auto;
+  overflow: hidden;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-xl);
   background: var(--color-surface-elevated);
@@ -692,10 +698,17 @@ textarea[readonly] {
   padding: var(--space-5);
 }
 
+.modal__body {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
 .modal__header,
 .modal__footer {
   display: flex;
   align-items: center;
+  flex-shrink: 0;
   gap: var(--space-3);
 }
 

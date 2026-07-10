@@ -9,6 +9,7 @@ import AdminSeatManagement from '../pages/admin/SeatManagement.vue'
 import AdminSeatAvailability from '../pages/admin/SeatAvailability.vue'
 import AdminShiftManagement from '../pages/admin/ShiftManagement.vue'
 import AdminPayments from '../pages/admin/Payments.vue'
+import AdminReceipts from '../pages/admin/Receipts.vue'
 import AdminReports from '../pages/admin/Reports.vue'
 import AdminAnnouncements from '../pages/admin/Announcements.vue'
 import AdminSettings from '../pages/admin/Settings.vue'
@@ -79,6 +80,12 @@ const adminRoutes = [
         name: 'adminPayments',
         component: AdminPayments,
         meta: { title: 'Payments', role: 'admin', requiresAuth: true },
+      },
+      {
+        path: 'receipts',
+        name: 'adminReceipts',
+        component: AdminReceipts,
+        meta: { title: 'Receipts', role: 'admin', requiresAuth: true },
       },
       {
         path: 'reports',
