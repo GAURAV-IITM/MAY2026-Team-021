@@ -44,6 +44,8 @@
     </div>
 
     <StudentForm
+      :seats="seats"
+      :shifts="enabledShifts"
       :is-submitting="isLoading"
       submit-label="Add Student"
       submitting-label="Adding Student"
@@ -55,18 +57,21 @@
 
 <script setup>
 import { storeToRefs } from 'pinia'
-import { onBeforeUnmount, ref } from 'vue'
+import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 
 import StudentForm from '../../components/student/StudentForm.vue'
+import { useSeatStore } from '../../stores/seatStore'
 import { useStudentStore } from '../../stores/studentStore'
 
 const SUCCESS_REDIRECT_DELAY_MS = 700
 
 const router = useRouter()
 const studentStore = useStudentStore()
+const seatStore = useSeatStore()
 
 const { isLoading, errorMessage } = storeToRefs(studentStore)
+const { seats, enabledShifts } = storeToRefs(seatStore)
 
 const successMessage = ref('')
 let redirectTimer = null
@@ -94,6 +99,16 @@ async function handleCreateStudent(studentData) {
 function handleCancel() {
   router.push({ name: 'adminStudents' })
 }
+
+async function loadSeatOptions() {
+  try {
+    await seatStore.fetchSeats()
+  } catch {
+    // The student store owns submit errors; seat options can render empty if unavailable.
+  }
+}
+
+onMounted(loadSeatOptions)
 
 onBeforeUnmount(() => {
   if (redirectTimer) {

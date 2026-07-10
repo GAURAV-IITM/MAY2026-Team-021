@@ -54,7 +54,9 @@ defineEmits(['close'])
 const menuItems = [
   { label: 'Dashboard', routeName: 'adminDashboard' },
   { label: 'Students', routeName: 'adminStudents' },
+  { label: 'Seat Map', routeName: 'adminSeatMap' },
   { label: 'Seat Management', routeName: 'adminSeatManagement' },
+  { label: 'Shift Management', routeName: 'adminShiftManagement' },
   { label: 'Payments', routeName: 'adminPayments' },
   { label: 'Reports', routeName: 'adminReports' },
   { label: 'Announcements', routeName: 'adminAnnouncements' },
