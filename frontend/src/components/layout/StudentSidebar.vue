@@ -55,6 +55,7 @@ const menuItems = [
   { label: 'Dashboard', routeName: 'studentDashboard' },
   { label: 'My Seat', routeName: 'studentMySeat' },
   { label: 'Fees', routeName: 'studentFees' },
+  { label: 'Receipts', routeName: 'studentReceipts' },
   { label: 'Requests', routeName: 'studentRequests' },
   { label: 'Announcements', routeName: 'studentAnnouncements' },
   { label: 'Profile', routeName: 'studentProfile' },
