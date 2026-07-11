@@ -215,6 +215,11 @@ import { RouterLink } from 'vue-router'
 
 import LoadingSpinner from '../../components/common/LoadingSpinner.vue'
 import { useSeatStore } from '../../stores/seatStore'
+import {
+  getSeatShiftAvailability,
+  getSeatStatusForShift,
+  summarizeSeatStatusesForShift,
+} from '../../utils/seatAvailability'
 
 const legendItems = Object.freeze([
   { status: 'available', label: 'Available' },
@@ -229,6 +234,7 @@ const selectedShiftId = ref('')
 
 const {
   seats,
+  seatAvailability,
   enabledShifts,
   selectedSeat,
   isLoading,
@@ -281,21 +287,17 @@ const floorGroups = computed(() => {
 })
 
 const selectedShiftSummary = computed(() => {
-  const summary = {
-    available: 0,
-    occupied: 0,
-    blocked: 0,
-    reserved: 0,
-    maintenance: 0,
+  const summary =
+    seatAvailability.value?.byShift?.[selectedShiftId.value] ||
+    summarizeSeatStatusesForShift(seats.value, selectedShiftId.value)
+
+  return {
+    available: summary.availableSeats || 0,
+    occupied: summary.occupiedSeats || 0,
+    blocked: summary.blockedSeats || 0,
+    reserved: summary.reservedSeats || 0,
+    maintenance: summary.maintenanceSeats || 0,
   }
-
-  seats.value.forEach((seat) => {
-    const status = getSeatCardStatus(seat).key
-
-    summary[status] = Number(summary[status] || 0) + 1
-  })
-
-  return summary
 })
 
 const selectedShiftAvailability = computed(() => {
@@ -327,11 +329,12 @@ function selectShift(shiftId) {
 }
 
 function getShiftAvailability(seat) {
-  return seat.shiftAvailability?.find((shift) => shift.shiftId === selectedShiftId.value)
+  return getSeatShiftAvailability(seat, selectedShiftId.value)
 }
 
 function getSeatCardStatus(seat) {
   const shiftAvailability = getShiftAvailability(seat)
+  const status = getSeatStatusForShift(seat, selectedShiftId.value)
 
   if (!shiftAvailability) {
     return {
@@ -341,7 +344,7 @@ function getSeatCardStatus(seat) {
     }
   }
 
-  if (shiftAvailability.isPartialBlock) {
+  if (status === 'blocked' && shiftAvailability.isPartialBlock) {
     const blockingShift = shiftAvailability.blockingAllocation?.shiftName || 'another shift'
     const blockingTime = formatTimeRange(
       shiftAvailability.blockingAllocation?.startTime,
@@ -355,7 +358,7 @@ function getSeatCardStatus(seat) {
     }
   }
 
-  if (shiftAvailability.status === 'occupied') {
+  if (status === 'occupied') {
     return {
       key: 'occupied',
       label: 'Allotted',
@@ -363,7 +366,7 @@ function getSeatCardStatus(seat) {
     }
   }
 
-  if (shiftAvailability.status === 'reserved') {
+  if (status === 'reserved') {
     return {
       key: 'reserved',
       label: 'Reserved',
@@ -371,7 +374,7 @@ function getSeatCardStatus(seat) {
     }
   }
 
-  if (shiftAvailability.status === 'maintenance') {
+  if (status === 'maintenance') {
     return {
       key: 'maintenance',
       label: 'Maintenance',
@@ -379,7 +382,7 @@ function getSeatCardStatus(seat) {
     }
   }
 
-  if (shiftAvailability.status === 'blocked') {
+  if (status === 'blocked') {
     return {
       key: 'blocked',
       label: 'Blocked',

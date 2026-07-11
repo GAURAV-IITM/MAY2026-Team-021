@@ -10,6 +10,7 @@ import {
   intervalsOverlap,
   isSameDayTimeRange,
 } from '../utils/timeIntervals'
+import { summarizeSeatStatusesForShift } from '../utils/seatAvailability'
 
 // src/services: Mock seat service used during Milestone 2.
 // TODO: Replace these mock operations with Axios-backed FastAPI requests in Milestone 3.
@@ -369,53 +370,15 @@ function buildSeatAvailability(sourceSeats = seats, filters = {}) {
 
 function buildShiftAvailability(sourceSeats) {
   return shifts.reduce((availability, shift) => {
-    const shiftSeats = sourceSeats.filter((seat) => {
-      return seat.shiftAvailability?.some((item) => item.shiftId === shift.id)
-    })
-    const getShiftStatus = (seat) => {
-      return seat.shiftAvailability?.find((item) => item.shiftId === shift.id)
-        ?.status
-    }
+    const statusCounts = summarizeSeatStatusesForShift(sourceSeats, shift.id)
 
     availability[shift.id] = {
       shiftId: shift.id,
       name: shift.name,
+      startTime: shift.startTime,
+      endTime: shift.endTime,
       isEnabled: shift.isEnabled,
-      totalSeats: shiftSeats.length,
-      occupiedSeats: shiftSeats.filter(
-        (seat) => {
-          const shiftAvailability = seat.shiftAvailability?.find((item) => {
-            return item.shiftId === shift.id
-          })
-
-          return (
-            shiftAvailability?.status === SEAT_STATUSES.OCCUPIED &&
-            !shiftAvailability.isPartialBlock
-          )
-        },
-      ).length,
-      blockedSeats: shiftSeats.filter((seat) => {
-        const shiftAvailability = seat.shiftAvailability?.find((item) => {
-          return item.shiftId === shift.id
-        })
-
-        return Boolean(shiftAvailability?.isPartialBlock)
-      }).length,
-      availableSeats: shiftSeats.filter(
-        (seat) => getShiftStatus(seat) === SEAT_STATUSES.AVAILABLE,
-      ).length,
-      reservedSeats: shiftSeats.filter(
-        (seat) => {
-          const shiftAvailability = seat.shiftAvailability?.find((item) => {
-            return item.shiftId === shift.id
-          })
-
-          return (
-            shiftAvailability?.status === SEAT_STATUSES.RESERVED &&
-            !shiftAvailability.isPartialBlock
-          )
-        },
-      ).length,
+      ...statusCounts,
     }
 
     return availability

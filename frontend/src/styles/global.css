@@ -1396,6 +1396,11 @@ textarea[readonly] {
     justify-content: flex-end;
   }
 
+  .app-navbar__role,
+  .app-navbar__profile {
+    display: none;
+  }
+
   .app-navbar__profile,
   .app-navbar__logout {
     padding: 0 var(--space-2);
