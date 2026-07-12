@@ -55,7 +55,6 @@ const menuItems = [
   { label: 'Dashboard', routeName: 'superAdminDashboard' },
   { label: 'Libraries', routeName: 'superAdminLibraries' },
   { label: 'Owners', routeName: 'superAdminOwners' },
-  { label: 'Subscriptions', routeName: 'superAdminSubscriptions' },
   { label: 'Analytics', routeName: 'superAdminAnalytics' },
   { label: 'Settings', routeName: 'superAdminSettings' },
 ]

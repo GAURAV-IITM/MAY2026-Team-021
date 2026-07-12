@@ -3,7 +3,6 @@ import SuperAdminLayout from '../layouts/SuperAdminLayout.vue'
 import SuperAdminDashboard from '../pages/superadmin/Dashboard.vue'
 import SuperAdminLibraries from '../pages/superadmin/Libraries.vue'
 import SuperAdminOwners from '../pages/superadmin/Owners.vue'
-import SuperAdminSubscriptions from '../pages/superadmin/Subscriptions.vue'
 import SuperAdminAnalytics from '../pages/superadmin/Analytics.vue'
 import SuperAdminSettings from '../pages/superadmin/Settings.vue'
 
@@ -37,12 +36,6 @@ const superAdminRoutes = [
         name: 'superAdminOwners',
         component: SuperAdminOwners,
         meta: { title: 'Owners', role: 'superadmin', requiresAuth: true },
-      },
-      {
-        path: 'subscriptions',
-        name: 'superAdminSubscriptions',
-        component: SuperAdminSubscriptions,
-        meta: { title: 'Subscriptions', role: 'superadmin', requiresAuth: true },
       },
       {
         path: 'analytics',
