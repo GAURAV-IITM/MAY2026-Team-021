@@ -26,7 +26,7 @@ export const mockUsers = [
   },
   {
     id: 'student-001',
-    name: 'Student User',
+    name: 'Aarav Sharma',
     email: 'student@smartlibrary.test',
     password: 'Student@123',
     role: AUTH_ROLES.STUDENT,

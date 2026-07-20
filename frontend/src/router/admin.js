@@ -3,6 +3,7 @@ import AdminLayout from '../layouts/AdminLayout.vue'
 import AdminDashboard from '../pages/admin/Dashboard.vue'
 import AdminStudents from '../pages/admin/Students.vue'
 import AdminStudentDetails from '../pages/admin/StudentDetails.vue'
+import AdminSeatRequests from '../pages/admin/SeatRequests.vue'
 import AdminAddStudent from '../pages/admin/AddStudent.vue'
 import AdminEditStudent from '../pages/admin/EditStudent.vue'
 import AdminSeatManagement from '../pages/admin/SeatManagement.vue'
@@ -38,6 +39,12 @@ const adminRoutes = [
         name: 'adminStudents',
         component: AdminStudents,
         meta: { title: 'Students', role: 'admin', requiresAuth: true },
+      },
+      {
+        path: 'seat-requests',
+        name: 'adminSeatRequests',
+        component: AdminSeatRequests,
+        meta: { title: 'Seat Requests', role: 'admin', requiresAuth: true },
       },
       {
         path: 'students/add',
