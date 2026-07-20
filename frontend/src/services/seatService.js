@@ -867,6 +867,59 @@ export async function createSeat(seatPayload = {}) {
   )
 }
 
+// TODO: Replace with transactional library + seat creation in the registration API.
+export async function initializeLibrarySeats({
+  seatCount,
+  libraryId = '',
+  libraryName = '',
+} = {}) {
+  await delay()
+
+  const normalizedSeatCount = Number(seatCount)
+
+  if (
+    !Number.isInteger(normalizedSeatCount) ||
+    normalizedSeatCount < 1 ||
+    normalizedSeatCount > 1000
+  ) {
+    throw createSeatError(
+      'Seat count must be a whole number between 1 and 1000.',
+      422,
+      'LIBRARY_SEAT_COUNT_INVALID',
+    )
+  }
+
+  const now = new Date().toISOString()
+
+  seats = Array.from({ length: normalizedSeatCount }, (_, index) => {
+    const sequence = index + 1
+
+    return {
+      id: `seat-${String(sequence).padStart(3, '0')}`,
+      seatNumber: `A-${String(sequence).padStart(2, '0')}`,
+      floor: 1,
+      seatType: 'Standard',
+      status: SEAT_STATUSES.AVAILABLE,
+      assignedStudent: null,
+      activeShifts: getShiftIds(),
+      notes: 'Created during library registration.',
+      libraryId: String(libraryId || ''),
+      libraryName: String(libraryName || ''),
+      createdAt: now,
+      updatedAt: now,
+    }
+  })
+  seatAllocations = []
+
+  return createSuccessResponse(
+    `${normalizedSeatCount} seats created successfully.`,
+    buildOperationData({
+      seats: enrichSeats(),
+      createdSeatCount: normalizedSeatCount,
+    }),
+  )
+}
+
 // TODO: Replace with PATCH /api/seats/{seatId} when FastAPI endpoints are ready.
 export async function updateSeat(seatId, seatPayload = {}) {
   await delay()

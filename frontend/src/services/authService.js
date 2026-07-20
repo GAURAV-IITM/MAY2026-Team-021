@@ -5,6 +5,7 @@ import {
   mockUsers,
   toPublicUser,
 } from '../mocks/authMock'
+import { initializeLibrarySeats } from './seatService'
 
 // src/services: Mock auth service. Replace this file with FastAPI-backed requests later.
 // TODO: Replace localStorage fake JWT handling with secure backend-issued JWT/session handling.
@@ -158,16 +159,59 @@ export async function logout() {
 export async function register(registrationData = {}) {
   await delay()
 
-  const publicUser = {
-    id: `owner-${Date.now()}`,
-    name: registrationData.ownerName || 'Library Owner',
-    email: registrationData.email || '',
-    role: AUTH_ROLES.LIBRARY_OWNER,
-    roleLabel: 'Library Owner',
-    libraryName: registrationData.libraryName || '',
+  const libraryName = String(registrationData.libraryName || '').trim()
+  const ownerName = String(registrationData.ownerName || '').trim()
+  const email = String(registrationData.email || '').trim().toLowerCase()
+  const password = String(registrationData.password || '')
+  const seatCount = Number(registrationData.seatCount)
+
+  if (!libraryName || !ownerName || !email || !password) {
+    throw createAuthError(
+      'Library and owner account details are required.',
+      422,
+      'REGISTRATION_DETAILS_REQUIRED',
+    )
   }
 
-  const token = createFakeJwt(publicUser)
+  if (!Number.isInteger(seatCount) || seatCount < 1 || seatCount > 1000) {
+    throw createAuthError(
+      'Seat count must be a whole number between 1 and 1000.',
+      422,
+      'LIBRARY_SEAT_COUNT_INVALID',
+    )
+  }
+
+  if (findUserByEmail(email)) {
+    throw createAuthError(
+      'An account already exists for this email address.',
+      409,
+      'ACCOUNT_ALREADY_EXISTS',
+    )
+  }
+
+  const now = Date.now()
+  const libraryId = `library-${now}`
+
+  const user = {
+    id: `owner-${now}`,
+    name: ownerName,
+    email,
+    password,
+    role: AUTH_ROLES.LIBRARY_OWNER,
+    roleLabel: 'Library Owner',
+    libraryId,
+    libraryName,
+  }
+
+  const seatResponse = await initializeLibrarySeats({
+    seatCount,
+    libraryId,
+    libraryName,
+  })
+  mockUsers.push(user)
+
+  const publicUser = toPublicUser(user)
+  const token = createFakeJwt(user)
   const session = {
     user: publicUser,
     role: publicUser.role,
@@ -182,6 +226,8 @@ export async function register(registrationData = {}) {
   return createSuccessResponse('Library registration successful.', {
     ...session,
     registrationStatus: 'created',
+    seatCount,
+    seatsCreated: seatResponse.data.createdSeatCount,
   })
 }
 
