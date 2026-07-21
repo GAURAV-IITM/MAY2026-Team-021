@@ -1,16 +1,19 @@
 import {
   STUDENT_PORTAL_NETWORK_DELAY_MS,
   seatRequestMock,
-  studentAnnouncementMock,
   studentPaymentMock,
   studentProfileMock,
   studentSeatMock,
 } from '../mocks/studentPortalMock.js'
 import { shiftMock } from '../mocks/seatMock.js'
+import {
+  getPublishedAnnouncementsForStudent,
+  markAnnouncementReadForStudent,
+} from './announcementService.js'
+import { getCurrentLibrarySettings } from './librarySettingsService.js'
 
 let profile = clone(studentProfileMock)
 let requests = clone(seatRequestMock)
-let announcements = clone(studentAnnouncementMock)
 
 function clone(value) {
   return structuredClone(value)
@@ -117,12 +120,7 @@ function getStudentReceipts(studentId) {
 }
 
 function getStudentAnnouncements(studentId) {
-  return announcements
-    .map((announcement) => ({
-      ...announcement,
-      isRead: announcement.readBy.includes(studentId),
-    }))
-    .sort((first, second) => second.publishedAt.localeCompare(first.publishedAt))
+  return getPublishedAnnouncementsForStudent(studentId, profile.libraryName)
 }
 
 function getStudentRequests(studentId) {
@@ -210,15 +208,29 @@ export async function getRequests(studentId) {
 export async function createSeatRequest(studentId, payload = {}) {
   await delay()
   const scopedStudentId = ensureStudentAccess(studentId)
+  const librarySettings = getCurrentLibrarySettings()
   const preferredShiftId = String(payload.preferredShiftId || '').trim()
   const reason = String(payload.reason || '').trim()
   const preferredSeatNumber = String(payload.preferredSeatNumber || '').trim()
   const preferredFloor = payload.preferredFloor ? Number(payload.preferredFloor) : null
   const selectedShift = shiftMock.find((shift) => shift.id === preferredShiftId)
 
-  if (!selectedShift || reason.length < 15) {
+  if (!librarySettings.allowSeatChangeRequests) {
     throw createPortalError(
-      'Select a valid shift and provide a reason of at least 15 characters.',
+      'Seat change requests are currently disabled by the library owner.',
+      403,
+      'SEAT_REQUESTS_DISABLED',
+    )
+  }
+
+  if (
+    !selectedShift ||
+    (librarySettings.requireSeatRequestReason && reason.length < 15)
+  ) {
+    throw createPortalError(
+      librarySettings.requireSeatRequestReason
+        ? 'Select a valid shift and provide a reason of at least 15 characters.'
+        : 'Select a valid shift.',
       422,
       'SEAT_REQUEST_VALIDATION_ERROR',
     )
@@ -368,15 +380,11 @@ export async function getAnnouncements(studentId) {
 export async function markAnnouncementRead(studentId, announcementId) {
   await delay()
   const scopedStudentId = ensureStudentAccess(studentId)
-  const announcement = announcements.find((item) => item.id === String(announcementId))
-
-  if (!announcement) {
-    throw createPortalError('Announcement was not found.', 404, 'ANNOUNCEMENT_NOT_FOUND')
-  }
-
-  if (!announcement.readBy.includes(scopedStudentId)) {
-    announcement.readBy.push(scopedStudentId)
-  }
+  const announcement = markAnnouncementReadForStudent(
+    scopedStudentId,
+    announcementId,
+    profile.libraryName,
+  )
 
   return createSuccessResponse('Announcement marked as read.', {
     announcement: {

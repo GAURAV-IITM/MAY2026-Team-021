@@ -4,6 +4,7 @@ import {
   PAYMENT_STATUSES,
   paymentMock,
 } from '../mocks/paymentMock.js'
+import { getCurrentLibrarySettings } from './librarySettingsService.js'
 
 // src/services: Mock payment service used during Milestone 2.
 // TODO: Replace mock operations with Axios-backed FastAPI requests during Milestone 3.
@@ -150,7 +151,8 @@ function generateTransactionId(payment) {
 
 function generateReceiptNumber(payment) {
   const monthToken = payment.month.replace('-', '')
-  return `RCP-${monthToken}-${payment.studentId}-${Date.now()}`
+  const receiptPrefix = getCurrentLibrarySettings().receiptPrefix || 'RCP'
+  return `${receiptPrefix}-${monthToken}-${payment.studentId}-${Date.now()}`
 }
 
 function buildReceipt(payment) {
@@ -182,6 +184,14 @@ function buildReceipt(payment) {
 }
 
 function buildWhatsAppReminder(payment, reminderPayload = {}) {
+  if (!getCurrentLibrarySettings().whatsappRemindersEnabled) {
+    throw createPaymentError(
+      'WhatsApp payment reminders are disabled in Library Settings.',
+      409,
+      'WHATSAPP_REMINDERS_DISABLED',
+    )
+  }
+
   if (payment.status !== PAYMENT_STATUSES.UNPAID) {
     throw createPaymentError(
       'Payment reminders can only be generated for unpaid payments.',
@@ -351,7 +361,9 @@ export async function generateMonthlyPayments(month, studentRecords = []) {
       continue
     }
 
-    const amount = Number(student.feeAmount)
+    const amount = Number(
+      student.feeAmount ?? getCurrentLibrarySettings().defaultMonthlyFee,
+    )
 
     if (!Number.isFinite(amount) || amount <= 0) {
       skippedStudents.push({
