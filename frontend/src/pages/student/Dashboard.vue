@@ -9,6 +9,7 @@
         <p class="student-dashboard__description">Your seat, fees, requests, and library updates in one place.</p>
       </div>
       <button class="btn btn--secondary" type="button" :disabled="isLoading" @click="loadDashboard">
+        <RefreshCw :size="17" :class="{ 'student-dashboard__spin': isLoading }" aria-hidden="true" />
         {{ isLoading && dashboard ? 'Refreshing...' : 'Refresh' }}
       </button>
     </header>
@@ -27,7 +28,7 @@
 
       <nav class="student-dashboard__quick-actions" aria-label="Student quick actions">
         <RouterLink v-for="action in quickActions" :key="action.routeName" class="student-dashboard__quick-action" :to="{ name: action.routeName }">
-          <span aria-hidden="true">{{ action.icon }}</span><strong>{{ action.label }}</strong>
+          <span aria-hidden="true"><component :is="action.icon" :size="18" /></span><strong>{{ action.label }}</strong>
         </RouterLink>
       </nav>
 
@@ -80,7 +81,7 @@
               <p class="m-0 text-small text-muted">Submitted {{ formatDate(dashboard.activeRequest.submittedAt) }}</p>
             </template>
             <template v-else>
-              <span class="student-dashboard__request-icon" aria-hidden="true">R</span>
+              <span class="student-dashboard__request-icon" aria-hidden="true"><ClipboardPlus :size="20" /></span>
               <strong>No pending request</strong>
               <p class="m-0 text-small text-muted">You can request a different seat or shift.</p>
             </template>
@@ -93,6 +94,17 @@
 </template>
 
 <script setup>
+import {
+  Armchair,
+  BellRing,
+  ClipboardList,
+  ClipboardPlus,
+  Clock3,
+  IndianRupee,
+  ReceiptText,
+  RefreshCw,
+  UserRound,
+} from '@lucide/vue'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
@@ -104,10 +116,10 @@ import { useAuthStore } from '../../stores/authStore'
 import { useStudentPortalStore } from '../../stores/studentPortalStore'
 
 const quickActions = Object.freeze([
-  { label: 'My Seat', routeName: 'studentMySeat', icon: 'S' },
-  { label: 'Fee Receipts', routeName: 'studentReceipts', icon: 'R' },
-  { label: 'Request Change', routeName: 'studentRequests', icon: 'C' },
-  { label: 'My Profile', routeName: 'studentProfile', icon: 'P' },
+  { label: 'My Seat', routeName: 'studentMySeat', icon: Armchair },
+  { label: 'Fee Receipts', routeName: 'studentReceipts', icon: ReceiptText },
+  { label: 'Request Change', routeName: 'studentRequests', icon: ClipboardList },
+  { label: 'My Profile', routeName: 'studentProfile', icon: UserRound },
 ])
 
 const authStore = useAuthStore()
@@ -122,10 +134,10 @@ const summaryItems = computed(() => {
   const allocation = data.allocations[0]
   const payment = data.feeSummary.currentPayment
   return [
-    { label: 'Allocated Seat', value: data.seat?.seatNumber || '—', detail: data.seat ? `Floor ${data.seat.floor} · ${data.seat.seatType}` : 'Not assigned', icon: 'S' },
-    { label: 'Active Shift', value: allocation ? formatLabel(allocation.shiftName) : '—', detail: allocation ? `${allocation.startTime}-${allocation.endTime}` : 'Not assigned', icon: 'T', tone: 'info' },
-    { label: 'Current Fee', value: formatLabel(payment?.status || 'Not generated'), detail: payment ? formatCurrency(payment.amount) : 'No payment record', icon: 'F', tone: payment?.status === 'paid' ? 'success' : 'warning' },
-    { label: 'Announcements', value: data.unreadAnnouncementCount, detail: 'Unread library updates', icon: 'A', tone: data.unreadAnnouncementCount ? 'warning' : 'success' },
+    { label: 'Allocated Seat', value: data.seat?.seatNumber || '—', detail: data.seat ? `Floor ${data.seat.floor} · ${data.seat.seatType}` : 'Not assigned', icon: Armchair },
+    { label: 'Active Shift', value: allocation ? formatLabel(allocation.shiftName) : '—', detail: allocation ? `${allocation.startTime}-${allocation.endTime}` : 'Not assigned', icon: Clock3, tone: 'info' },
+    { label: 'Current Fee', value: formatLabel(payment?.status || 'Not generated'), detail: payment ? formatCurrency(payment.amount) : 'No payment record', icon: IndianRupee, tone: payment?.status === 'paid' ? 'success' : 'warning' },
+    { label: 'Announcements', value: data.unreadAnnouncementCount, detail: 'Unread library updates', icon: BellRing, tone: data.unreadAnnouncementCount ? 'warning' : 'success' },
   ]
 })
 
@@ -144,6 +156,7 @@ onMounted(loadDashboard)
 .student-dashboard__title { margin: var(--space-1) 0 0; }
 .student-dashboard__description { margin: var(--space-2) 0 0; color: var(--color-text-muted); }
 .student-dashboard__loading { display: grid; min-height: 420px; place-items: center; border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface-elevated); }
+.student-dashboard__spin { animation: ds-spin var(--transition-slow) linear infinite; }
 .student-dashboard__quick-actions { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-3); }
 .student-dashboard__quick-action { display: flex; align-items: center; gap: var(--space-3); min-height: 50px; padding: var(--space-2) var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface-elevated); color: var(--color-text-primary); text-decoration: none; }
 .student-dashboard__quick-action:hover { border-color: var(--color-primary); color: var(--color-primary); text-decoration: none; }

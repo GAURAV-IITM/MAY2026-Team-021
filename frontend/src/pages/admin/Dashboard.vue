@@ -25,6 +25,7 @@
           :aria-busy="isLoading"
           @click="loadDashboard"
         >
+          <RefreshCw :size="17" :class="{ 'admin-dashboard__spin': isLoading }" aria-hidden="true" />
           {{ isLoading && hasSummary ? 'Refreshing...' : 'Refresh' }}
         </button>
       </div>
@@ -49,7 +50,7 @@
       title="Dashboard data is not available"
       description="Refresh the dashboard to load the latest library overview."
     >
-      <template #icon>D</template>
+      <template #icon><LayoutDashboard :size="26" /></template>
       <template #primary-action>
         <button class="btn btn--primary" type="button" @click="loadDashboard">
           Refresh Dashboard
@@ -64,7 +65,7 @@
           class="admin-dashboard__metric admin-dashboard__metric--students"
           title="Active Students"
           :value="String(metrics.activeStudents || 0)"
-          icon="S"
+          :icon="UsersRound"
           trend="Currently enrolled"
         >
           <template #footer>
@@ -76,7 +77,7 @@
           class="admin-dashboard__metric admin-dashboard__metric--seats"
           title="Occupied Seats"
           :value="String(metrics.occupiedSeats || 0)"
-          icon="O"
+          :icon="Armchair"
           trend="Seats currently in use"
         >
           <template #footer>
@@ -88,7 +89,7 @@
           class="admin-dashboard__metric admin-dashboard__metric--collection"
           title="Monthly Collection"
           :value="formatCurrency(metrics.collectedAmount)"
-          icon="₹"
+          :icon="IndianRupee"
           :trend="`${metrics.collectionRate || 0}% collected`"
         >
           <template #footer>
@@ -100,7 +101,7 @@
           class="admin-dashboard__metric admin-dashboard__metric--dues"
           title="Pending Dues"
           :value="formatCurrency(metrics.pendingAmount)"
-          icon="D"
+          :icon="CircleAlert"
           trend="Requires follow-up"
         >
           <template #footer>
@@ -178,13 +179,13 @@
               :to="{ name: action.routeName }"
             >
               <span class="admin-dashboard__action-icon" aria-hidden="true">
-                {{ action.icon }}
+                <component :is="action.icon" :size="19" />
               </span>
               <span>
                 <strong>{{ action.label }}</strong>
                 <small>{{ action.description }}</small>
               </span>
-              <span class="admin-dashboard__action-arrow" aria-hidden="true">›</span>
+              <ChevronRight class="admin-dashboard__action-arrow" :size="18" aria-hidden="true" />
             </RouterLink>
           </nav>
         </section>
@@ -271,7 +272,8 @@
                 :class="`admin-dashboard__activity-icon--${activity.type}`"
                 aria-hidden="true"
               >
-                {{ activity.type === 'payment' ? '₹' : 'S' }}
+                <IndianRupee v-if="activity.type === 'payment'" :size="18" />
+                <UserPlus v-else :size="18" />
               </span>
               <div class="admin-dashboard__activity-copy">
                 <strong>{{ activity.title }}</strong>
@@ -314,7 +316,7 @@
                   {{ item.id === 'pending-payments' ? formatPendingDetail(item.detail) : item.detail }}
                 </small>
               </span>
-              <span class="admin-dashboard__action-arrow" aria-hidden="true">›</span>
+              <ChevronRight class="admin-dashboard__action-arrow" :size="18" aria-hidden="true" />
             </RouterLink>
           </div>
         </section>
@@ -324,6 +326,18 @@
 </template>
 
 <script setup>
+import {
+  Armchair,
+  ChevronRight,
+  CircleAlert,
+  CreditCard,
+  IndianRupee,
+  LayoutDashboard,
+  Map,
+  RefreshCw,
+  UserPlus,
+  UsersRound,
+} from '@lucide/vue'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
@@ -339,25 +353,25 @@ const quickActions = Object.freeze([
   {
     label: 'Add Student',
     description: 'Register a new library member',
-    icon: '+',
+    icon: UserPlus,
     routeName: 'adminAddStudent',
   },
   {
     label: 'View Seat Map',
     description: 'Check shift-wise seat availability',
-    icon: 'M',
+    icon: Map,
     routeName: 'adminSeatMap',
   },
   {
     label: 'Manage Payments',
     description: 'Update fees and send reminders',
-    icon: '₹',
+    icon: CreditCard,
     routeName: 'adminPayments',
   },
   {
     label: 'Manage Seats',
     description: 'Update physical seat records',
-    icon: 'S',
+    icon: Armchair,
     routeName: 'adminSeatManagement',
   },
 ])

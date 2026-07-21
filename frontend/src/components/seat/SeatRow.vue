@@ -35,10 +35,10 @@
 
     <footer class="seat-row__actions">
       <button class="btn btn--outline btn--sm" type="button" @click="$emit('edit', seat)">
-        Edit
+        <Pencil :size="15" aria-hidden="true" /> Edit
       </button>
       <button class="btn btn--danger btn--sm" type="button" @click="$emit('delete', seat)">
-        Delete
+        <Trash2 :size="15" aria-hidden="true" /> Delete
       </button>
       <SeatActionMenu
         :seat="seat"
@@ -51,6 +51,7 @@
 </template>
 
 <script setup>
+import { Pencil, Trash2 } from '@lucide/vue'
 import { computed } from 'vue'
 
 import SeatActionMenu from './SeatActionMenu.vue'

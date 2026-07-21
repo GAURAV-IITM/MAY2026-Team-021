@@ -14,7 +14,7 @@
       </div>
 
       <button class="btn btn--primary" type="button" @click="openCreateShiftModal">
-        Add Shift
+        <Plus :size="18" aria-hidden="true" /> Add Shift
       </button>
     </header>
 
@@ -46,7 +46,7 @@
         <StatCard
           title="Total Shifts"
           :value="String(shiftRows.length)"
-          icon="S"
+          :icon="Clock3"
           trend="Default and custom shifts"
         >
           <template #footer>
@@ -57,7 +57,7 @@
         <StatCard
           title="Occupied Seats"
           :value="String(totalOccupiedAcrossShifts)"
-          icon="O"
+          :icon="Armchair"
           trend="Counted by active shift"
         >
           <template #footer>
@@ -68,7 +68,7 @@
         <StatCard
           title="Available Seats"
           :value="String(totalAvailableAcrossShifts)"
-          icon="A"
+          :icon="CircleCheckBig"
           trend="Available by shift"
         >
           <template #footer>
@@ -125,7 +125,7 @@
                   type="button"
                   @click="openEditShiftModal(row)"
                 >
-                  Edit
+                  <Pencil :size="15" aria-hidden="true" /> Edit
                 </button>
 
                 <button
@@ -133,6 +133,7 @@
                   type="button"
                   @click="handleToggleShift(row)"
                 >
+                  <Power :size="15" aria-hidden="true" />
                   {{ row.isEnabled ? 'Disable' : 'Enable' }}
                 </button>
 
@@ -141,7 +142,7 @@
                   type="button"
                   @click="openDeleteConfirm(row)"
                 >
-                  Delete
+                  <Trash2 :size="15" aria-hidden="true" /> Delete
                 </button>
               </div>
             </template>
@@ -177,6 +178,7 @@
 </template>
 
 <script setup>
+import { Armchair, CircleCheckBig, Clock3, Pencil, Plus, Power, Trash2 } from '@lucide/vue'
 import { storeToRefs } from 'pinia'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 

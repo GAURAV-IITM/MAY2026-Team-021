@@ -41,10 +41,10 @@
         <template #actions="{ row }">
           <div class="seat-table__actions">
             <button class="btn btn--outline btn--sm" type="button" @click="$emit('edit', row)">
-              Edit
+              <Pencil :size="15" aria-hidden="true" /> Edit
             </button>
             <button class="btn btn--danger btn--sm" type="button" @click="$emit('delete', row)">
-              Delete
+              <Trash2 :size="15" aria-hidden="true" /> Delete
             </button>
             <SeatActionMenu
               :seat="row"
@@ -78,6 +78,8 @@
 </template>
 
 <script setup>
+import { Pencil, Trash2 } from '@lucide/vue'
+
 import DataTable from '../common/DataTable.vue'
 import SeatActionMenu from './SeatActionMenu.vue'
 import SeatRow from './SeatRow.vue'

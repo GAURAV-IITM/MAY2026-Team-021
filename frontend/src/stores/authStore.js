@@ -7,7 +7,7 @@ import * as authService from '../services/authService'
  * Authentication store for Smart Library App.
  *
  * Responsibilities:
- * - Own auth-related UI state such as loading, errors, remember-me, and placeholders.
+ * - Own auth-related UI state such as loading, errors, and remember-me preferences.
  * - Expose reusable getters for user, role, and authentication status.
  * - Delegate all authentication operations to authService.
  *

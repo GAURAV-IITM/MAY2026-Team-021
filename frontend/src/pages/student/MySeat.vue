@@ -2,7 +2,7 @@
   <section class="my-seat-page" aria-labelledby="my-seat-title">
     <header class="my-seat-page__header">
       <div><p class="text-label text-muted m-0">Seat Allocation</p><h1 id="my-seat-title" class="text-h2 my-seat-page__title">My Seat</h1><p class="my-seat-page__description">View your assigned seat, shifts, and active allocation period.</p></div>
-      <RouterLink class="btn btn--secondary" :to="{ name: 'studentRequests' }">Request a Change</RouterLink>
+      <RouterLink class="btn btn--secondary" :to="{ name: 'studentRequests' }"><ClipboardPlus :size="17" aria-hidden="true" /> Request a Change</RouterLink>
     </header>
 
     <div v-if="errorMessage" class="alert alert--danger" role="alert"><div><strong>Unable to load your seat.</strong><p class="m-0">{{ errorMessage }}</p></div><button class="btn btn--secondary btn--sm" type="button" @click="loadSeat">Retry</button></div>
@@ -39,6 +39,7 @@
 </template>
 
 <script setup>
+import { ClipboardPlus } from '@lucide/vue'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'

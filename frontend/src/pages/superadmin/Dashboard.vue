@@ -21,6 +21,7 @@
           :disabled="isLoading"
           @click="loadDashboard"
         >
+          <RefreshCw :size="17" :class="{ 'platform-dashboard__spin': isLoading }" aria-hidden="true" />
           {{ isLoading && dashboard ? 'Refreshing...' : 'Refresh' }}
         </button>
       </div>
@@ -50,7 +51,7 @@
           class="platform-dashboard__quick-action"
           :to="{ name: action.routeName }"
         >
-          <span aria-hidden="true">{{ action.icon }}</span>
+          <span aria-hidden="true"><component :is="action.icon" :size="18" /></span>
           <strong>{{ action.label }}</strong>
         </RouterLink>
       </nav>
@@ -140,7 +141,7 @@
                 {{ item.value }}
               </span>
               <strong>{{ item.label }}</strong>
-              <span class="platform-dashboard__arrow" aria-hidden="true">›</span>
+              <ChevronRight class="platform-dashboard__arrow" :size="18" aria-hidden="true" />
             </RouterLink>
           </div>
         </section>
@@ -166,7 +167,7 @@
                 :class="`platform-dashboard__activity-icon--${item.type}`"
                 aria-hidden="true"
               >
-                {{ getActivityIcon(item.type) }}
+                <component :is="getActivityIcon(item.type)" :size="18" />
               </span>
               <div>
                 <strong>{{ item.title }}</strong>
@@ -182,6 +183,18 @@
 </template>
 
 <script setup>
+import {
+  BarChart3,
+  Building2,
+  ChevronRight,
+  CircleAlert,
+  CircleCheckBig,
+  GraduationCap,
+  RefreshCw,
+  Settings,
+  TrendingUp,
+  UserCog,
+} from '@lucide/vue'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
@@ -201,10 +214,10 @@ const topLibraryColumns = Object.freeze([
 ])
 
 const quickActions = Object.freeze([
-  { label: 'Manage Libraries', routeName: 'superAdminLibraries', icon: 'L' },
-  { label: 'Manage Owners', routeName: 'superAdminOwners', icon: 'O' },
-  { label: 'View Analytics', routeName: 'superAdminAnalytics', icon: 'A' },
-  { label: 'Platform Settings', routeName: 'superAdminSettings', icon: 'S' },
+  { label: 'Manage Libraries', routeName: 'superAdminLibraries', icon: Building2 },
+  { label: 'Manage Owners', routeName: 'superAdminOwners', icon: UserCog },
+  { label: 'View Analytics', routeName: 'superAdminAnalytics', icon: BarChart3 },
+  { label: 'Platform Settings', routeName: 'superAdminSettings', icon: Settings },
 ])
 
 const store = useSuperAdminStore()
@@ -219,28 +232,28 @@ const metricItems = computed(() => {
       label: 'Registered Libraries',
       value: formatNumber(totals.totalLibraries),
       detail: `${totals.pendingLibraries || 0} awaiting approval`,
-      icon: 'L',
+      icon: Building2,
       tone: 'primary',
     },
     {
       label: 'Active Libraries',
       value: formatNumber(totals.activeLibraries),
       detail: `${totals.averageOccupancy || 0}% average occupancy`,
-      icon: 'A',
+      icon: CircleCheckBig,
       tone: 'success',
     },
     {
       label: 'Library Owners',
       value: formatNumber(totals.totalOwners),
       detail: `${totals.activeOwners || 0} active accounts`,
-      icon: 'O',
+      icon: UserCog,
       tone: 'info',
     },
     {
       label: 'Platform Students',
       value: formatNumber(totals.totalStudents),
       detail: `${formatNumber(totals.totalSeats)} seats configured`,
-      icon: 'S',
+      icon: GraduationCap,
       tone: 'warning',
     },
   ]
@@ -263,14 +276,14 @@ function formatDateTime(value) {
 
 function getActivityIcon(type) {
   const icons = {
-    library: 'L',
-    owner: 'O',
-    status: '!',
-    growth: 'G',
-    settings: 'S',
+    library: Building2,
+    owner: UserCog,
+    status: CircleAlert,
+    growth: TrendingUp,
+    settings: Settings,
   }
 
-  return icons[type] || 'A'
+  return icons[type] || CircleAlert
 }
 
 async function loadDashboard() {
@@ -288,6 +301,10 @@ onMounted(loadDashboard)
 .platform-dashboard {
   display: grid;
   gap: var(--space-6);
+}
+
+.platform-dashboard__spin {
+  animation: ds-spin var(--transition-slow) linear infinite;
 }
 
 .platform-dashboard__header {

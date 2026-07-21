@@ -5,7 +5,7 @@
       <div><button class="btn btn--secondary btn--icon" type="button" :disabled="isLoading" title="Refresh announcements" aria-label="Refresh announcements" @click="loadAnnouncements"><RefreshCw :size="18" :class="{ 'admin-announcements__spin': isLoading }" /></button><button class="btn btn--primary" type="button" @click="openCreate"><Plus :size="18" /> Create Announcement</button></div>
     </header>
 
-    <div v-if="errorMessage" class="alert alert--danger admin-announcements__error" role="alert"><div><strong>Announcement action failed.</strong><p class="m-0">{{ errorMessage }}</p></div><button class="btn btn--secondary btn--sm" type="button" @click="loadAnnouncements">Retry</button></div>
+    <div v-if="errorMessage" class="alert alert--danger admin-announcements__error" role="alert"><div><strong>Announcement action failed.</strong><p class="m-0">{{ errorMessage }}</p></div><button class="btn btn--secondary btn--sm" type="button" @click="loadAnnouncements"><RefreshCw :size="16" aria-hidden="true" /> Retry</button></div>
 
     <div v-if="isLoading && !hasLoaded" class="admin-announcements__loading"><LoadingSpinner label="Loading announcements" /></div>
 
@@ -16,7 +16,7 @@
       <section class="admin-announcements__records" aria-labelledby="announcement-list-title">
         <header><div><h2 id="announcement-list-title">Announcement List</h2><p>{{ announcements.length }} matching record{{ announcements.length === 1 ? '' : 's' }}</p></div></header>
         <AnnouncementTable :announcements="announcements" :categories="categories" :audiences="audiences" @action="handleRowAction">
-          <template #empty><EmptyState title="No announcements found" description="Create an announcement or clear the current filters."><template #icon><Megaphone :size="28" /></template><template #primary-action><button class="btn btn--primary" type="button" @click="openCreate">Create Announcement</button></template><template #secondary-action><button v-if="hasFilters" class="btn btn--secondary" type="button" @click="clearFilters">Clear Filters</button></template></EmptyState></template>
+          <template #empty><EmptyState title="No announcements found" description="Create an announcement or clear the current filters."><template #icon><Megaphone :size="28" /></template><template #primary-action><button class="btn btn--primary" type="button" @click="openCreate"><Plus :size="17" aria-hidden="true" /> Create Announcement</button></template><template #secondary-action><button v-if="hasFilters" class="btn btn--secondary" type="button" @click="clearFilters"><RotateCcw :size="16" aria-hidden="true" /> Clear Filters</button></template></EmptyState></template>
         </AnnouncementTable>
       </section>
     </template>
@@ -28,7 +28,7 @@
 </template>
 
 <script setup>
-import { CalendarClock, FileText, Megaphone, Plus, RefreshCw, Send } from '@lucide/vue'
+import { CalendarClock, FileText, Megaphone, Plus, RefreshCw, RotateCcw, Send } from '@lucide/vue'
 import { storeToRefs } from 'pinia'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 

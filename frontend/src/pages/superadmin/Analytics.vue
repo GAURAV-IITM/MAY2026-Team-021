@@ -11,13 +11,14 @@
         </p>
       </div>
       <button class="btn btn--secondary" type="button" :disabled="isLoading" @click="loadAnalytics">
+        <RefreshCw :size="17" :class="{ 'platform-analytics__spin': isLoading }" aria-hidden="true" />
         {{ isLoading && analytics ? 'Refreshing...' : 'Refresh' }}
       </button>
     </header>
 
     <div v-if="errorMessage" class="alert alert--danger" role="alert">
       <div><strong>Unable to load platform analytics.</strong><p class="m-0">{{ errorMessage }}</p></div>
-      <button class="btn btn--secondary btn--sm" type="button" @click="loadAnalytics">Retry</button>
+      <button class="btn btn--secondary btn--sm" type="button" @click="loadAnalytics"><RefreshCw :size="16" aria-hidden="true" /> Retry</button>
     </div>
 
     <div v-if="isLoading && !analytics" class="platform-analytics__loading">
@@ -109,6 +110,7 @@
 </template>
 
 <script setup>
+import { Armchair, Building2, Gauge, GraduationCap, RefreshCw } from '@lucide/vue'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref } from 'vue'
 
@@ -138,10 +140,10 @@ const numberFormatter = new Intl.NumberFormat('en-IN')
 const metricItems = computed(() => {
   const totals = analytics.value?.totals || {}
   return [
-    { label: 'Active Libraries', value: formatNumber(totals.activeLibraries), detail: `${totals.totalLibraries || 0} registered`, icon: 'L', tone: 'success' },
-    { label: 'Platform Students', value: formatNumber(totals.totalStudents), detail: 'Across active libraries', icon: 'S' },
-    { label: 'Configured Seats', value: formatNumber(totals.totalSeats), detail: 'Available platform capacity', icon: 'C', tone: 'info' },
-    { label: 'Average Occupancy', value: `${totals.averageOccupancy || 0}%`, detail: 'Across active libraries', icon: '%', tone: 'warning' },
+    { label: 'Active Libraries', value: formatNumber(totals.activeLibraries), detail: `${totals.totalLibraries || 0} registered`, icon: Building2, tone: 'success' },
+    { label: 'Platform Students', value: formatNumber(totals.totalStudents), detail: 'Across active libraries', icon: GraduationCap },
+    { label: 'Configured Seats', value: formatNumber(totals.totalSeats), detail: 'Available platform capacity', icon: Armchair, tone: 'info' },
+    { label: 'Average Occupancy', value: `${totals.averageOccupancy || 0}%`, detail: 'Across active libraries', icon: Gauge, tone: 'warning' },
   ]
 })
 const selectedMetricLabel = computed(() => trendMetrics.find((metric) => metric.key === selectedMetric.value)?.label || 'Platform')
@@ -157,6 +159,7 @@ onMounted(loadAnalytics)
 
 <style scoped>
 .platform-analytics { display: grid; gap: var(--space-6); }
+.platform-analytics__spin { animation: ds-spin var(--transition-slow) linear infinite; }
 .platform-analytics__header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-5); }
 .platform-analytics__title { margin: var(--space-1) 0 0; }
 .platform-analytics__description { margin: var(--space-2) 0 0; color: var(--color-text-muted); }

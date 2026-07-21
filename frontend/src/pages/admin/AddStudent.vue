@@ -6,7 +6,7 @@
           class="add-student-page__back-link"
           :to="{ name: 'adminStudents' }"
         >
-          ← Back to Students
+          <ArrowLeft :size="17" aria-hidden="true" /> Back to Students
         </RouterLink>
 
         <h1 id="add-student-title" class="text-h2 add-student-page__title">
@@ -56,6 +56,7 @@
 </template>
 
 <script setup>
+import { ArrowLeft } from '@lucide/vue'
 import { storeToRefs } from 'pinia'
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
@@ -134,6 +135,8 @@ onBeforeUnmount(() => {
 
 .add-student-page__back-link {
   display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
   margin-bottom: var(--space-3);
   font-weight: var(--font-weight-medium);
 }

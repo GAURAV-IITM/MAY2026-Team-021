@@ -52,12 +52,14 @@
       :disabled="!hasActiveFilters"
       @click="$emit('reset')"
     >
-      Reset
+      <RotateCcw :size="16" aria-hidden="true" /> Reset
     </button>
   </section>
 </template>
 
 <script setup>
+import { RotateCcw } from '@lucide/vue'
+
 import SearchBar from '../common/SearchBar.vue'
 
 defineProps({

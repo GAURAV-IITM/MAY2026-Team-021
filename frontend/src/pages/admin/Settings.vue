@@ -67,7 +67,7 @@
           </div>
         </section>
 
-        <footer class="library-settings__footer"><span>Last updated {{ formatDateTime(settings.updatedAt) }}</span><div><button class="btn btn--secondary" type="button" :disabled="!isDirty || isSaving" @click="resetForm">Discard Changes</button><button class="btn btn--primary" type="submit" :disabled="!isDirty || isSaving"><Save :size="17" />{{ isSaving ? 'Saving...' : 'Save Changes' }}</button></div></footer>
+        <footer class="library-settings__footer"><span>Last updated {{ formatDateTime(settings.updatedAt) }}</span><div><button class="btn btn--secondary" type="button" :disabled="!isDirty || isSaving" @click="resetForm"><Undo2 :size="17" aria-hidden="true" /> Discard Changes</button><button class="btn btn--primary" type="submit" :disabled="!isDirty || isSaving"><Save :size="17" />{{ isSaving ? 'Saving...' : 'Save Changes' }}</button></div></footer>
       </form>
     </div>
 
@@ -76,7 +76,7 @@
 </template>
 
 <script setup>
-import { BellRing, Building2, ChevronRight, Clock3, ReceiptIndianRupee, Save } from '@lucide/vue'
+import { BellRing, Building2, ChevronRight, Clock3, ReceiptIndianRupee, Save, Undo2 } from '@lucide/vue'
 import { storeToRefs } from 'pinia'
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 

@@ -8,7 +8,9 @@
     >
       <div class="student-summary__header">
         <span class="text-label text-muted">{{ item.label }}</span>
-        <span class="student-summary__icon" aria-hidden="true">{{ item.icon }}</span>
+        <span class="student-summary__icon" aria-hidden="true">
+          <component :is="item.icon || CircleGauge" :size="19" />
+        </span>
       </div>
       <strong class="student-summary__value">{{ item.value }}</strong>
       <span class="student-summary__detail">{{ item.detail }}</span>
@@ -17,6 +19,8 @@
 </template>
 
 <script setup>
+import { CircleGauge } from '@lucide/vue'
+
 defineProps({
   items: { type: Array, default: () => [] },
   ariaLabel: { type: String, default: 'Student summary' },

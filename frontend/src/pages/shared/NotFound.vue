@@ -1,9 +1,11 @@
 <template>
-  <section>NotFound</section>
+  <ErrorPage
+    code="404"
+    title="Page Not Found"
+    description="The page you are looking for does not exist or may have been moved."
+  />
 </template>
 
-<!--
-src/pages/shared: Cross-role pages shared by the application shell.
-TODO:
-- Add user-friendly not-found experience.
--->
+<script setup>
+import ErrorPage from '../../components/errors/ErrorPage.vue'
+</script>

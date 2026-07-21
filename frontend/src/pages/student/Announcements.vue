@@ -1,6 +1,6 @@
 <template>
   <section class="student-announcements" aria-labelledby="student-announcements-title">
-    <header class="announcements-header"><div><p class="text-label text-muted m-0">Library Updates</p><h1 id="student-announcements-title" class="text-h2 announcements-header__title">Announcements</h1><p class="announcements-header__description">Important notices and updates from your library.</p></div><button class="btn btn--secondary" type="button" :disabled="isLoading" @click="loadAnnouncements">{{ isLoading ? 'Refreshing...' : 'Refresh' }}</button></header>
+    <header class="announcements-header"><div><p class="text-label text-muted m-0">Library Updates</p><h1 id="student-announcements-title" class="text-h2 announcements-header__title">Announcements</h1><p class="announcements-header__description">Important notices and updates from your library.</p></div><button class="btn btn--secondary" type="button" :disabled="isLoading" @click="loadAnnouncements"><RefreshCw :size="17" :class="{ 'student-announcements__spin': isLoading }" aria-hidden="true" />{{ isLoading ? 'Refreshing...' : 'Refresh' }}</button></header>
     <div v-if="errorMessage" class="alert alert--danger" role="alert"><span>{{ errorMessage }}</span><button class="btn btn--secondary btn--sm" type="button" @click="loadAnnouncements">Retry</button></div>
     <LoadingSpinner v-if="isLoading && announcements.length === 0" label="Loading announcements" />
 
@@ -27,6 +27,7 @@
 </template>
 
 <script setup>
+import { BellRing, CircleAlert, CircleCheckBig, Mail, RefreshCw } from '@lucide/vue'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref } from 'vue'
 
@@ -45,10 +46,10 @@ const importantCount = computed(() => announcements.value.filter((item) => item.
 const filterOptions = computed(() => [{ label: 'All', value: 'all', count: announcements.value.length }, { label: 'Unread', value: 'unread', count: unreadCount.value }, { label: 'Important', value: 'important', count: importantCount.value }])
 const filteredAnnouncements = computed(() => announcements.value.filter((item) => filter.value === 'all' || (filter.value === 'unread' && !item.isRead) || (filter.value === 'important' && item.priority === 'important')))
 const summaryItems = computed(() => [
-  { label: 'All Updates', value: announcements.value.length, detail: 'Library announcements', icon: 'A', tone: 'primary' },
-  { label: 'Unread', value: unreadCount.value, detail: 'Waiting for you', icon: 'U', tone: unreadCount.value ? 'warning' : 'success' },
-  { label: 'Important', value: importantCount.value, detail: 'Priority notices', icon: 'I', tone: 'danger' },
-  { label: 'Read', value: announcements.value.length - unreadCount.value, detail: 'Updates reviewed', icon: 'R', tone: 'success' },
+  { label: 'All Updates', value: announcements.value.length, detail: 'Library announcements', icon: BellRing, tone: 'primary' },
+  { label: 'Unread', value: unreadCount.value, detail: 'Waiting for you', icon: Mail, tone: unreadCount.value ? 'warning' : 'success' },
+  { label: 'Important', value: importantCount.value, detail: 'Priority notices', icon: CircleAlert, tone: 'danger' },
+  { label: 'Read', value: announcements.value.length - unreadCount.value, detail: 'Updates reviewed', icon: CircleCheckBig, tone: 'success' },
 ])
 
 function formatLabel(value) { return String(value || '-').replace(/[-_]/g, ' ').replace(/\b\w/g, (character) => character.toUpperCase()) }
@@ -60,6 +61,7 @@ onMounted(loadAnnouncements)
 
 <style scoped>
 .student-announcements { display: grid; gap: var(--space-6); }
+.student-announcements__spin { animation: ds-spin var(--transition-slow) linear infinite; }
 .announcements-header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-5); }
 .announcements-header__title { margin: var(--space-1) 0 0; }
 .announcements-header__description { margin: var(--space-2) 0 0; color: var(--color-text-muted); }

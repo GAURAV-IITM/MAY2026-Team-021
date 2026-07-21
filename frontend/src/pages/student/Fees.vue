@@ -7,8 +7,9 @@
         <p class="student-page-header__description">Review your monthly fees and payment history.</p>
       </div>
       <div class="student-page-header__actions">
-        <RouterLink class="btn btn--secondary" :to="{ name: 'studentReceipts' }">View Receipts</RouterLink>
+        <RouterLink class="btn btn--secondary" :to="{ name: 'studentReceipts' }"><ReceiptText :size="17" aria-hidden="true" /> View Receipts</RouterLink>
         <button class="btn btn--primary" type="button" :disabled="isLoading" @click="loadFees">
+          <RefreshCw :size="17" :class="{ 'student-fees__spin': isLoading }" aria-hidden="true" />
           {{ isLoading ? 'Refreshing...' : 'Refresh' }}
         </button>
       </div>
@@ -80,6 +81,7 @@
 </template>
 
 <script setup>
+import { CircleAlert, CircleCheckBig, IndianRupee, ReceiptText, RefreshCw, WalletCards } from '@lucide/vue'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
@@ -104,10 +106,10 @@ const columns = [
 ]
 
 const summaryItems = computed(() => [
-  { label: 'Current Status', value: formatLabel(feeSummary.value.currentPayment?.status || 'Pending'), detail: formatMonth(feeSummary.value.currentPayment?.month), icon: 'S', tone: feeSummary.value.currentPayment?.status === 'paid' ? 'success' : 'warning' },
-  { label: 'Current Fee', value: formatCurrency(feeSummary.value.currentPayment?.amount), detail: `Due ${formatDate(feeSummary.value.nextDueDate)}`, icon: 'F', tone: 'primary' },
-  { label: 'Total Paid', value: formatCurrency(feeSummary.value.totalPaid), detail: `${feeSummary.value.paidCount} completed payments`, icon: 'P', tone: 'success' },
-  { label: 'Outstanding', value: formatCurrency(feeSummary.value.totalOutstanding), detail: `${feeSummary.value.unpaidCount} unpaid records`, icon: 'D', tone: feeSummary.value.totalOutstanding ? 'danger' : 'info' },
+  { label: 'Current Status', value: formatLabel(feeSummary.value.currentPayment?.status || 'Pending'), detail: formatMonth(feeSummary.value.currentPayment?.month), icon: WalletCards, tone: feeSummary.value.currentPayment?.status === 'paid' ? 'success' : 'warning' },
+  { label: 'Current Fee', value: formatCurrency(feeSummary.value.currentPayment?.amount), detail: `Due ${formatDate(feeSummary.value.nextDueDate)}`, icon: IndianRupee, tone: 'primary' },
+  { label: 'Total Paid', value: formatCurrency(feeSummary.value.totalPaid), detail: `${feeSummary.value.paidCount} completed payments`, icon: CircleCheckBig, tone: 'success' },
+  { label: 'Outstanding', value: formatCurrency(feeSummary.value.totalOutstanding), detail: `${feeSummary.value.unpaidCount} unpaid records`, icon: CircleAlert, tone: feeSummary.value.totalOutstanding ? 'danger' : 'info' },
 ])
 
 function formatCurrency(value) { return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(Number(value || 0)) }
@@ -126,6 +128,7 @@ onMounted(loadFees)
 
 <style scoped>
 .student-fees { display: grid; gap: var(--space-6); }
+.student-fees__spin { animation: ds-spin var(--transition-slow) linear infinite; }
 .student-page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-5); }
 .student-page-header__title { margin: var(--space-1) 0 0; }
 .student-page-header__description { margin: var(--space-2) 0 0; color: var(--color-text-muted); }

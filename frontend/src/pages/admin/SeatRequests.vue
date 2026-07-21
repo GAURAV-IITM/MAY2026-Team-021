@@ -7,6 +7,7 @@
         <p class="seat-requests-page__description">Review student requests for a different seat, floor, or shift.</p>
       </div>
       <button class="btn btn--secondary" type="button" :disabled="isLoading" @click="loadRequests">
+        <RefreshCw :size="17" :class="{ 'seat-requests-page__spin': isLoading }" aria-hidden="true" />
         {{ isLoading ? 'Refreshing...' : 'Refresh' }}
       </button>
     </header>
@@ -15,7 +16,7 @@
 
     <section class="seat-request-summary" aria-label="Seat request summary">
       <article v-for="item in summaryItems" :key="item.label" class="stat-card stat-card--dashboard">
-        <div class="stat-card__header"><span class="text-label text-muted">{{ item.label }}</span><span class="stat-card__icon" aria-hidden="true">{{ item.icon }}</span></div>
+        <div class="stat-card__header"><span class="text-label text-muted">{{ item.label }}</span><span class="stat-card__icon" aria-hidden="true"><component :is="item.icon" :size="20" /></span></div>
         <strong class="stat-card__value">{{ item.value }}</strong>
         <span class="text-small text-muted">{{ item.detail }}</span>
       </article>
@@ -37,7 +38,7 @@
           <option value="">All shifts</option><option v-for="shift in shiftOptions" :key="shift.value" :value="shift.value">{{ shift.label }}</option>
         </select>
       </div>
-      <button class="btn btn--secondary" type="button" :disabled="!hasActiveFilters" @click="clearFilters">Clear Filters</button>
+      <button class="btn btn--secondary" type="button" :disabled="!hasActiveFilters" @click="clearFilters"><RotateCcw :size="16" aria-hidden="true" /> Clear Filters</button>
     </section>
 
     <div v-if="errorMessage" class="alert alert--danger" role="alert">
@@ -60,7 +61,7 @@
         <template #cell-preferredShiftName="{ value }">{{ formatLabel(value) }}</template>
         <template #cell-submittedAt="{ value }">{{ formatDate(value) }}</template>
         <template #cell-status="{ value }"><span class="badge" :class="statusClass(value)">{{ formatLabel(value) }}</span></template>
-        <template #actions="{ row }"><button class="btn btn--secondary btn--sm" type="button" @click="requestStore.selectRequest(row)">{{ row.status === 'pending' ? 'Review' : 'View' }}</button></template>
+        <template #actions="{ row }"><button class="btn btn--secondary btn--sm" type="button" @click="requestStore.selectRequest(row)"><ClipboardCheck v-if="row.status === 'pending'" :size="15" aria-hidden="true" /><Eye v-else :size="15" aria-hidden="true" />{{ row.status === 'pending' ? 'Review' : 'View' }}</button></template>
       </DataTable>
 
       <div class="seat-request-list__cards">
@@ -68,7 +69,7 @@
         <article v-for="request in filteredRequests" :key="request.id" class="seat-request-card">
           <header><div><strong>{{ request.studentName }}</strong><span>{{ request.studentEmail }}</span></div><span class="badge" :class="statusClass(request.status)">{{ formatLabel(request.status) }}</span></header>
           <dl><div><dt>Current Seat</dt><dd>{{ request.currentSeatNumber || '-' }}</dd></div><div><dt>Preferred</dt><dd>{{ request.preferredSeatNumber || 'Any seat' }}</dd></div><div><dt>Shift</dt><dd>{{ formatLabel(request.preferredShiftName) }}</dd></div><div><dt>Submitted</dt><dd>{{ formatDate(request.submittedAt) }}</dd></div></dl>
-          <button class="btn btn--secondary" type="button" @click="requestStore.selectRequest(request)">{{ request.status === 'pending' ? 'Review Request' : 'View Details' }}</button>
+          <button class="btn btn--secondary" type="button" @click="requestStore.selectRequest(request)"><ClipboardCheck v-if="request.status === 'pending'" :size="16" aria-hidden="true" /><Eye v-else :size="16" aria-hidden="true" />{{ request.status === 'pending' ? 'Review Request' : 'View Details' }}</button>
         </article>
       </div>
     </section>
@@ -78,6 +79,16 @@
 </template>
 
 <script setup>
+import {
+  CircleCheckBig,
+  CircleX,
+  ClipboardCheck,
+  ClipboardList,
+  Clock3,
+  Eye,
+  RefreshCw,
+  RotateCcw,
+} from '@lucide/vue'
 import { storeToRefs } from 'pinia'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 
@@ -102,10 +113,10 @@ let toastTimer = null
 
 const adminIdentity = computed(() => ({ id: currentUser.value?.id, name: currentUser.value?.name, libraryName: currentUser.value?.libraryName }))
 const summaryItems = computed(() => [
-  { label: 'Total Requests', value: requests.value.length, detail: 'All student requests', icon: 'T' },
-  { label: 'Pending', value: pendingCount.value, detail: 'Awaiting review', icon: 'P' },
-  { label: 'Approved', value: approvedCount.value, detail: 'Approved requests', icon: 'A' },
-  { label: 'Rejected', value: rejectedCount.value, detail: 'Rejected requests', icon: 'R' },
+  { label: 'Total Requests', value: requests.value.length, detail: 'All student requests', icon: ClipboardList },
+  { label: 'Pending', value: pendingCount.value, detail: 'Awaiting review', icon: Clock3 },
+  { label: 'Approved', value: approvedCount.value, detail: 'Approved requests', icon: CircleCheckBig },
+  { label: 'Rejected', value: rejectedCount.value, detail: 'Rejected requests', icon: CircleX },
 ])
 const shiftOptions = computed(() => [...new Map(requests.value.map((request) => [request.preferredShiftId, { value: request.preferredShiftId, label: formatLabel(request.preferredShiftName) }])).values()])
 const hasActiveFilters = computed(() => Boolean(searchQuery.value.trim() || statusFilter.value || shiftFilter.value))
@@ -139,6 +150,7 @@ onBeforeUnmount(() => window.clearTimeout(toastTimer))
 .seat-request-filters { display: grid; grid-template-columns: minmax(280px, 1.4fr) repeat(2, minmax(170px, .7fr)) auto; align-items: end; gap: var(--space-4); padding: var(--space-4); }
 .seat-request-filters__field { display: grid; gap: var(--space-2); }
 .seat-requests-page__loading { display: grid; min-height: 360px; place-items: center; }
+.seat-requests-page__spin { animation: ds-spin var(--transition-slow) linear infinite; }
 .seat-request-list { overflow: hidden; }
 .seat-request-list__header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); padding: var(--space-5); border-bottom: 1px solid var(--color-divider); }
 .student-cell, .preference-cell { display: grid; gap: var(--space-1); min-width: 0; }

@@ -2,7 +2,7 @@
   <div class="auth-shell" :class="{ 'auth-shell--register': isRegistration }">
     <header class="auth-shell__topbar">
       <RouterLink class="auth-brand" :to="{ name: 'landing' }" aria-label="Smart Library App home">
-        <span class="auth-brand__mark" aria-hidden="true">SL</span>
+        <span class="auth-brand__mark" aria-hidden="true"><LibraryBig :size="20" /></span>
         <span>Smart Library App</span>
       </RouterLink>
       <RouterLink class="auth-shell__home-link" :to="{ name: 'landing' }">
@@ -47,6 +47,7 @@ import Armchair from '@lucide/vue/dist/esm/icons/armchair.mjs'
 import Building2 from '@lucide/vue/dist/esm/icons/building-2.mjs'
 import Clock3 from '@lucide/vue/dist/esm/icons/clock-3.mjs'
 import IndianRupee from '@lucide/vue/dist/esm/icons/indian-rupee.mjs'
+import LibraryBig from '@lucide/vue/dist/esm/icons/library-big.mjs'
 import ShieldCheck from '@lucide/vue/dist/esm/icons/shield-check.mjs'
 import Users from '@lucide/vue/dist/esm/icons/users.mjs'
 import { computed } from 'vue'

@@ -11,7 +11,7 @@
         </p>
       </div>
       <button class="btn btn--primary" type="button" @click="openCreateModal">
-        Add Library
+        <Plus :size="18" aria-hidden="true" /> Add Library
       </button>
     </header>
 
@@ -57,7 +57,7 @@
         :disabled="!hasFilters"
         @click="clearFilters"
       >
-        Clear Filters
+        <RotateCcw :size="16" aria-hidden="true" /> Clear Filters
       </button>
     </section>
 
@@ -71,10 +71,10 @@
         title="No libraries found"
         description="Adjust the filters or register a new library."
       >
-        <template #icon>L</template>
+        <template #icon><Building2 :size="27" /></template>
         <template #primary-action>
           <button class="btn btn--primary" type="button" @click="openCreateModal">
-            Add Library
+            <Plus :size="17" aria-hidden="true" /> Add Library
           </button>
         </template>
         <template #secondary-action>
@@ -108,13 +108,14 @@
             <template #actions="{ row }">
               <div class="library-management__row-actions">
                 <button class="btn btn--outline btn--sm" type="button" @click="openEditModal(row)">
-                  Edit
+                  <Pencil :size="15" aria-hidden="true" /> Edit
                 </button>
                 <button
                   class="btn btn--secondary btn--sm"
                   type="button"
                   @click="openStatusConfirm(row)"
                 >
+                  <Power :size="15" aria-hidden="true" />
                   {{ getStatusActionLabel(row.status) }}
                 </button>
               </div>
@@ -141,9 +142,10 @@
             </dl>
             <footer>
               <button class="btn btn--outline btn--sm" type="button" @click="openEditModal(library)">
-                Edit
+                <Pencil :size="15" aria-hidden="true" /> Edit
               </button>
               <button class="btn btn--secondary btn--sm" type="button" @click="openStatusConfirm(library)">
+                <Power :size="15" aria-hidden="true" />
                 {{ getStatusActionLabel(library.status) }}
               </button>
             </footer>
@@ -183,6 +185,7 @@
 </template>
 
 <script setup>
+import { Ban, Building2, CircleCheckBig, Clock3, Pencil, Plus, Power, RotateCcw } from '@lucide/vue'
 import { storeToRefs } from 'pinia'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
@@ -223,10 +226,10 @@ const successMessage = ref('')
 let toastTimer = null
 
 const summaryItems = computed(() => [
-  { label: 'Total Libraries', value: libraries.value.length, detail: 'Registered platform tenants', icon: 'T' },
-  { label: 'Active', value: countStatus('active'), detail: 'Operating normally', icon: 'A', tone: 'success' },
-  { label: 'Pending', value: countStatus('pending'), detail: 'Awaiting approval', icon: 'P', tone: 'warning' },
-  { label: 'Suspended', value: countStatus('suspended'), detail: 'Access restricted', icon: 'S', tone: 'danger' },
+  { label: 'Total Libraries', value: libraries.value.length, detail: 'Registered platform tenants', icon: Building2 },
+  { label: 'Active', value: countStatus('active'), detail: 'Operating normally', icon: CircleCheckBig, tone: 'success' },
+  { label: 'Pending', value: countStatus('pending'), detail: 'Awaiting approval', icon: Clock3, tone: 'warning' },
+  { label: 'Suspended', value: countStatus('suspended'), detail: 'Access restricted', icon: Ban, tone: 'danger' },
 ])
 const states = computed(() => [...new Set(libraries.value.map((library) => library.state))].sort())
 const hasFilters = computed(() => Boolean(searchQuery.value.trim() || statusFilter.value || stateFilter.value))

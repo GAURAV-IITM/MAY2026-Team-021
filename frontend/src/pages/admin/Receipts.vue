@@ -12,19 +12,18 @@
       </div>
 
       <span class="badge badge--success">
-        {{ filteredReceipts.length }} Paid
+        <CircleCheckBig :size="14" aria-hidden="true" /> {{ filteredReceipts.length }} Paid
       </span>
     </header>
 
     <section class="card receipts-page__filters" aria-label="Receipt filters">
       <div class="receipts-page__search">
         <label class="form-label" for="receipt-search">Search receipts</label>
-        <input
+        <SearchBar
           id="receipt-search"
-          v-model.trim="search"
-          class="form-input"
-          type="search"
+          v-model="search"
           placeholder="Search by student, receipt, or transaction ID"
+          @clear="search = ''"
         />
       </div>
 
@@ -44,7 +43,7 @@
         :disabled="!hasActiveFilters"
         @click="clearFilters"
       >
-        Clear Filters
+        <RotateCcw :size="16" aria-hidden="true" /> Clear Filters
       </button>
     </section>
 
@@ -57,7 +56,7 @@
         :disabled="isLoading"
         @click="loadReceipts"
       >
-        Retry
+        <RefreshCw :size="16" aria-hidden="true" /> Retry
       </button>
     </div>
 
@@ -84,6 +83,7 @@
         v-else-if="filteredReceipts.length === 0"
         class="receipts-page__state"
       >
+        <ReceiptText :size="30" aria-hidden="true" />
         <h3 class="text-h5 m-0">No receipts found</h3>
         <p class="text-body text-muted m-0">
           {{ emptyStateDescription }}
@@ -133,7 +133,7 @@
                   type="button"
                   @click="openReceiptPreview(receipt)"
                 >
-                  Preview
+                  <Eye :size="15" aria-hidden="true" /> Preview
                 </button>
               </td>
             </tr>
@@ -146,7 +146,7 @@
       :is-open="isPreviewOpen"
       :receipt="selectedReceipt"
       @close="closeReceiptPreview"
-      @download="handleDownloadPlaceholder"
+      @download="handleDownloadUnavailable"
     />
 
     <div
@@ -156,6 +156,7 @@
       aria-atomic="true"
     >
       <div class="toast">
+        <CircleAlert class="receipts-page__toast-icon" :size="19" aria-hidden="true" />
         <div>
           <strong>Download unavailable</strong>
           <p class="text-small text-muted m-0">
@@ -169,7 +170,7 @@
           aria-label="Dismiss download message"
           @click="downloadMessage = ''"
         >
-          Dismiss
+          <X :size="15" aria-hidden="true" /> Dismiss
         </button>
       </div>
     </div>
@@ -177,9 +178,11 @@
 </template>
 
 <script setup>
+import { CircleAlert, CircleCheckBig, Eye, ReceiptText, RefreshCw, RotateCcw, X } from '@lucide/vue'
 import { computed, onMounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 
+import SearchBar from '../../components/common/SearchBar.vue'
 import ReceiptPreviewDialog from '../../components/payment/ReceiptPreviewDialog.vue'
 import { usePaymentStore } from '../../stores/paymentStore'
 
@@ -263,7 +266,7 @@ function clearFilters() {
   selectedMonth.value = ''
 }
 
-function handleDownloadPlaceholder() {
+function handleDownloadUnavailable() {
   downloadMessage.value =
     'Receipt file downloads will be available after backend receipt generation is integrated.'
 }

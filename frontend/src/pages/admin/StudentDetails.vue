@@ -6,7 +6,7 @@
           class="student-details-page__back-link"
           :to="{ name: 'adminStudents' }"
         >
-          ← Back to Students
+          <ArrowLeft :size="17" aria-hidden="true" /> Back to Students
         </RouterLink>
 
         <h1 id="student-details-title" class="text-h2 student-details-page__title">
@@ -26,7 +26,7 @@
       params: { studentId: selectedStudent.id },
     }"
   >
-    Edit Student
+    <Pencil :size="17" aria-hidden="true" /> Edit Student
   </RouterLink>
 
   <button
@@ -36,7 +36,7 @@
     :disabled="isLoading"
     @click="showDeactivateDialog = true"
   >
-    Deactivate Student
+    <UserRoundX :size="17" aria-hidden="true" /> Deactivate Student
   </button>
 </div>
     </header>
@@ -217,6 +217,7 @@
 
 
 <script setup>
+import { ArrowLeft, Pencil, UserRoundX } from '@lucide/vue'
 import { storeToRefs } from 'pinia'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
@@ -375,6 +376,8 @@ onBeforeUnmount(() => {
 
 .student-details-page__back-link {
   display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
   margin-bottom: var(--space-3);
   font-weight: var(--font-weight-medium);
 }

@@ -9,7 +9,7 @@
       :disabled="disabled"
       @click="toggleMenu"
     >
-      Bulk Actions
+      <Layers3 :size="17" aria-hidden="true" /> Bulk Actions <ChevronDown :size="15" aria-hidden="true" />
     </button>
 
     <div v-if="isMenuOpen" class="bulk-action-menu__content" role="menu">
@@ -23,7 +23,7 @@
         :disabled="disabled"
         @click="handleAction('delete')"
       >
-        Delete Selected Seats
+        <Trash2 :size="16" aria-hidden="true" /> Delete Selected Seats
       </button>
       <button
         class="bulk-action-menu__item"
@@ -32,7 +32,7 @@
         :disabled="disabled"
         @click="handleAction('available')"
       >
-        Mark Available
+        <CircleCheckBig :size="16" aria-hidden="true" /> Mark Available
       </button>
       <button
         class="bulk-action-menu__item"
@@ -41,7 +41,7 @@
         :disabled="disabled"
         @click="handleAction('maintenance')"
       >
-        Mark Maintenance
+        <Wrench :size="16" aria-hidden="true" /> Mark Maintenance
       </button>
       <button
         class="bulk-action-menu__item"
@@ -50,13 +50,14 @@
         :disabled="disabled"
         @click="handleAction('blocked')"
       >
-        Mark Blocked
+        <Ban :size="16" aria-hidden="true" /> Mark Blocked
       </button>
     </div>
   </div>
 </template>
 
 <script setup>
+import { Ban, ChevronDown, CircleCheckBig, Layers3, Trash2, Wrench } from '@lucide/vue'
 import { watch } from 'vue'
 
 import { useDismissibleMenu } from '../../composables/useDismissibleMenu'
@@ -120,6 +121,9 @@ function handleAction(action) {
 }
 
 .bulk-action-menu__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
   min-height: 36px;
   padding: 0 var(--space-3);
   border: 0;

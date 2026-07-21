@@ -7,6 +7,7 @@
         <p class="receipts-header__description">View receipts issued for your completed payments.</p>
       </div>
       <button class="btn btn--primary" type="button" :disabled="isLoading" @click="loadReceipts">
+        <RefreshCw :size="17" :class="{ 'student-receipts__spin': isLoading }" aria-hidden="true" />
         {{ isLoading ? 'Refreshing...' : 'Refresh' }}
       </button>
     </header>
@@ -34,7 +35,7 @@
           <template #cell-amount="{ value }">{{ formatCurrency(value) }}</template>
           <template #cell-paidAt="{ value }">{{ formatDate(value) }}</template>
           <template #cell-paymentMethod="{ value }">{{ formatLabel(value) }}</template>
-          <template #actions="{ row }"><button class="btn btn--secondary btn--sm" type="button" @click="portalStore.selectReceipt(row)">View</button></template>
+          <template #actions="{ row }"><button class="btn btn--secondary btn--sm" type="button" @click="portalStore.selectReceipt(row)"><Eye :size="15" aria-hidden="true" /> View</button></template>
         </DataTable>
 
         <div class="receipt-list__cards">
@@ -42,7 +43,7 @@
           <article v-for="receipt in receipts" :key="receipt.id" class="receipt-card">
             <div><div><span class="text-small text-muted">{{ formatMonth(receipt.month) }}</span><strong>{{ receipt.receiptNumber }}</strong></div><span class="badge badge--success">Paid</span></div>
             <dl><div><dt>Amount</dt><dd>{{ formatCurrency(receipt.amount) }}</dd></div><div><dt>Paid On</dt><dd>{{ formatDate(receipt.paidAt) }}</dd></div><div><dt>Method</dt><dd>{{ formatLabel(receipt.paymentMethod) }}</dd></div></dl>
-            <button class="btn btn--secondary" type="button" @click="portalStore.selectReceipt(receipt)">View Receipt</button>
+            <button class="btn btn--secondary" type="button" @click="portalStore.selectReceipt(receipt)"><ReceiptText :size="16" aria-hidden="true" /> View Receipt</button>
           </article>
         </div>
       </section>
@@ -53,6 +54,7 @@
 </template>
 
 <script setup>
+import { CalendarCheck, Eye, FileText, IndianRupee, ReceiptText, RefreshCw } from '@lucide/vue'
 import { storeToRefs } from 'pinia'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 
@@ -72,10 +74,10 @@ const notice = ref('')
 let noticeTimer = null
 const columns = [{ key: 'receiptNumber', label: 'Receipt' }, { key: 'month', label: 'Month' }, { key: 'amount', label: 'Amount' }, { key: 'paidAt', label: 'Paid On' }, { key: 'paymentMethod', label: 'Method' }]
 const summaryItems = computed(() => [
-  { label: 'Total Receipts', value: receipts.value.length, detail: 'Completed payments', icon: 'R', tone: 'primary' },
-  { label: 'Total Paid', value: formatCurrency(receipts.value.reduce((total, item) => total + item.amount, 0)), detail: 'Across all receipts', icon: 'P', tone: 'success' },
-  { label: 'Latest Receipt', value: receipts.value[0]?.receiptNumber || '-', detail: formatMonth(receipts.value[0]?.month), icon: 'L', tone: 'info' },
-  { label: 'Latest Payment', value: formatDate(receipts.value[0]?.paidAt), detail: receipts.value[0] ? formatCurrency(receipts.value[0].amount) : 'No payment', icon: 'D', tone: 'success' },
+  { label: 'Total Receipts', value: receipts.value.length, detail: 'Completed payments', icon: ReceiptText, tone: 'primary' },
+  { label: 'Total Paid', value: formatCurrency(receipts.value.reduce((total, item) => total + item.amount, 0)), detail: 'Across all receipts', icon: IndianRupee, tone: 'success' },
+  { label: 'Latest Receipt', value: receipts.value[0]?.receiptNumber || '-', detail: formatMonth(receipts.value[0]?.month), icon: FileText, tone: 'info' },
+  { label: 'Latest Payment', value: formatDate(receipts.value[0]?.paidAt), detail: receipts.value[0] ? formatCurrency(receipts.value[0].amount) : 'No payment', icon: CalendarCheck, tone: 'success' },
 ])
 
 function formatCurrency(value) { return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(Number(value || 0)) }
@@ -91,6 +93,7 @@ onBeforeUnmount(() => { window.clearTimeout(noticeTimer); portalStore.clearSelec
 
 <style scoped>
 .student-receipts { display: grid; gap: var(--space-6); }
+.student-receipts__spin { animation: ds-spin var(--transition-slow) linear infinite; }
 .receipts-header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-5); }
 .receipts-header__title { margin: var(--space-1) 0 0; }
 .receipts-header__description { margin: var(--space-2) 0 0; color: var(--color-text-muted); }
