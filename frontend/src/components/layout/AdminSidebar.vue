@@ -60,7 +60,7 @@ const menuItems = [
   { label: 'Shift Management', routeName: 'adminShiftManagement' },
   { label: 'Payments', routeName: 'adminPayments' },
   { label: 'Receipts', routeName: 'adminReceipts' },
-  { label: 'Reports', routeName: 'adminReports' },
+  { label: 'Reports & Analytics', routeName: 'adminReports' },
   { label: 'Announcements', routeName: 'adminAnnouncements' },
   { label: 'Settings', routeName: 'adminSettings' },
 ]
