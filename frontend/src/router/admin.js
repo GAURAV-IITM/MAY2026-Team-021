@@ -11,9 +11,10 @@ import AdminSeatAvailability from '../pages/admin/SeatAvailability.vue'
 import AdminShiftManagement from '../pages/admin/ShiftManagement.vue'
 import AdminPayments from '../pages/admin/Payments.vue'
 import AdminReceipts from '../pages/admin/Receipts.vue'
-import AdminReports from '../pages/admin/Reports.vue'
 import AdminAnnouncements from '../pages/admin/Announcements.vue'
 import AdminSettings from '../pages/admin/Settings.vue'
+
+const AdminReports = () => import('../pages/admin/Reports.vue')
 
 // Admin route module.
 // TODO: Attach admin guards after authentication and permissions are implemented.
@@ -98,7 +99,7 @@ const adminRoutes = [
         path: 'reports',
         name: 'adminReports',
         component: AdminReports,
-        meta: { title: 'Reports', role: 'admin', requiresAuth: true },
+        meta: { title: 'Reports & Analytics', role: 'admin', requiresAuth: true },
       },
       {
         path: 'announcements',
