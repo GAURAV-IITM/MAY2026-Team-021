@@ -22,7 +22,7 @@
         :aria-pressed="activeView === 'monthly'"
         @click="setActiveView('monthly')"
       >
-        Monthly Payments
+        <CalendarDays :size="17" aria-hidden="true" /> Monthly Payments
       </button>
 
       <button
@@ -32,7 +32,7 @@
         :aria-pressed="activeView === 'history'"
         @click="setActiveView('history')"
       >
-        Payment History
+        <History :size="17" aria-hidden="true" /> Payment History
       </button>
 
       <button
@@ -42,7 +42,7 @@
         :aria-pressed="activeView === 'reminders'"
         @click="setActiveView('reminders')"
       >
-        Fee Reminders
+        <MessageCircleMore :size="17" aria-hidden="true" /> Fee Reminders
       </button>
     </nav>
 
@@ -53,6 +53,7 @@
         :disabled="!paymentFilters.month || isGeneratingMonthlyPayments || isLoading"
         @click="handleGenerateMonthlyPayments"
       >
+        <FilePlus2 :size="17" aria-hidden="true" />
         {{ isGeneratingMonthlyPayments ? 'Generating Payments...' : 'Generate Monthly Payments' }}
       </button>
 
@@ -88,7 +89,8 @@
           </span>
 
           <span class="stat-card__icon" aria-hidden="true">
-            {{ activeView === 'reminders' ? 'P' : 'T' }}
+            <ClockAlert v-if="activeView === 'reminders'" :size="20" />
+            <CreditCard v-else :size="20" />
           </span>
         </div>
 
@@ -104,7 +106,8 @@
           </span>
 
           <span class="stat-card__icon" aria-hidden="true">
-            {{ activeView === 'reminders' ? 'S' : 'P' }}
+            <UsersRound v-if="activeView === 'reminders'" :size="20" />
+            <CircleCheckBig v-else :size="20" />
           </span>
         </div>
 
@@ -120,7 +123,8 @@
           </span>
 
           <span class="stat-card__icon" aria-hidden="true">
-            {{ activeView === 'reminders' ? 'M' : 'U' }}
+            <CalendarClock v-if="activeView === 'reminders'" :size="20" />
+            <CircleAlert v-else :size="20" />
           </span>
         </div>
 
@@ -135,7 +139,7 @@
             {{ activeView === 'reminders' ? 'Total Due' : 'Collected' }}
           </span>
 
-          <span class="stat-card__icon" aria-hidden="true">₹</span>
+          <span class="stat-card__icon" aria-hidden="true"><IndianRupee :size="20" /></span>
         </div>
 
         <strong class="stat-card__value">
@@ -180,6 +184,7 @@
         title="No payments found"
         :description="emptyStateDescription"
       >
+        <template #icon><WalletCards :size="26" /></template>
         <template #primary-action>
           <button
             v-if="hasActivePaymentFilters"
@@ -187,7 +192,7 @@
             type="button"
             @click="clearFilters"
           >
-            Clear Filters
+            <RotateCcw :size="16" aria-hidden="true" /> Clear Filters
           </button>
 
           <span v-else></span>
@@ -243,7 +248,7 @@
                 type="button"
                 @click="openStatusDialog(row)"
               >
-                Update Status
+                <CircleCheckBig :size="15" aria-hidden="true" /> Update Status
               </button>
 
               <button
@@ -253,7 +258,7 @@
                 :disabled="isLoadingReceipt"
                 @click="openReceiptDialog(row)"
               >
-                View Receipt
+                <ReceiptText :size="15" aria-hidden="true" /> View Receipt
               </button>
 
               <button
@@ -262,7 +267,7 @@
                 type="button"
                 @click="openReminderDialog(row)"
               >
-                Send Reminder
+                <MessageCircleMore :size="15" aria-hidden="true" /> Send Reminder
               </button>
             </div>
           </template>
@@ -305,6 +310,22 @@
 </template>
 
 <script setup>
+import {
+  CalendarClock,
+  CalendarDays,
+  CircleAlert,
+  CircleCheckBig,
+  ClockAlert,
+  CreditCard,
+  FilePlus2,
+  History,
+  IndianRupee,
+  MessageCircleMore,
+  ReceiptText,
+  RotateCcw,
+  UsersRound,
+  WalletCards,
+} from '@lucide/vue'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref, watch } from 'vue'
 

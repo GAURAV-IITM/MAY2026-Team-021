@@ -1,13 +1,14 @@
 <template>
   <section class="seat-summary-cards" aria-label="Seat summary">
     <article v-for="card in cards" :key="card.key" class="seat-summary-cards__card">
-      <span class="text-label text-muted">{{ card.label }}</span>
+      <header><span class="text-label text-muted">{{ card.label }}</span><component :is="card.icon" :size="19" aria-hidden="true" /></header>
       <strong>{{ card.value }}</strong>
     </article>
   </section>
 </template>
 
 <script setup>
+import { Armchair, CircleCheckBig, UserRoundCheck, Wrench } from '@lucide/vue'
 import { computed } from 'vue'
 
 const props = defineProps({
@@ -23,10 +24,10 @@ const props = defineProps({
 })
 
 const cards = computed(() => [
-  { key: 'total', label: 'Total Seats', value: props.summary.total || 0 },
-  { key: 'available', label: 'Available', value: props.summary.available || 0 },
-  { key: 'occupied', label: 'Occupied', value: props.summary.occupied || 0 },
-  { key: 'maintenance', label: 'Maintenance', value: props.summary.maintenance || 0 },
+  { key: 'total', label: 'Total Seats', value: props.summary.total || 0, icon: Armchair },
+  { key: 'available', label: 'Available', value: props.summary.available || 0, icon: CircleCheckBig },
+  { key: 'occupied', label: 'Occupied', value: props.summary.occupied || 0, icon: UserRoundCheck },
+  { key: 'maintenance', label: 'Maintenance', value: props.summary.maintenance || 0, icon: Wrench },
 ])
 </script>
 
@@ -46,6 +47,14 @@ const cards = computed(() => [
   border-radius: var(--radius-md);
   background: var(--color-surface-elevated);
   box-shadow: var(--shadow-sm);
+}
+
+.seat-summary-cards__card header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  color: var(--color-primary);
 }
 
 .seat-summary-cards__card strong {

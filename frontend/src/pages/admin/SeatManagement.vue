@@ -15,7 +15,7 @@
 
       <div class="seat-management-page__actions">
         <button class="btn btn--primary" type="button" @click="openAddSeatModal">
-          + Add Seat
+          <Plus :size="18" aria-hidden="true" /> Add Seat
         </button>
         <button
           class="btn btn--secondary"
@@ -23,6 +23,7 @@
           :disabled="isLoading"
           @click="loadSeats"
         >
+          <RefreshCw :size="17" :class="{ 'seat-management-page__spin': isLoading }" aria-hidden="true" />
           {{ isLoading ? 'Refreshing' : 'Refresh' }}
         </button>
         <BulkActionMenu
@@ -69,7 +70,7 @@
         description="Create seats before managing availability or viewing the seat map."
       >
         <template #icon>
-          <span class="seat-management-page__empty-illustration">S</span>
+          <Armchair :size="28" />
         </template>
         <template #primary-action>
           <button class="btn btn--primary" type="button" @click="openAddSeatModal">
@@ -150,6 +151,7 @@
 </template>
 
 <script setup>
+import { Armchair, Plus, RefreshCw } from '@lucide/vue'
 import { storeToRefs } from 'pinia'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
@@ -457,6 +459,10 @@ onBeforeUnmount(() => {
   background: var(--color-surface-elevated);
 }
 
+.seat-management-page__spin {
+  animation: ds-spin var(--transition-slow) linear infinite;
+}
+
 .seat-management-page__table-card {
   overflow: visible;
 }
@@ -467,17 +473,6 @@ onBeforeUnmount(() => {
 
 .seat-management-page__select-all {
   white-space: nowrap;
-}
-
-.seat-management-page__empty-illustration {
-  display: grid;
-  width: 56px;
-  height: 56px;
-  place-items: center;
-  border-radius: var(--radius-full);
-  background: var(--color-primary-light);
-  color: var(--color-primary);
-  font-weight: var(--font-weight-bold);
 }
 
 @media (max-width: 760px) {

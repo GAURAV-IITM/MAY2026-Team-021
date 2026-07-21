@@ -7,7 +7,7 @@
       :disabled="currentPage <= 1"
       @click="$emit('update:currentPage', currentPage - 1)"
     >
-      Previous
+      <ChevronLeft :size="16" aria-hidden="true" /> Previous
     </button>
 
     <span class="pagination__status">
@@ -21,12 +21,13 @@
       :disabled="currentPage >= normalizedTotalPages"
       @click="$emit('update:currentPage', currentPage + 1)"
     >
-      Next
+      Next <ChevronRight :size="16" aria-hidden="true" />
     </button>
   </nav>
 </template>
 
 <script setup>
+import { ChevronLeft, ChevronRight } from '@lucide/vue'
 import { computed } from 'vue'
 
 const props = defineProps({

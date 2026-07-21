@@ -2,7 +2,7 @@
   <section class="student-profile" aria-labelledby="student-profile-title">
     <header class="profile-header">
       <div><p class="text-label text-muted m-0">My Account</p><h1 id="student-profile-title" class="text-h2 profile-header__title">Profile</h1><p class="profile-header__description">Review your membership and keep your contact details current.</p></div>
-      <button class="btn btn--primary" type="submit" form="student-profile-form" :disabled="!isDirty || isSaving">{{ isSaving ? 'Saving...' : 'Save Changes' }}</button>
+      <button class="btn btn--primary" type="submit" form="student-profile-form" :disabled="!isDirty || isSaving"><Save :size="17" aria-hidden="true" />{{ isSaving ? 'Saving...' : 'Save Changes' }}</button>
     </header>
 
     <Toast v-if="successMessage" type="success">{{ successMessage }}</Toast>
@@ -44,13 +44,14 @@
           </div>
         </section>
 
-        <footer class="profile-form__footer"><span class="text-small text-muted">{{ isDirty ? 'You have unsaved changes.' : 'Your profile is up to date.' }}</span><div><button class="btn btn--secondary" type="button" :disabled="!isDirty || isSaving" @click="resetForm">Discard</button><button class="btn btn--primary" type="submit" :disabled="!isDirty || isSaving">{{ isSaving ? 'Saving...' : 'Save Changes' }}</button></div></footer>
+        <footer class="profile-form__footer"><span class="text-small text-muted">{{ isDirty ? 'You have unsaved changes.' : 'Your profile is up to date.' }}</span><div><button class="btn btn--secondary" type="button" :disabled="!isDirty || isSaving" @click="resetForm"><Undo2 :size="17" aria-hidden="true" /> Discard</button><button class="btn btn--primary" type="submit" :disabled="!isDirty || isSaving"><Save :size="17" aria-hidden="true" />{{ isSaving ? 'Saving...' : 'Save Changes' }}</button></div></footer>
       </div>
     </form>
   </section>
 </template>
 
 <script setup>
+import { Save, Undo2 } from '@lucide/vue'
 import { storeToRefs } from 'pinia'
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 

@@ -10,7 +10,7 @@
       </div>
 
       <RouterLink class="btn btn--primary students-page__add-button" :to="{ name: 'adminAddStudent' }">
-        Add Student
+        <UserPlus :size="18" aria-hidden="true" /> Add Student
       </RouterLink>
     </header>
 
@@ -18,7 +18,7 @@
       <article class="stat-card stat-card--dashboard">
         <div class="stat-card__header">
           <span class="text-label text-muted">Total Students</span>
-          <span class="stat-card__icon" aria-hidden="true">T</span>
+          <span class="stat-card__icon" aria-hidden="true"><UsersRound :size="20" /></span>
         </div>
         <strong class="stat-card__value">{{ studentCount }}</strong>
       </article>
@@ -26,7 +26,7 @@
       <article class="stat-card stat-card--dashboard">
         <div class="stat-card__header">
           <span class="text-label text-muted">Active Students</span>
-          <span class="stat-card__icon" aria-hidden="true">A</span>
+          <span class="stat-card__icon" aria-hidden="true"><UserRoundCheck :size="20" /></span>
         </div>
         <strong class="stat-card__value">{{ activeStudentCount }}</strong>
       </article>
@@ -34,7 +34,7 @@
       <article class="stat-card stat-card--dashboard">
         <div class="stat-card__header">
           <span class="text-label text-muted">Inactive Students</span>
-          <span class="stat-card__icon" aria-hidden="true">I</span>
+          <span class="stat-card__icon" aria-hidden="true"><UserRoundX :size="20" /></span>
         </div>
         <strong class="stat-card__value">{{ inactiveStudentCount }}</strong>
       </article>
@@ -78,7 +78,7 @@
         :disabled="!hasActiveFilters"
         @click="clearFilters"
       >
-        Clear Filters
+        <RotateCcw :size="16" aria-hidden="true" /> Clear Filters
       </button>
     </section>
 
@@ -103,6 +103,7 @@
         title="No students found"
         :description="emptyStateDescription"
       >
+        <template #icon><UsersRound :size="26" /></template>
         <template #primary-action>
           <button
             v-if="hasActiveFilters"
@@ -110,11 +111,11 @@
             type="button"
             @click="clearFilters"
           >
-            Clear Filters
+            <RotateCcw :size="16" aria-hidden="true" /> Clear Filters
           </button>
 
           <RouterLink v-else class="btn btn--primary" :to="{ name: 'adminAddStudent' }">
-            Add Student
+            <UserPlus :size="17" aria-hidden="true" /> Add Student
           </RouterLink>
         </template>
 
@@ -158,14 +159,14 @@
                 class="btn btn--secondary btn--sm"
                 :to="{ name: 'adminStudentDetails', params: { studentId: row.id } }"
               >
-                View
+                <Eye :size="15" aria-hidden="true" /> View
               </RouterLink>
 
               <RouterLink
                 class="btn btn--outline btn--sm"
                 :to="{ name: 'adminEditStudent', params: { studentId: row.id } }"
               >
-                Edit
+                <Pencil :size="15" aria-hidden="true" /> Edit
               </RouterLink>
             </div>
           </template>
@@ -188,6 +189,15 @@
 </template>
 
 <script setup>
+import {
+  Eye,
+  Pencil,
+  RotateCcw,
+  UserPlus,
+  UserRoundCheck,
+  UserRoundX,
+  UsersRound,
+} from '@lucide/vue'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'

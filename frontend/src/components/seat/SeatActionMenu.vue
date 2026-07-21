@@ -5,34 +5,38 @@
     :class="`seat-action-menu--${placement}`"
   >
     <button
-      class="btn btn--secondary btn--sm seat-action-menu__trigger"
+      class="btn btn--secondary btn--sm btn--icon seat-action-menu__trigger"
       type="button"
+      aria-label="Seat actions"
+      title="Seat actions"
       aria-haspopup="menu"
       :aria-expanded="String(isMenuOpen)"
       @click="toggleMenu"
     >
-      More
+      <Ellipsis :size="18" aria-hidden="true" />
     </button>
 
     <div v-if="isMenuOpen" class="seat-action-menu__menu" role="menu">
       <span class="text-caption text-muted">Change Status</span>
       <button type="button" role="menuitem" @click="handleStatusChange('available')">
-        Mark Available
+        <CircleCheckBig :size="16" aria-hidden="true" /> Mark Available
       </button>
       <button type="button" role="menuitem" @click="handleStatusChange('maintenance')">
-        Mark Maintenance
+        <Wrench :size="16" aria-hidden="true" /> Mark Maintenance
       </button>
       <button type="button" role="menuitem" @click="handleStatusChange('blocked')">
-        Mark Blocked
+        <Ban :size="16" aria-hidden="true" /> Mark Blocked
       </button>
       <button type="button" role="menuitem" @click="handleViewMap">
-        View in Seat Map
+        <Map :size="16" aria-hidden="true" /> View in Seat Map
       </button>
     </div>
   </div>
 </template>
 
 <script setup>
+import { Ban, CircleCheckBig, Ellipsis, Map, Wrench } from '@lucide/vue'
+
 import { useDismissibleMenu } from '../../composables/useDismissibleMenu'
 
 const props = defineProps({
@@ -92,6 +96,9 @@ function handleViewMap() {
 }
 
 .seat-action-menu__menu button {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
   min-height: 34px;
   padding: 0 var(--space-2);
   border: 0;

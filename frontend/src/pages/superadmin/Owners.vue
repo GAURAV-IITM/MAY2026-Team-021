@@ -11,7 +11,7 @@
         </p>
       </div>
       <button class="btn btn--primary" type="button" @click="openCreateModal">
-        Add Owner
+        <UserPlus :size="18" aria-hidden="true" /> Add Owner
       </button>
     </header>
 
@@ -53,7 +53,7 @@
         </select>
       </div>
       <button class="btn btn--secondary" type="button" :disabled="!hasFilters" @click="clearFilters">
-        Clear Filters
+        <RotateCcw :size="16" aria-hidden="true" /> Clear Filters
       </button>
     </section>
 
@@ -67,9 +67,9 @@
         title="No owners found"
         description="Adjust the filters or create a library owner account."
       >
-        <template #icon>O</template>
+        <template #icon><UserCog :size="27" /></template>
         <template #primary-action>
-          <button class="btn btn--primary" type="button" @click="openCreateModal">Add Owner</button>
+          <button class="btn btn--primary" type="button" @click="openCreateModal"><UserPlus :size="17" aria-hidden="true" /> Add Owner</button>
         </template>
         <template #secondary-action>
           <button v-if="hasFilters" class="btn btn--secondary" type="button" @click="clearFilters">
@@ -96,9 +96,10 @@
             <template #actions="{ row }">
               <div class="owner-management__row-actions">
                 <button class="btn btn--outline btn--sm" type="button" @click="openEditModal(row)">
-                  Edit
+                  <Pencil :size="15" aria-hidden="true" /> Edit
                 </button>
                 <button class="btn btn--secondary btn--sm" type="button" @click="openStatusConfirm(row)">
+                  <Power :size="15" aria-hidden="true" />
                   {{ row.status === 'active' ? 'Suspend' : 'Activate' }}
                 </button>
               </div>
@@ -118,8 +119,9 @@
               <div><dt>Last Login</dt><dd>{{ owner.lastLoginAt ? formatDate(owner.lastLoginAt) : 'Never' }}</dd></div>
             </dl>
             <footer>
-              <button class="btn btn--outline btn--sm" type="button" @click="openEditModal(owner)">Edit</button>
+              <button class="btn btn--outline btn--sm" type="button" @click="openEditModal(owner)"><Pencil :size="15" aria-hidden="true" /> Edit</button>
               <button class="btn btn--secondary btn--sm" type="button" @click="openStatusConfirm(owner)">
+                <Power :size="15" aria-hidden="true" />
                 {{ owner.status === 'active' ? 'Suspend' : 'Activate' }}
               </button>
             </footer>
@@ -159,6 +161,7 @@
 </template>
 
 <script setup>
+import { Ban, CircleCheckBig, Clock3, Pencil, Power, RotateCcw, UserCog, UserPlus } from '@lucide/vue'
 import { storeToRefs } from 'pinia'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
@@ -197,10 +200,10 @@ const successMessage = ref('')
 let toastTimer = null
 
 const summaryItems = computed(() => [
-  { label: 'Total Owners', value: owners.value.length, detail: 'Platform owner accounts', icon: 'T' },
-  { label: 'Active', value: countStatus('active'), detail: 'Access enabled', icon: 'A', tone: 'success' },
-  { label: 'Invited', value: countStatus('invited'), detail: 'Invitation pending', icon: 'I', tone: 'warning' },
-  { label: 'Suspended', value: countStatus('suspended'), detail: 'Access restricted', icon: 'S', tone: 'danger' },
+  { label: 'Total Owners', value: owners.value.length, detail: 'Platform owner accounts', icon: UserCog },
+  { label: 'Active', value: countStatus('active'), detail: 'Access enabled', icon: CircleCheckBig, tone: 'success' },
+  { label: 'Invited', value: countStatus('invited'), detail: 'Invitation pending', icon: Clock3, tone: 'warning' },
+  { label: 'Suspended', value: countStatus('suspended'), detail: 'Access restricted', icon: Ban, tone: 'danger' },
 ])
 const hasFilters = computed(() => Boolean(searchQuery.value.trim() || statusFilter.value || assignmentFilter.value))
 const filteredOwners = computed(() => {

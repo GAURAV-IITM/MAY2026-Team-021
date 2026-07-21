@@ -5,16 +5,20 @@
         <p class="text-label text-muted m-0">{{ title }}</p>
         <p class="stat-card__value m-0">{{ value }}</p>
       </div>
-      <span class="stat-card__icon" aria-hidden="true">{{ icon }}</span>
+      <span class="stat-card__icon" aria-hidden="true">
+        <component :is="icon" :size="20" />
+      </span>
     </header>
-    <p class="stat-card__trend m-0">{{ trend }}</p>
+    <p v-if="trend" class="stat-card__trend m-0">{{ trend }}</p>
     <footer class="stat-card__footer">
-      <slot name="footer">Footer placeholder</slot>
+      <slot name="footer"></slot>
     </footer>
   </article>
 </template>
 
 <script setup>
+import { ChartNoAxesColumnIncreasing } from '@lucide/vue'
+
 defineProps({
   title: {
     type: String,
@@ -26,17 +30,11 @@ defineProps({
   },
   trend: {
     type: String,
-    default: 'Trend placeholder',
+    default: '',
   },
   icon: {
-    type: String,
-    default: 'i',
+    type: [Object, Function],
+    default: ChartNoAxesColumnIncreasing,
   },
 })
 </script>
-
-<!--
-src/components: Reusable interface building blocks shared across layouts and pages.
-TODO:
-- Add props for labels, values, trends, and loading states.
--->

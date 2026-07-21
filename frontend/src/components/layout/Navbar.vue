@@ -1,9 +1,9 @@
 <template>
-  <header class="app-navbar">Navbar</header>
+  <header class="app-navbar">
+    <span class="app-navbar__logo"><LibraryBig :size="19" aria-hidden="true" /> Smart Library App</span>
+  </header>
 </template>
 
-<!--
-src/components: Reusable interface building blocks shared across layouts and pages.
-TODO:
-- Add navigation content, tenant branding, and account controls.
--->
+<script setup>
+import { LibraryBig } from '@lucide/vue'
+</script>

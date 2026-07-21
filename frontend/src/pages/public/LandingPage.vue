@@ -3,7 +3,7 @@
     <header class="site-header" :class="{ 'site-header--solid': isScrolled || isMenuOpen }">
       <nav class="site-nav" aria-label="Main navigation">
         <RouterLink class="brand" :to="{ name: 'landing' }" aria-label="Smart Library App home">
-          <span class="brand__mark" aria-hidden="true">SL</span>
+          <span class="brand__mark" aria-hidden="true"><LibraryBig :size="20" /></span>
           <span class="brand__name">Smart Library App</span>
         </RouterLink>
 
@@ -190,7 +190,7 @@
     </main>
 
     <footer class="landing-footer">
-      <div class="landing-footer__brand"><span class="brand__mark">SL</span><div><strong>Smart Library App</strong><span>Library operations, clearly managed.</span></div></div>
+      <div class="landing-footer__brand"><span class="brand__mark"><LibraryBig :size="20" aria-hidden="true" /></span><div><strong>Smart Library App</strong><span>Library operations, clearly managed.</span></div></div>
       <nav aria-label="Footer navigation"><a href="#operations">Operations</a><a href="#outcomes">Outcomes</a><RouterLink :to="{ name: 'login' }">Login</RouterLink></nav>
       <p>&copy; 2026 Smart Library App</p>
     </footer>
@@ -206,6 +206,7 @@ import Check from '@lucide/vue/dist/esm/icons/check.mjs'
 import Clock3 from '@lucide/vue/dist/esm/icons/clock-3.mjs'
 import IndianRupee from '@lucide/vue/dist/esm/icons/indian-rupee.mjs'
 import LayoutDashboard from '@lucide/vue/dist/esm/icons/layout-dashboard.mjs'
+import LibraryBig from '@lucide/vue/dist/esm/icons/library-big.mjs'
 import Megaphone from '@lucide/vue/dist/esm/icons/megaphone.mjs'
 import Menu from '@lucide/vue/dist/esm/icons/menu.mjs'
 import ShieldCheck from '@lucide/vue/dist/esm/icons/shield-check.mjs'

@@ -2,6 +2,7 @@
   <main class="error-page">
     <section class="error-card" :aria-labelledby="titleId">
       <p class="error-code m-0">{{ code }}</p>
+      <span class="error-symbol" aria-hidden="true"><component :is="errorIcon" :size="28" /></span>
       <h1 :id="titleId" class="text-h2 m-0">{{ title }}</h1>
       <p class="error-description m-0">{{ description }}</p>
 
@@ -13,7 +14,7 @@
             class="btn"
             :class="action.variant === 'primary' ? 'btn--primary' : 'btn--secondary'"
           >
-            {{ action.label }}
+            <component :is="getActionIcon(action)" :size="17" aria-hidden="true" /> {{ action.label }}
           </RouterLink>
           <button
             v-else
@@ -22,7 +23,7 @@
             type="button"
             @click="handleAction(action.action)"
           >
-            {{ action.label }}
+            <component :is="getActionIcon(action)" :size="17" aria-hidden="true" /> {{ action.label }}
           </button>
         </template>
       </nav>
@@ -31,6 +32,17 @@
 </template>
 
 <script setup>
+import {
+  ArrowLeft,
+  House,
+  LayoutDashboard,
+  LockKeyhole,
+  LogIn,
+  RefreshCw,
+  SearchX,
+  ServerCrash,
+  ShieldAlert,
+} from '@lucide/vue'
 import { computed } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 
@@ -48,6 +60,20 @@ const props = defineProps({
 
 const router = useRouter()
 const titleId = computed(() => `error-title-${props.code}`)
+const errorIcon = computed(() => ({
+  401: ShieldAlert,
+  403: LockKeyhole,
+  404: SearchX,
+  500: ServerCrash,
+})[props.code] || ShieldAlert)
+
+function getActionIcon(action) {
+  if (action.action === 'back') return ArrowLeft
+  if (action.action === 'reload' || /try again/i.test(action.label)) return RefreshCw
+  if (/login|sign in/i.test(action.label)) return LogIn
+  if (/dashboard/i.test(action.label)) return LayoutDashboard
+  return House
+}
 
 function handleAction(action) {
   if (action === 'reload') {
@@ -91,6 +117,17 @@ function handleAction(action) {
   font-size: clamp(3.5rem, 12vw, 5rem);
   font-weight: var(--font-weight-bold);
   line-height: 1;
+}
+
+.error-symbol {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: var(--radius-md);
+  background: var(--color-primary-light);
+  color: var(--color-primary);
 }
 
 .error-description {

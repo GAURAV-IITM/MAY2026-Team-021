@@ -33,8 +33,13 @@ const isSidebarCollapsed = ref(false)
 const isSidebarOpen = ref(false)
 
 function toggleSidebar() {
+  if (window.matchMedia('(max-width: 768px)').matches) {
+    isSidebarOpen.value = !isSidebarOpen.value
+    return
+  }
+
   isSidebarCollapsed.value = !isSidebarCollapsed.value
-  isSidebarOpen.value = !isSidebarOpen.value
+  isSidebarOpen.value = false
 }
 
 function closeSidebar() {

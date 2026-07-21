@@ -18,7 +18,7 @@
           class="btn btn--secondary"
           :to="{ name: 'adminSeatManagement' }"
         >
-          Back to Overview
+          <ArrowLeft :size="17" aria-hidden="true" /> Back to Overview
         </RouterLink>
         <button
           class="btn btn--secondary"
@@ -26,6 +26,7 @@
           :disabled="isLoading"
           @click="loadSeatMap"
         >
+          <RefreshCw :size="17" :class="{ 'seat-map-page__spin': isLoading }" aria-hidden="true" />
           {{ isLoading ? 'Refreshing' : 'Refresh' }}
         </button>
       </div>
@@ -209,6 +210,7 @@
 </template>
 
 <script setup>
+import { ArrowLeft, RefreshCw } from '@lucide/vue'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
@@ -486,6 +488,10 @@ onMounted(() => {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   background: var(--color-surface-elevated);
+}
+
+.seat-map-page__spin {
+  animation: ds-spin var(--transition-slow) linear infinite;
 }
 
 .seat-map-page__toolbar {

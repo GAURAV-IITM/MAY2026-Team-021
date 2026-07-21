@@ -20,7 +20,7 @@
 
     <div v-if="errorMessage" class="alert alert--danger reports-page__error" role="alert">
       <div><strong>Unable to load reports.</strong><p class="m-0">{{ errorMessage }}</p></div>
-      <button class="btn btn--secondary btn--sm" type="button" @click="refreshReports">Retry</button>
+      <button class="btn btn--secondary btn--sm" type="button" @click="refreshReports"><RefreshCw :size="16" aria-hidden="true" /> Retry</button>
     </div>
 
     <ReportFilters

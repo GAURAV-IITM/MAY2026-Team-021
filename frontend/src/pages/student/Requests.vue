@@ -2,7 +2,7 @@
   <section class="student-requests" aria-labelledby="student-requests-title">
     <header class="requests-header">
       <div><p class="text-label text-muted m-0">Seat Services</p><h1 id="student-requests-title" class="text-h2 requests-header__title">Seat Change Requests</h1><p class="requests-header__description">Ask the library team to review a different seat or shift.</p></div>
-      <button class="btn btn--primary" type="button" :disabled="Boolean(pendingRequest) || isLoading" @click="isRequestModalOpen = true">Request Change</button>
+      <button class="btn btn--primary" type="button" :disabled="Boolean(pendingRequest) || isLoading" @click="isRequestModalOpen = true"><ClipboardPlus :size="18" aria-hidden="true" /> Request Change</button>
     </header>
 
     <Toast v-if="successMessage" type="success">{{ successMessage }}</Toast>
@@ -14,7 +14,7 @@
       <StudentSummaryCards :items="summaryItems" aria-label="Seat request summary" />
       <section class="card request-history" aria-labelledby="request-history-title">
         <header class="request-history__header"><div><h2 id="request-history-title" class="text-h4 m-0">Request History</h2><p class="text-small text-muted m-0">The library owner reviews and resolves each request.</p></div><span class="text-small text-muted">{{ requests.length }} requests</span></header>
-        <div v-if="requests.length === 0" class="request-history__empty"><strong>No seat requests yet</strong><p class="text-muted m-0">Your requests and their review status will appear here.</p><button class="btn btn--primary" type="button" @click="isRequestModalOpen = true">Request Change</button></div>
+        <div v-if="requests.length === 0" class="request-history__empty"><ClipboardList :size="30" aria-hidden="true" /><strong>No seat requests yet</strong><p class="text-muted m-0">Your requests and their review status will appear here.</p><button class="btn btn--primary" type="button" @click="isRequestModalOpen = true"><ClipboardPlus :size="17" aria-hidden="true" /> Request Change</button></div>
         <div v-else class="request-list">
           <article v-for="request in requests" :key="request.id" class="request-card">
             <header><div><span class="text-small text-muted">Submitted {{ formatDate(request.submittedAt) }}</span><h3>{{ request.preferredSeatNumber || 'Any available seat' }}</h3></div><span class="badge" :class="requestStatusClass(request.status)">{{ formatLabel(request.status) }}</span></header>
@@ -38,6 +38,7 @@
 </template>
 
 <script setup>
+import { CircleCheckBig, CircleX, ClipboardList, ClipboardPlus, Clock3 } from '@lucide/vue'
 import { storeToRefs } from 'pinia'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 
@@ -61,10 +62,10 @@ let successTimer = null
 const summaryItems = computed(() => {
   const count = (status) => requests.value.filter((request) => request.status === status).length
   return [
-    { label: 'Total Requests', value: requests.value.length, detail: 'All submitted requests', icon: 'R', tone: 'primary' },
-    { label: 'Pending', value: count('pending'), detail: 'Awaiting library review', icon: 'P', tone: 'warning' },
-    { label: 'Approved', value: count('approved'), detail: 'Accepted requests', icon: 'A', tone: 'success' },
-    { label: 'Closed', value: count('rejected') + count('cancelled'), detail: 'Rejected or cancelled', icon: 'C', tone: 'info' },
+    { label: 'Total Requests', value: requests.value.length, detail: 'All submitted requests', icon: ClipboardList, tone: 'primary' },
+    { label: 'Pending', value: count('pending'), detail: 'Awaiting library review', icon: Clock3, tone: 'warning' },
+    { label: 'Approved', value: count('approved'), detail: 'Accepted requests', icon: CircleCheckBig, tone: 'success' },
+    { label: 'Closed', value: count('rejected') + count('cancelled'), detail: 'Rejected or cancelled', icon: CircleX, tone: 'info' },
   ]
 })
 

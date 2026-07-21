@@ -6,7 +6,7 @@
     aria-label="Student sidebar"
   >
     <div class="app-sidebar__header">
-      <span class="app-sidebar__logo">SLA</span>
+      <span class="app-sidebar__logo" aria-hidden="true"><LibraryBig :size="22" /></span>
       <span class="app-sidebar__title">Student</span>
     </div>
 
@@ -16,9 +16,10 @@
           <RouterLink
             class="app-sidebar__link"
             :to="{ name: item.routeName }"
+            :title="item.label"
             @click="$emit('close')"
           >
-            <span class="app-sidebar__marker" aria-hidden="true"></span>
+            <component :is="item.icon" class="app-sidebar__icon" :size="19" aria-hidden="true" />
             <span class="app-sidebar__label">{{ item.label }}</span>
           </RouterLink>
         </li>
@@ -36,6 +37,16 @@
 </template>
 
 <script setup>
+import {
+  Armchair,
+  ClipboardList,
+  LayoutDashboard,
+  LibraryBig,
+  Megaphone,
+  ReceiptText,
+  UserRound,
+  WalletCards,
+} from '@lucide/vue'
 import { RouterLink } from 'vue-router'
 
 defineProps({
@@ -52,18 +63,16 @@ defineProps({
 defineEmits(['close'])
 
 const menuItems = [
-  { label: 'Dashboard', routeName: 'studentDashboard' },
-  { label: 'My Seat', routeName: 'studentMySeat' },
-  { label: 'Fees', routeName: 'studentFees' },
-  { label: 'Receipts', routeName: 'studentReceipts' },
-  { label: 'Requests', routeName: 'studentRequests' },
-  { label: 'Announcements', routeName: 'studentAnnouncements' },
-  { label: 'Profile', routeName: 'studentProfile' },
+  { label: 'Dashboard', routeName: 'studentDashboard', icon: LayoutDashboard },
+  { label: 'My Seat', routeName: 'studentMySeat', icon: Armchair },
+  { label: 'Fees', routeName: 'studentFees', icon: WalletCards },
+  { label: 'Receipts', routeName: 'studentReceipts', icon: ReceiptText },
+  { label: 'Requests', routeName: 'studentRequests', icon: ClipboardList },
+  { label: 'Announcements', routeName: 'studentAnnouncements', icon: Megaphone },
+  { label: 'Profile', routeName: 'studentProfile', icon: UserRound },
 ]
 </script>
 
 <!--
-TODO:
-- Replace placeholder markers with final icons when the icon system is selected.
-- Connect menu visibility to student account permissions when guards are implemented.
+TODO: Connect menu visibility to student account permissions when guards are implemented.
 -->

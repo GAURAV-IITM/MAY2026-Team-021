@@ -7,6 +7,7 @@
         <p class="platform-settings__description">Configure registration, access, support, and platform-wide notifications.</p>
       </div>
       <button class="btn btn--primary" type="submit" form="platform-settings-form" :disabled="!isDirty || isSaving">
+        <Save :size="17" aria-hidden="true" />
         {{ isSaving ? 'Saving...' : 'Save Settings' }}
       </button>
     </header>
@@ -15,7 +16,7 @@
 
     <div v-if="errorMessage" class="alert alert--danger" role="alert">
       <div><strong>Unable to save platform settings.</strong><p class="m-0">{{ errorMessage }}</p></div>
-      <button class="btn btn--secondary btn--sm" type="button" @click="loadSettings">Retry</button>
+      <button class="btn btn--secondary btn--sm" type="button" @click="loadSettings"><RefreshCw :size="16" aria-hidden="true" /> Retry</button>
     </div>
 
     <div v-if="isLoading && !hasLoadedSettings" class="platform-settings__loading">
@@ -62,13 +63,14 @@
 
       <footer class="platform-settings__footer">
         <span class="text-small text-muted">Last updated {{ formatDateTime(settings.updatedAt) }}</span>
-        <div><button class="btn btn--secondary" type="button" :disabled="!isDirty || isSaving" @click="resetForm">Discard Changes</button><button class="btn btn--primary" type="submit" :disabled="!isDirty || isSaving">{{ isSaving ? 'Saving...' : 'Save Settings' }}</button></div>
+        <div><button class="btn btn--secondary" type="button" :disabled="!isDirty || isSaving" @click="resetForm"><Undo2 :size="17" aria-hidden="true" /> Discard Changes</button><button class="btn btn--primary" type="submit" :disabled="!isDirty || isSaving"><Save :size="17" aria-hidden="true" />{{ isSaving ? 'Saving...' : 'Save Settings' }}</button></div>
       </footer>
     </form>
   </section>
 </template>
 
 <script setup>
+import { RefreshCw, Save, Undo2 } from '@lucide/vue'
 import { storeToRefs } from 'pinia'
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 

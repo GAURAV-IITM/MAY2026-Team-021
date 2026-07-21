@@ -14,6 +14,7 @@ import AdminReceipts from '../pages/admin/Receipts.vue'
 const AdminReports = () => import('../pages/admin/Reports.vue')
 const AdminAnnouncements = () => import('../pages/admin/Announcements.vue')
 const AdminSettings = () => import('../pages/admin/Settings.vue')
+const AdminProfile = () => import('../pages/admin/Profile.vue')
 
 // Admin route module.
 // TODO: Attach admin guards after authentication and permissions are implemented.
@@ -111,6 +112,12 @@ const adminRoutes = [
         name: 'adminSettings',
         component: AdminSettings,
         meta: { title: 'Settings', role: 'admin', requiresAuth: true },
+      },
+      {
+        path: 'profile',
+        name: 'adminProfile',
+        component: AdminProfile,
+        meta: { title: 'My Profile', role: 'admin', requiresAuth: true },
       },
     ],
   },
