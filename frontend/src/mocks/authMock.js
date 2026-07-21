@@ -19,10 +19,13 @@ export const mockUsers = [
     id: 'owner-001',
     name: 'Library Owner',
     email: 'owner@smartlibrary.test',
+    phone: '9876543210',
     password: 'Owner@123',
     role: AUTH_ROLES.LIBRARY_OWNER,
     roleLabel: 'Library Owner',
+    libraryId: 'library-001',
     libraryName: 'Central Study Library',
+    createdAt: '2025-06-01T09:00:00.000Z',
   },
   {
     id: 'student-001',

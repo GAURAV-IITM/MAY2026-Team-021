@@ -9,6 +9,7 @@ The application currently uses mock services and local frontend state so the com
 ### Library Owner
 
 - Operational dashboard
+- Owner account profile and password management
 - Student registration and management
 - Physical seat management and seat availability map
 - Shift management and overlap validation

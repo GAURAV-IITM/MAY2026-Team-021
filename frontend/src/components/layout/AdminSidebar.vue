@@ -49,6 +49,7 @@ import {
   Megaphone,
   ReceiptText,
   Settings,
+  UserRound,
   UsersRound,
 } from '@lucide/vue'
 import { RouterLink } from 'vue-router'
@@ -77,6 +78,7 @@ const menuItems = [
   { label: 'Receipts', routeName: 'adminReceipts', icon: ReceiptText },
   { label: 'Reports & Analytics', routeName: 'adminReports', icon: BarChart3 },
   { label: 'Announcements', routeName: 'adminAnnouncements', icon: Megaphone },
+  { label: 'My Profile', routeName: 'adminProfile', icon: UserRound },
   { label: 'Settings', routeName: 'adminSettings', icon: Settings },
 ]
 </script>

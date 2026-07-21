@@ -11,7 +11,9 @@
       >
         <Menu :size="20" aria-hidden="true" />
       </button>
-      <span class="app-navbar__logo"><LibraryBig :size="19" aria-hidden="true" /> Smart Library App</span>
+      <span class="app-navbar__logo"
+        ><LibraryBig :size="19" aria-hidden="true" /> Smart Library App</span
+      >
     </div>
 
     <div class="app-navbar__page">
@@ -25,14 +27,23 @@
         <Search :size="17" aria-hidden="true" />
         <input type="search" placeholder="Search" />
       </label>
-      <button class="app-navbar__icon-button" type="button" aria-label="Notifications" title="Notifications">
+      <button
+        class="app-navbar__icon-button"
+        type="button"
+        aria-label="Notifications"
+        title="Notifications"
+      >
         <Bell :size="19" aria-hidden="true" />
       </button>
       <span class="app-navbar__library">{{ currentLibrary }}</span>
       <span class="app-navbar__role">{{ roleLabel }}</span>
-      <button class="app-navbar__profile" type="button">
+      <RouterLink
+        class="app-navbar__profile"
+        :to="{ name: 'adminProfile' }"
+        title="Open my profile"
+      >
         <UserRound :size="17" aria-hidden="true" /> {{ currentUserName }}
-      </button>
+      </RouterLink>
       <button class="app-navbar__logout" type="button" @click="handleLogout">
         <LogOut :size="17" aria-hidden="true" /> Logout
       </button>
@@ -44,7 +55,7 @@
 import { Bell, LibraryBig, LogOut, Menu, Search, UserRound } from '@lucide/vue'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 
 import { useAuthStore } from '../../stores/authStore'
 
