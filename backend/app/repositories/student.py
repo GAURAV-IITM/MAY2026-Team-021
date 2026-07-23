@@ -1,0 +1,1 @@
+"""Tenant-scoped student queries."""

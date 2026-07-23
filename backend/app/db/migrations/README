@@ -1,0 +1,7 @@
+Alembic migration environment for the Smart Library database.
+
+Create new revisions from backend/ with:
+    alembic revision --autogenerate -m "describe the schema change"
+
+Apply migrations with:
+    alembic upgrade head
