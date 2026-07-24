@@ -38,6 +38,13 @@ def verify_password(password: str, password_hash: str) -> bool:
         return False
 
 
+def is_expired(value: datetime) -> bool:
+    """Compare database timestamps consistently across SQLite and PostgreSQL."""
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return value <= datetime.now(timezone.utc)
+
+
 _ALGORITHMS = {
     "HS256": hashlib.sha256,
     "HS384": hashlib.sha384,
@@ -47,15 +54,27 @@ _ALGORITHMS = {
 
 def create_access_token(*, subject: str, session_id: str, roles: list[str]) -> str:
     now = datetime.now(timezone.utc)
-    payload = {"sub": subject, "sid": session_id, "roles": roles, "iat": int(now.timestamp()),
-               "exp": int((now + timedelta(minutes=settings.access_token_expire_minutes)).timestamp()), "typ": "access"}
+    payload = {
+        "sub": subject,
+        "sid": session_id,
+        "roles": roles,
+        "iat": int(now.timestamp()),
+        "exp": int(
+            (now + timedelta(minutes=settings.access_token_expire_minutes)).timestamp()
+        ),
+        "typ": "access",
+    }
     header = {"alg": settings.jwt_algorithm, "typ": "JWT"}
     hash_fn = _ALGORITHMS.get(settings.jwt_algorithm)
     if hash_fn is None:
         raise ValueError(f"Unsupported algorithm: {settings.jwt_algorithm}")
     encoded_header = _b64encode(json.dumps(header, separators=(",", ":")).encode())
     encoded_payload = _b64encode(json.dumps(payload, separators=(",", ":")).encode())
-    signature = hmac.new(settings.jwt_secret_key.encode(), f"{encoded_header}.{encoded_payload}".encode(), hash_fn).digest()
+    signature = hmac.new(
+        settings.jwt_secret_key.encode(),
+        f"{encoded_header}.{encoded_payload}".encode(),
+        hash_fn,
+    ).digest()
     return f"{encoded_header}.{encoded_payload}.{_b64encode(signature)}"
 
 
@@ -67,7 +86,11 @@ def decode_access_token(token: str, verify_expiry: bool = True) -> dict[str, Any
         if alg not in _ALGORITHMS or alg != settings.jwt_algorithm:
             return None
         hash_fn = _ALGORITHMS[alg]
-        expected_signature = hmac.new(settings.jwt_secret_key.encode(), f"{encoded_header}.{encoded_payload}".encode(), hash_fn).digest()
+        expected_signature = hmac.new(
+            settings.jwt_secret_key.encode(),
+            f"{encoded_header}.{encoded_payload}".encode(),
+            hash_fn,
+        ).digest()
         if not hmac.compare_digest(expected_signature, _b64decode(encoded_signature)):
             return None
         payload = json.loads(_b64decode(encoded_payload))

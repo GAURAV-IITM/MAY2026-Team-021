@@ -3,106 +3,318 @@ from __future__ import annotations
 
 import re
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, time, timedelta, timezone
 
 from fastapi import HTTPException, status
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.config import settings
-from app.core.security import create_access_token, hash_password, hash_token, new_refresh_token, verify_password
+from app.core.security import (
+    create_access_token,
+    hash_password,
+    hash_token,
+    is_expired,
+    new_refresh_token,
+    verify_password,
+)
 from app.models.enums import LibraryStatus, MembershipStatus, RoleName
 from app.models.identity import Role, User, UserRole, UserSession
-from app.models.library import Library, LibraryMembership
+from app.models.library import Library, LibraryMembership, LibrarySettings
+from app.models.seat import Floor, Seat, Shift
 from app.schemas.auth import AuthResponse, RegisterLibraryRequest, UserResponse
 
 
+DEFAULT_SHIFTS = (
+    ("Morning", time(6, 0), time(12, 0)),
+    ("Afternoon", time(12, 0), time(18, 0)),
+    ("Evening", time(18, 0), time(23, 59)),
+)
+
+
 def _unauthorized() -> HTTPException:
-    return HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials or session.")
+    return HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Invalid credentials or session.",
+    )
 
 
 def _role_label(role: RoleName) -> str:
-    return {RoleName.LIBRARY_OWNER: "admin", RoleName.SUPER_ADMIN: "superadmin"}.get(role, role.value)
+    return {
+        RoleName.LIBRARY_OWNER: "admin",
+        RoleName.SUPER_ADMIN: "superadmin",
+    }.get(role, role.value)
 
 
-def _is_expired(value: datetime) -> bool:
-    """Compare SQLite's naive datetimes safely with UTC timestamps."""
-    if value.tzinfo is None:
-        value = value.replace(tzinfo=timezone.utc)
-    return value <= datetime.now(timezone.utc)
+def get_active_membership(
+    db: Session,
+    user_id: uuid.UUID,
+) -> LibraryMembership | None:
+    return db.scalar(
+        select(LibraryMembership)
+        .join(Library, Library.id == LibraryMembership.library_id)
+        .options(selectinload(LibraryMembership.library))
+        .where(
+            LibraryMembership.user_id == user_id,
+            LibraryMembership.status == MembershipStatus.ACTIVE,
+            Library.status == LibraryStatus.ACTIVE,
+            Library.deleted_at.is_(None),
+        )
+        .order_by(LibraryMembership.joined_at.asc())
+    )
 
 
-def _active_membership(db: Session, user_id: uuid.UUID) -> LibraryMembership | None:
-    return db.scalar(select(LibraryMembership).where(LibraryMembership.user_id == user_id, LibraryMembership.status == MembershipStatus.ACTIVE))
+def user_can_authenticate(db: Session, user: User | None) -> bool:
+    if (
+        user is None
+        or not user.is_active
+        or user.deleted_at is not None
+    ):
+        return False
+
+    roles = {link.role.name for link in user.role_links}
+    if RoleName.SUPER_ADMIN in roles:
+        return True
+    if not roles:
+        return False
+    return get_active_membership(db, user.id) is not None
 
 
 def user_response(db: Session, user: User) -> UserResponse:
     roles = [link.role.name for link in user.role_links]
-    membership = _active_membership(db, user.id)
+    membership = get_active_membership(db, user.id)
     role = membership.role if membership else (roles[0] if roles else RoleName.STUDENT)
     library = membership.library if membership else None
-    return UserResponse(id=user.id, name=user.full_name, email=user.email, phone=user.phone,
-                        role=_role_label(role), library_id=membership.library_id if membership else None,
-                        library_name=library.name if library else None)
+    return UserResponse(
+        id=user.id,
+        name=user.full_name,
+        email=user.email,
+        phone=user.phone,
+        role=_role_label(role),
+        library_id=membership.library_id if membership else None,
+        library_name=library.name if library else None,
+    )
 
 
-def _auth_response(db: Session, user: User, session: UserSession, refresh_token: str) -> AuthResponse:
+def _auth_response(
+    db: Session,
+    user: User,
+    session: UserSession,
+    refresh_token: str,
+) -> AuthResponse:
     roles = [link.role.name.value for link in user.role_links]
-    return AuthResponse(access_token=create_access_token(subject=str(user.id), session_id=str(session.id), roles=roles),
-                        refresh_token=refresh_token, expires_in=settings.access_token_expire_minutes * 60,
-                        user=user_response(db, user))
+    return AuthResponse(
+        access_token=create_access_token(
+            subject=str(user.id),
+            session_id=str(session.id),
+            roles=roles,
+        ),
+        refresh_token=refresh_token,
+        expires_in=settings.access_token_expire_minutes * 60,
+        user=user_response(db, user),
+    )
 
 
-def _create_session(db: Session, user: User, *, ip_address: str | None, user_agent: str | None) -> AuthResponse:
+def _create_session(
+    db: Session,
+    user: User,
+    *,
+    ip_address: str | None,
+    user_agent: str | None,
+) -> AuthResponse:
     refresh_token = new_refresh_token()
-    session = UserSession(user_id=user.id, refresh_token_hash=hash_token(refresh_token),
-        expires_at=datetime.now(timezone.utc) + timedelta(days=settings.refresh_token_expire_days),
-        ip_address=ip_address, user_agent=user_agent)
+    session = UserSession(
+        user_id=user.id,
+        refresh_token_hash=hash_token(refresh_token),
+        expires_at=datetime.now(timezone.utc)
+        + timedelta(days=settings.refresh_token_expire_days),
+        ip_address=ip_address,
+        user_agent=user_agent,
+    )
     db.add(session)
     db.flush()
     return _auth_response(db, user, session, refresh_token)
 
 
-def register_library(db: Session, payload: RegisterLibraryRequest, *, ip_address: str | None, user_agent: str | None) -> AuthResponse:
+def _initialize_library_resources(
+    db: Session,
+    library: Library,
+    seat_count: int,
+) -> None:
+    floor = Floor(
+        library=library,
+        name="Floor 1",
+        code="F1",
+        level_number=1,
+        sort_order=1,
+    )
+    shifts = [
+        Shift(
+            library=library,
+            name=name,
+            start_time=start_time,
+            end_time=end_time,
+            crosses_midnight=False,
+            is_default=True,
+            is_active=True,
+        )
+        for name, start_time, end_time in DEFAULT_SHIFTS
+    ]
+    seats = [
+        Seat(
+            library=library,
+            floor=floor,
+            seat_number=f"A-{sequence:02d}",
+            notes="Created during library registration.",
+        )
+        for sequence in range(1, seat_count + 1)
+    ]
+    db.add(LibrarySettings(library=library))
+    db.add(floor)
+    db.add_all(shifts)
+    db.add_all(seats)
+
+
+def register_library(
+    db: Session,
+    payload: RegisterLibraryRequest,
+    *,
+    ip_address: str | None,
+    user_agent: str | None,
+) -> AuthResponse:
     email = payload.email.lower()
     if db.scalar(select(User.id).where(User.email == email)):
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="An account already exists for this email address.")
-    code_base = re.sub(r"[^A-Z0-9]", "", payload.library_name.upper())[:12] or "LIB"
-    library = Library(code=f"{code_base}-{uuid.uuid4().hex[:8].upper()}", name=payload.library_name,
-        contact_email=email, contact_phone=payload.phone, address_line=payload.address, status=LibraryStatus.ACTIVE)
-    user = User(email=email, password_hash=hash_password(payload.password), full_name=payload.owner_name, phone=payload.phone)
-    owner_role = db.scalar(select(Role).where(Role.name == RoleName.LIBRARY_OWNER))
-    if owner_role is None:
-        owner_role = Role(name=RoleName.LIBRARY_OWNER, description="Library owner")
-        db.add(owner_role)
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="An account already exists for this email address.",
+        )
+
+    try:
+        code_base = (
+            re.sub(r"[^A-Z0-9]", "", payload.library_name.upper())[:12] or "LIB"
+        )
+        library = Library(
+            code=f"{code_base}-{uuid.uuid4().hex[:8].upper()}",
+            name=payload.library_name,
+            contact_email=email,
+            contact_phone=payload.phone,
+            address_line=payload.address,
+            status=LibraryStatus.ACTIVE,
+        )
+        user = User(
+            email=email,
+            password_hash=hash_password(payload.password),
+            full_name=payload.owner_name,
+            phone=payload.phone,
+        )
+        owner_role = db.scalar(
+            select(Role).where(Role.name == RoleName.LIBRARY_OWNER)
+        )
+        if owner_role is None:
+            owner_role = Role(
+                name=RoleName.LIBRARY_OWNER,
+                description="Library owner",
+            )
+            db.add(owner_role)
+            db.flush()
+        user.role_links.append(UserRole(role=owner_role))
+        db.add_all([user, library])
         db.flush()
-    user.role_links.append(UserRole(role=owner_role))
-    db.add_all([user, library])
-    db.flush()
-    library.primary_owner_user_id = user.id
-    db.add(LibraryMembership(library_id=library.id, user_id=user.id, role=RoleName.LIBRARY_OWNER,
-        status=MembershipStatus.ACTIVE, joined_at=datetime.now(timezone.utc)))
-    response = _create_session(db, user, ip_address=ip_address, user_agent=user_agent)
-    db.commit()
-    return response
+        library.primary_owner_user_id = user.id
+        db.add(
+            LibraryMembership(
+                library_id=library.id,
+                user_id=user.id,
+                role=RoleName.LIBRARY_OWNER,
+                status=MembershipStatus.ACTIVE,
+                joined_at=datetime.now(timezone.utc),
+            )
+        )
+        _initialize_library_resources(db, library, payload.seat_count)
+        response = _create_session(
+            db,
+            user,
+            ip_address=ip_address,
+            user_agent=user_agent,
+        )
+        db.commit()
+        return response
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="The library or owner account conflicts with an existing record.",
+        ) from exc
+    except Exception:
+        db.rollback()
+        raise
 
 
-def login(db: Session, email: str, password: str, *, ip_address: str | None, user_agent: str | None) -> AuthResponse:
-    user = db.scalar(select(User).options(selectinload(User.role_links).selectinload(UserRole.role)).where(User.email == email.lower(), User.deleted_at.is_(None)))
-    if user is None or not user.is_active or not verify_password(password, user.password_hash):
+def login(
+    db: Session,
+    email: str,
+    password: str,
+    *,
+    ip_address: str | None,
+    user_agent: str | None,
+) -> AuthResponse:
+    user = db.scalar(
+        select(User)
+        .options(selectinload(User.role_links).selectinload(UserRole.role))
+        .where(
+            User.email == email.lower(),
+            User.deleted_at.is_(None),
+        )
+    )
+    if (
+        not user_can_authenticate(db, user)
+        or not verify_password(password, user.password_hash)
+    ):
         raise _unauthorized()
     user.last_login_at = datetime.now(timezone.utc)
-    response = _create_session(db, user, ip_address=ip_address, user_agent=user_agent)
+    response = _create_session(
+        db,
+        user,
+        ip_address=ip_address,
+        user_agent=user_agent,
+    )
     db.commit()
     return response
 
 
-def refresh(db: Session, refresh_token: str, *, ip_address: str | None, user_agent: str | None) -> AuthResponse:
-    session = db.scalar(select(UserSession).options(selectinload(UserSession.user).selectinload(User.role_links).selectinload(UserRole.role)).where(UserSession.refresh_token_hash == hash_token(refresh_token)))
-    if session is None or session.revoked_at is not None or _is_expired(session.expires_at) or not session.user.is_active:
+def refresh(
+    db: Session,
+    refresh_token: str,
+    *,
+    ip_address: str | None,
+    user_agent: str | None,
+) -> AuthResponse:
+    session = db.scalar(
+        select(UserSession)
+        .options(
+            selectinload(UserSession.user)
+            .selectinload(User.role_links)
+            .selectinload(UserRole.role)
+        )
+        .where(UserSession.refresh_token_hash == hash_token(refresh_token))
+        .with_for_update()
+    )
+    if (
+        session is None
+        or session.revoked_at is not None
+        or is_expired(session.expires_at)
+        or not user_can_authenticate(db, session.user)
+    ):
         raise _unauthorized()
     session.revoked_at = datetime.now(timezone.utc)
-    response = _create_session(db, session.user, ip_address=ip_address, user_agent=user_agent)
+    db.flush()
+    response = _create_session(
+        db,
+        session.user,
+        ip_address=ip_address,
+        user_agent=user_agent,
+    )
     db.commit()
     return response
 

@@ -4,13 +4,16 @@ import unittest
 import uuid
 from unittest.mock import patch
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, func, select
 from sqlalchemy.orm import Session
 
 import app.models  # noqa: F401 - imports all SQLAlchemy model metadata
 from app.core.config import Settings
 from app.core.security import create_access_token, decode_access_token
 from app.db.base import Base
+from app.models.enums import LibraryStatus, MembershipStatus
+from app.models.library import Library, LibraryMembership, LibrarySettings
+from app.models.seat import Floor, Seat, Shift
 from app.schemas.auth import RegisterLibraryRequest
 from app.services import auth
 
@@ -41,6 +44,22 @@ class AuthenticationServiceTests(unittest.TestCase):
         claims = decode_access_token(registered.access_token)
         self.assertIsNotNone(claims)
         self.assertEqual("admin", registered.user.role)
+        self.assertEqual(
+            10,
+            self.db.scalar(select(func.count()).select_from(Seat)),
+        )
+        self.assertEqual(
+            1,
+            self.db.scalar(select(func.count()).select_from(Floor)),
+        )
+        self.assertEqual(
+            3,
+            self.db.scalar(select(func.count()).select_from(Shift)),
+        )
+        self.assertEqual(
+            1,
+            self.db.scalar(select(func.count()).select_from(LibrarySettings)),
+        )
 
         logged_in = auth.login(
             self.db, "owner@example.com", "SecurePass123", ip_address=None, user_agent=None
@@ -92,10 +111,8 @@ class AuthenticationServiceTests(unittest.TestCase):
                 with patch("app.core.security.settings", other_settings):
                     self.assertIsNone(decode_access_token(token))
 
-        invalid_settings = Settings(jwt_algorithm="INVALID")
-        with patch("app.core.security.settings", invalid_settings):
-            with self.assertRaises(ValueError):
-                create_access_token(subject="user-123", session_id="session-456", roles=["admin"])
+        with self.assertRaises(RuntimeError):
+            Settings(jwt_algorithm="INVALID")
 
     def test_logout_with_expired_token_revokes_session(self) -> None:
         registered = auth.register_library(
@@ -137,3 +154,45 @@ class AuthenticationServiceTests(unittest.TestCase):
 
         self.db.expire(session)
         self.assertIsNotNone(session.revoked_at)
+
+    def test_suspended_library_and_membership_cannot_login(self) -> None:
+        registered = auth.register_library(
+            self.db,
+            RegisterLibraryRequest(
+                library_name="Central Study Library",
+                owner_name="Library Owner",
+                email="owner@example.com",
+                password="SecurePass123",
+            ),
+            ip_address=None,
+            user_agent=None,
+        )
+
+        library = self.db.get(Library, registered.user.library_id)
+        library.status = LibraryStatus.SUSPENDED
+        self.db.commit()
+
+        with self.assertRaises(Exception) as suspended_library:
+            auth.login(
+                self.db,
+                "owner@example.com",
+                "SecurePass123",
+                ip_address=None,
+                user_agent=None,
+            )
+        self.assertEqual(401, suspended_library.exception.status_code)
+
+        library.status = LibraryStatus.ACTIVE
+        membership = self.db.scalar(select(LibraryMembership))
+        membership.status = MembershipStatus.SUSPENDED
+        self.db.commit()
+
+        with self.assertRaises(Exception) as suspended_membership:
+            auth.login(
+                self.db,
+                "owner@example.com",
+                "SecurePass123",
+                ip_address=None,
+                user_agent=None,
+            )
+        self.assertEqual(401, suspended_membership.exception.status_code)
