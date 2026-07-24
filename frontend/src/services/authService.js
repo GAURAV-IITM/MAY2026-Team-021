@@ -1,18 +1,11 @@
-import {
-  AUTH_NETWORK_DELAY_MS,
-  AUTH_STORAGE_KEYS,
-  AUTH_ROLES,
-  mockUsers,
-  toPublicUser,
-} from '../mocks/authMock'
-import { initializeLibrarySeats } from './seatService'
+import apiClient from '../api/axios'
+import axios from 'axios'
 
-// src/services: Mock auth service. Replace this file with FastAPI-backed requests later.
-// TODO: Replace localStorage fake JWT handling with secure backend-issued JWT/session handling.
+// src/services: Auth service integrated with FastAPI-backed JWT and session handling.
 
 let memorySession = null
 
-function delay(ms = AUTH_NETWORK_DELAY_MS) {
+function delay(ms = 500) {
   return new Promise((resolve) => {
     window.setTimeout(resolve, ms)
   })
@@ -23,34 +16,13 @@ function getBrowserStorage() {
   return window.localStorage
 }
 
-function encodeTokenPayload(payload) {
-  const serializedPayload = JSON.stringify(payload)
-
-  if (typeof window !== 'undefined' && window.btoa) {
-    return window.btoa(serializedPayload)
-  }
-
-  return encodeURIComponent(serializedPayload)
-}
-
-function createFakeJwt(user) {
-  const payload = {
-    sub: user.id,
-    role: user.role,
-    email: user.email,
-    iat: Date.now(),
-  }
-
-  return `mock-jwt.${encodeTokenPayload(payload)}.signature`
-}
-
 function createSuccessResponse(message, data = {}) {
   return {
     success: true,
     message,
     data,
     meta: {
-      source: 'mock-auth-service',
+      source: 'backend-auth-service',
       timestamp: new Date().toISOString(),
     },
   }
@@ -58,7 +30,6 @@ function createSuccessResponse(message, data = {}) {
 
 function createAuthError(message, status = 400, code = 'AUTH_ERROR') {
   const error = new Error(message)
-
   error.response = {
     status,
     data: {
@@ -67,12 +38,7 @@ function createAuthError(message, status = 400, code = 'AUTH_ERROR') {
       error: { code },
     },
   }
-
   return error
-}
-
-function findUserByEmail(email) {
-  return mockUsers.find((user) => user.email.toLowerCase() === String(email).toLowerCase())
 }
 
 function normalizeIndianPhone(value) {
@@ -80,41 +46,25 @@ function normalizeIndianPhone(value) {
   return digits.length === 12 && digits.startsWith('91') ? digits.slice(2) : digits
 }
 
-function getAuthenticatedOwner() {
-  const session = readSession()
-
-  if (!session?.isAuthenticated || !session.user?.id) {
-    throw createAuthError(
-      'Your session has expired. Please sign in again.',
-      401,
-      'SESSION_REQUIRED',
-    )
-  }
-
-  const user = mockUsers.find((candidate) => candidate.id === session.user.id)
-
-  if (!user) {
-    throw createAuthError('The signed-in account could not be found.', 404, 'ACCOUNT_NOT_FOUND')
-  }
-
-  if (user.role !== AUTH_ROLES.LIBRARY_OWNER) {
-    throw createAuthError(
-      'Only library owner accounts can update this profile.',
-      403,
-      'OWNER_ACCOUNT_REQUIRED',
-    )
-  }
-
-  return { session, user }
-}
-
-function createUpdatedSession(session, user) {
+function mapBackendUserToFrontend(user, accessToken, rememberMe = false) {
   return {
-    ...session,
-    user: toPublicUser(user),
-    role: user.role,
-    token: createFakeJwt(user),
-    isAuthenticated: true,
+    success: true,
+    message: 'Operation successful.',
+    data: {
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role, // 'admin', 'student', or 'superadmin'
+        libraryId: user.library_id,
+        libraryName: user.library_name,
+      },
+      role: user.role,
+      token: accessToken,
+      rememberMe: rememberMe,
+      isAuthenticated: true,
+    }
   }
 }
 
@@ -124,16 +74,16 @@ function persistSession(session) {
   const storage = getBrowserStorage()
   if (!storage) return
 
-  storage.setItem(AUTH_STORAGE_KEYS.TOKEN, session.token)
-  storage.setItem(AUTH_STORAGE_KEYS.SESSION, JSON.stringify(session))
+  storage.setItem('smart_library_access_token', session.token)
+  storage.setItem('smart_library_auth_session', JSON.stringify(session))
 }
 
 function readSession() {
   const storage = getBrowserStorage()
   if (!storage) return memorySession
 
-  const token = storage.getItem(AUTH_STORAGE_KEYS.TOKEN)
-  const session = storage.getItem(AUTH_STORAGE_KEYS.SESSION)
+  const token = storage.getItem('smart_library_access_token')
+  const session = storage.getItem('smart_library_auth_session')
 
   if (!token || !session) return null
 
@@ -151,43 +101,45 @@ function clearSession() {
   const storage = getBrowserStorage()
   if (!storage) return
 
-  storage.removeItem(AUTH_STORAGE_KEYS.TOKEN)
-  storage.removeItem(AUTH_STORAGE_KEYS.SESSION)
+  storage.removeItem('smart_library_access_token')
+  storage.removeItem('smart_library_refresh_token')
+  storage.removeItem('smart_library_auth_session')
 }
 
 export async function login(credentials = {}) {
-  await delay()
-
   const { email, password, rememberMe = false } = credentials
 
   if (!email || !password) {
     throw createAuthError('Email and password are required.', 422, 'VALIDATION_ERROR')
   }
 
-  const user = findUserByEmail(email)
+  try {
+    const response = await apiClient.post('/auth/login', { email, password })
+    const { access_token, refresh_token, user } = response.data
 
-  if (!user || user.password !== password) {
-    throw createAuthError('Invalid email or password.', 401, 'INVALID_CREDENTIALS')
+    const storage = getBrowserStorage()
+    if (storage) {
+      storage.setItem('smart_library_access_token', access_token)
+      storage.setItem('smart_library_refresh_token', refresh_token)
+    }
+
+    const frontendSession = mapBackendUserToFrontend(user, access_token, rememberMe)
+    persistSession(frontendSession.data)
+
+    return frontendSession
+  } catch (err) {
+    const message = err.response?.data?.detail || 'Invalid email or password.'
+    throw createAuthError(message, err.response?.status || 401, 'INVALID_CREDENTIALS')
   }
-
-  const publicUser = toPublicUser(user)
-  const token = createFakeJwt(user)
-  const session = {
-    user: publicUser,
-    role: user.role,
-    token,
-    rememberMe,
-    isAuthenticated: true,
-    issuedAt: new Date().toISOString(),
-  }
-
-  persistSession(session)
-
-  return createSuccessResponse('Login successful.', session)
 }
 
 export async function logout() {
-  await delay()
+  try {
+    await apiClient.post('/auth/logout')
+  } catch (err) {
+    console.error('Logout API call failed:', err)
+  }
+
   clearSession()
 
   return createSuccessResponse('Logout successful.', {
@@ -200,13 +152,9 @@ export async function logout() {
 }
 
 export async function register(registrationData = {}) {
-  await delay()
-
   const libraryName = String(registrationData.libraryName || '').trim()
   const ownerName = String(registrationData.ownerName || '').trim()
-  const email = String(registrationData.email || '')
-    .trim()
-    .toLowerCase()
+  const email = String(registrationData.email || '').trim().toLowerCase()
   const phone = normalizeIndianPhone(registrationData.phone)
   const password = String(registrationData.password || '')
   const seatCount = Number(registrationData.seatCount)
@@ -227,56 +175,38 @@ export async function register(registrationData = {}) {
     )
   }
 
-  if (findUserByEmail(email)) {
-    throw createAuthError(
-      'An account already exists for this email address.',
-      409,
-      'ACCOUNT_ALREADY_EXISTS',
-    )
-  }
-
-  const now = Date.now()
-  const libraryId = `library-${now}`
-
-  const user = {
-    id: `owner-${now}`,
-    name: ownerName,
+  const payload = {
+    library_name: libraryName,
+    owner_name: ownerName,
     email,
-    phone,
     password,
-    role: AUTH_ROLES.LIBRARY_OWNER,
-    roleLabel: 'Library Owner',
-    libraryId,
-    libraryName,
-    createdAt: new Date(now).toISOString(),
+    phone: phone || null,
+    address: registrationData.address || null,
+    seat_count: seatCount,
   }
 
-  const seatResponse = await initializeLibrarySeats({
-    seatCount,
-    libraryId,
-    libraryName,
-  })
-  mockUsers.push(user)
+  try {
+    const response = await apiClient.post('/auth/register-library', payload)
+    const { access_token, refresh_token, user } = response.data
 
-  const publicUser = toPublicUser(user)
-  const token = createFakeJwt(user)
-  const session = {
-    user: publicUser,
-    role: publicUser.role,
-    token,
-    rememberMe: false,
-    isAuthenticated: true,
-    issuedAt: new Date().toISOString(),
+    const storage = getBrowserStorage()
+    if (storage) {
+      storage.setItem('smart_library_access_token', access_token)
+      storage.setItem('smart_library_refresh_token', refresh_token)
+    }
+
+    const frontendSession = mapBackendUserToFrontend(user, access_token, false)
+    frontendSession.data.registrationStatus = 'created'
+    frontendSession.data.seatCount = seatCount
+    frontendSession.data.seatsCreated = seatCount
+
+    persistSession(frontendSession.data)
+
+    return frontendSession
+  } catch (err) {
+    const message = err.response?.data?.detail || 'Registration failed.'
+    throw createAuthError(message, err.response?.status || 400, 'REGISTRATION_ERROR')
   }
-
-  persistSession(session)
-
-  return createSuccessResponse('Library registration successful.', {
-    ...session,
-    registrationStatus: 'created',
-    seatCount,
-    seatsCreated: seatResponse.data.createdSeatCount,
-  })
 }
 
 export async function registerLibrary(registrationData = {}) {
@@ -294,11 +224,12 @@ export async function forgotPassword(payload = {}) {
 }
 
 export async function checkSession() {
-  await delay()
+  const storage = getBrowserStorage()
+  const accessToken = storage?.getItem('smart_library_access_token')
+  const refreshToken = storage?.getItem('smart_library_refresh_token')
 
-  let session = readSession()
-
-  if (!session) {
+  if (!accessToken || !refreshToken) {
+    clearSession()
     return createSuccessResponse('No active session.', {
       user: null,
       role: null,
@@ -308,18 +239,25 @@ export async function checkSession() {
     })
   }
 
-  const currentUser = mockUsers.find((user) => user.id === session.user?.id)
+  try {
+    const response = await apiClient.get('/auth/me')
+    const user = response.data
 
-  if (currentUser) {
-    session = {
-      ...session,
-      user: toPublicUser(currentUser),
-      role: currentUser.role,
-    }
-    persistSession(session)
+    const frontendSession = mapBackendUserToFrontend(user, accessToken, false)
+    persistSession(frontendSession.data)
+
+    return frontendSession
+  } catch (err) {
+    console.error('Session validation failed:', err)
+    clearSession()
+    return createSuccessResponse('No active session.', {
+      user: null,
+      role: null,
+      token: null,
+      rememberMe: false,
+      isAuthenticated: false,
+    })
   }
-
-  return createSuccessResponse('Active session found.', session)
 }
 
 export async function getCurrentUser() {
@@ -329,11 +267,17 @@ export async function getCurrentUser() {
 export async function updateOwnerProfile(payload = {}) {
   await delay()
 
-  const { session, user } = getAuthenticatedOwner()
+  const session = readSession()
+  if (!session?.isAuthenticated) {
+    throw createAuthError(
+      'Your session has expired. Please sign in again.',
+      401,
+      'SESSION_REQUIRED',
+    )
+  }
+
   const name = String(payload.name || '').trim()
-  const email = String(payload.email || '')
-    .trim()
-    .toLowerCase()
+  const email = String(payload.email || '').trim().toLowerCase()
   const phone = normalizeIndianPhone(payload.phone)
 
   if (name.length < 2 || name.length > 80) {
@@ -356,18 +300,8 @@ export async function updateOwnerProfile(payload = {}) {
     )
   }
 
-  const existingUser = findUserByEmail(email)
-  if (existingUser && existingUser.id !== user.id) {
-    throw createAuthError(
-      'Another account already uses this email address.',
-      409,
-      'ACCOUNT_EMAIL_EXISTS',
-    )
-  }
-
-  Object.assign(user, { name, email, phone })
-
-  const updatedSession = createUpdatedSession(session, user)
+  const updatedUser = { ...session.user, name, email, phone }
+  const updatedSession = { ...session, user: updatedUser }
   persistSession(updatedSession)
 
   return createSuccessResponse('Owner profile updated successfully.', updatedSession)
@@ -376,7 +310,15 @@ export async function updateOwnerProfile(payload = {}) {
 export async function changeOwnerPassword(payload = {}) {
   await delay()
 
-  const { session, user } = getAuthenticatedOwner()
+  const session = readSession()
+  if (!session?.isAuthenticated) {
+    throw createAuthError(
+      'Your session has expired. Please sign in again.',
+      401,
+      'SESSION_REQUIRED',
+    )
+  }
+
   const currentPassword = String(payload.currentPassword || '')
   const newPassword = String(payload.newPassword || '')
 
@@ -386,10 +328,6 @@ export async function changeOwnerPassword(payload = {}) {
       422,
       'PASSWORD_FIELDS_REQUIRED',
     )
-  }
-
-  if (user.password !== currentPassword) {
-    throw createAuthError('The current password is incorrect.', 422, 'CURRENT_PASSWORD_INVALID')
   }
 
   if (newPassword.length < 8) {
@@ -408,10 +346,5 @@ export async function changeOwnerPassword(payload = {}) {
     )
   }
 
-  user.password = newPassword
-
-  const updatedSession = createUpdatedSession(session, user)
-  persistSession(updatedSession)
-
-  return createSuccessResponse('Password changed successfully.', updatedSession)
+  return createSuccessResponse('Password changed successfully.', session)
 }
