@@ -18,8 +18,10 @@ alembic upgrade head
 uvicorn app.main:app --reload
 ```
 
-The default development database is SQLite. Set `DATABASE_URL` to the project
-database connection string in deployed environments.
+The default development database is SQLite. PostgreSQL URLs in the common
+`postgresql://user:password@host/database` format are automatically configured
+to use the bundled Psycopg 3 binary driver, so local compiler and PostgreSQL
+header packages are not required.
 
 ## Structure
 
