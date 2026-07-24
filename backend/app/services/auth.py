@@ -7,6 +7,7 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi import HTTPException, status
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.config import settings
@@ -115,3 +116,73 @@ def logout(db: Session, session_id: str) -> None:
     if session and session.revoked_at is None:
         session.revoked_at = datetime.now(timezone.utc)
         db.commit()
+
+
+def logout_refresh_token(db: Session, refresh_token: str) -> None:
+    session = db.scalar(
+        select(UserSession).where(
+            UserSession.refresh_token_hash == hash_token(refresh_token)
+        )
+    )
+    if session and session.revoked_at is None:
+        session.revoked_at = datetime.now(timezone.utc)
+        db.commit()
+
+
+def update_profile(
+    db: Session,
+    user: User,
+    *,
+    name: str,
+    email: str,
+    phone: str | None,
+) -> UserResponse:
+    normalized_email = email.strip().lower()
+    existing_user_id = db.scalar(
+        select(User.id).where(
+            User.email == normalized_email,
+            User.id != user.id,
+            User.deleted_at.is_(None),
+        )
+    )
+    if existing_user_id is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Another account already uses this email address.",
+        )
+
+    user.full_name = name.strip()
+    user.email = normalized_email
+    user.phone = phone
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Another account already uses this email address.",
+        ) from exc
+
+    return user_response(db, user)
+
+
+def change_password(
+    db: Session,
+    user: User,
+    *,
+    current_password: str,
+    new_password: str,
+) -> None:
+    if not verify_password(current_password, user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="The current password is incorrect.",
+        )
+    if current_password == new_password:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="The new password must be different from the current password.",
+        )
+
+    user.password_hash = hash_password(new_password)
+    db.commit()

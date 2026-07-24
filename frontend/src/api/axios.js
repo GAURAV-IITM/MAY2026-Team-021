@@ -1,60 +1,99 @@
 import axios from 'axios'
 
+import { clearAuthState, getAccessToken, setAccessToken } from './authSession.js'
+
 // src/api: Shared HTTP clients and API adapters for backend integration.
+const API_BASE_URL = import.meta.env?.VITE_API_BASE_URL || '/api/v1'
 const apiClient = axios.create({
-  baseURL: '/api/v1',
+  baseURL: API_BASE_URL,
+  withCredentials: true,
+  headers: {
+    'X-Requested-With': 'XMLHttpRequest',
+  },
 })
 
-// Request interceptor: Attach access token if present
+const refreshClient = axios.create({
+  baseURL: API_BASE_URL,
+  withCredentials: true,
+  headers: {
+    'X-Requested-With': 'XMLHttpRequest',
+  },
+})
+
+let refreshPromise = null
+
+function isPublicAuthRequest(config = {}) {
+  const url = String(config.url || '')
+  return url.includes('/auth/session/login') || url.includes('/auth/session/register-library')
+}
+
+function isSessionProbe(config = {}) {
+  return String(config.url || '').includes('/auth/me')
+}
+
+async function refreshAccessToken() {
+  if (!refreshPromise) {
+    refreshPromise = refreshClient
+      .post('/auth/session/refresh')
+      .then(({ data }) => {
+        setAccessToken(data.access_token)
+        return data.access_token
+      })
+      .finally(() => {
+        refreshPromise = null
+      })
+  }
+
+  return refreshPromise
+}
+
+function redirectToLogin() {
+  if (typeof window === 'undefined' || window.location.pathname === '/login') return
+
+  const redirect = `${window.location.pathname}${window.location.search}`
+  window.location.assign(`/login?redirect=${encodeURIComponent(redirect)}`)
+}
+
 apiClient.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('smart_library_access_token')
+    const token = getAccessToken()
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
     return config
   },
-  (error) => Promise.reject(error)
+  (error) => Promise.reject(error),
 )
 
-// Response interceptor: Handle 401 errors and try token refresh
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config
-    
-    // If response is 401 and request has not been retried yet
-    if (error.response?.status === 401 && !originalRequest._retry) {
+
+    if (
+      error.response?.status === 401 &&
+      originalRequest &&
+      !originalRequest._retry &&
+      !isPublicAuthRequest(originalRequest)
+    ) {
       originalRequest._retry = true
-      const refreshToken = localStorage.getItem('smart_library_refresh_token')
-      
-      if (refreshToken) {
-        try {
-          // Use plain axios instance to request refresh token (avoiding interceptor loop)
-          const response = await axios.post('/api/v1/auth/refresh', {
-            refresh_token: refreshToken,
-          })
-          
-          const { access_token, refresh_token } = response.data
-          localStorage.setItem('smart_library_access_token', access_token)
-          localStorage.setItem('smart_library_refresh_token', refresh_token)
-          
-          // Update authorization header and retry original request
-          originalRequest.headers.Authorization = `Bearer ${access_token}`
-          return axios(originalRequest)
-        } catch (refreshError) {
-          // Clear session data if refresh fails and redirect to login page
-          localStorage.removeItem('smart_library_access_token')
-          localStorage.removeItem('smart_library_refresh_token')
-          localStorage.removeItem('smart_library_auth_session')
-          window.location.href = '/login'
-          return Promise.reject(refreshError)
+
+      try {
+        const accessToken = await refreshAccessToken()
+        originalRequest.headers.Authorization = `Bearer ${accessToken}`
+        return apiClient(originalRequest)
+      } catch (refreshError) {
+        clearAuthState()
+        if (!isSessionProbe(originalRequest)) {
+          redirectToLogin()
         }
+        return Promise.reject(refreshError)
       }
     }
-    
+
     return Promise.reject(error)
-  }
+  },
 )
 
+export { apiClient, refreshAccessToken, refreshClient }
 export default apiClient

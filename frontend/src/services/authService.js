@@ -1,19 +1,18 @@
 import apiClient from '../api/axios'
-import axios from 'axios'
+import {
+  clearAuthState,
+  getAccessToken,
+  persistAuthSession,
+  readAuthSession,
+  setAccessToken,
+} from '../api/authSession.js'
 
 // src/services: Auth service integrated with FastAPI-backed JWT and session handling.
-
-let memorySession = null
 
 function delay(ms = 500) {
   return new Promise((resolve) => {
     window.setTimeout(resolve, ms)
   })
-}
-
-function getBrowserStorage() {
-  if (typeof window === 'undefined' || !window.localStorage) return null
-  return window.localStorage
 }
 
 function createSuccessResponse(message, data = {}) {
@@ -64,46 +63,8 @@ function mapBackendUserToFrontend(user, accessToken, rememberMe = false) {
       token: accessToken,
       rememberMe: rememberMe,
       isAuthenticated: true,
-    }
+    },
   }
-}
-
-function persistSession(session) {
-  memorySession = session
-
-  const storage = getBrowserStorage()
-  if (!storage) return
-
-  storage.setItem('smart_library_access_token', session.token)
-  storage.setItem('smart_library_auth_session', JSON.stringify(session))
-}
-
-function readSession() {
-  const storage = getBrowserStorage()
-  if (!storage) return memorySession
-
-  const token = storage.getItem('smart_library_access_token')
-  const session = storage.getItem('smart_library_auth_session')
-
-  if (!token || !session) return null
-
-  try {
-    const parsedSession = JSON.parse(session)
-    return parsedSession.token === token ? parsedSession : null
-  } catch {
-    return null
-  }
-}
-
-function clearSession() {
-  memorySession = null
-
-  const storage = getBrowserStorage()
-  if (!storage) return
-
-  storage.removeItem('smart_library_access_token')
-  storage.removeItem('smart_library_refresh_token')
-  storage.removeItem('smart_library_auth_session')
 }
 
 export async function login(credentials = {}) {
@@ -114,17 +75,16 @@ export async function login(credentials = {}) {
   }
 
   try {
-    const response = await apiClient.post('/auth/login', { email, password })
-    const { access_token, refresh_token, user } = response.data
-
-    const storage = getBrowserStorage()
-    if (storage) {
-      storage.setItem('smart_library_access_token', access_token)
-      storage.setItem('smart_library_refresh_token', refresh_token)
-    }
+    const response = await apiClient.post('/auth/session/login', {
+      email,
+      password,
+      remember_me: rememberMe,
+    })
+    const { access_token, user } = response.data
+    setAccessToken(access_token)
 
     const frontendSession = mapBackendUserToFrontend(user, access_token, rememberMe)
-    persistSession(frontendSession.data)
+    persistAuthSession(frontendSession.data)
 
     return frontendSession
   } catch (err) {
@@ -135,12 +95,12 @@ export async function login(credentials = {}) {
 
 export async function logout() {
   try {
-    await apiClient.post('/auth/logout')
+    await apiClient.post('/auth/session/logout')
   } catch (err) {
     console.error('Logout API call failed:', err)
   }
 
-  clearSession()
+  clearAuthState()
 
   return createSuccessResponse('Logout successful.', {
     user: null,
@@ -154,7 +114,9 @@ export async function logout() {
 export async function register(registrationData = {}) {
   const libraryName = String(registrationData.libraryName || '').trim()
   const ownerName = String(registrationData.ownerName || '').trim()
-  const email = String(registrationData.email || '').trim().toLowerCase()
+  const email = String(registrationData.email || '')
+    .trim()
+    .toLowerCase()
   const phone = normalizeIndianPhone(registrationData.phone)
   const password = String(registrationData.password || '')
   const seatCount = Number(registrationData.seatCount)
@@ -186,21 +148,16 @@ export async function register(registrationData = {}) {
   }
 
   try {
-    const response = await apiClient.post('/auth/register-library', payload)
-    const { access_token, refresh_token, user } = response.data
-
-    const storage = getBrowserStorage()
-    if (storage) {
-      storage.setItem('smart_library_access_token', access_token)
-      storage.setItem('smart_library_refresh_token', refresh_token)
-    }
+    const response = await apiClient.post('/auth/session/register-library', payload)
+    const { access_token, user } = response.data
+    setAccessToken(access_token)
 
     const frontendSession = mapBackendUserToFrontend(user, access_token, false)
     frontendSession.data.registrationStatus = 'created'
     frontendSession.data.seatCount = seatCount
     frontendSession.data.seatsCreated = seatCount
 
-    persistSession(frontendSession.data)
+    persistAuthSession(frontendSession.data)
 
     return frontendSession
   } catch (err) {
@@ -224,32 +181,24 @@ export async function forgotPassword(payload = {}) {
 }
 
 export async function checkSession() {
-  const storage = getBrowserStorage()
-  const accessToken = storage?.getItem('smart_library_access_token')
-  const refreshToken = storage?.getItem('smart_library_refresh_token')
-
-  if (!accessToken || !refreshToken) {
-    clearSession()
-    return createSuccessResponse('No active session.', {
-      user: null,
-      role: null,
-      token: null,
-      rememberMe: false,
-      isAuthenticated: false,
-    })
-  }
+  const persistedSession = readAuthSession()
 
   try {
     const response = await apiClient.get('/auth/me')
     const user = response.data
+    const accessToken = getAccessToken()
 
-    const frontendSession = mapBackendUserToFrontend(user, accessToken, false)
-    persistSession(frontendSession.data)
+    const frontendSession = mapBackendUserToFrontend(
+      user,
+      accessToken,
+      persistedSession?.rememberMe,
+    )
+    persistAuthSession(frontendSession.data)
 
     return frontendSession
   } catch (err) {
     console.error('Session validation failed:', err)
-    clearSession()
+    clearAuthState()
     return createSuccessResponse('No active session.', {
       user: null,
       role: null,
@@ -265,19 +214,10 @@ export async function getCurrentUser() {
 }
 
 export async function updateOwnerProfile(payload = {}) {
-  await delay()
-
-  const session = readSession()
-  if (!session?.isAuthenticated) {
-    throw createAuthError(
-      'Your session has expired. Please sign in again.',
-      401,
-      'SESSION_REQUIRED',
-    )
-  }
-
   const name = String(payload.name || '').trim()
-  const email = String(payload.email || '').trim().toLowerCase()
+  const email = String(payload.email || '')
+    .trim()
+    .toLowerCase()
   const phone = normalizeIndianPhone(payload.phone)
 
   if (name.length < 2 || name.length > 80) {
@@ -300,25 +240,27 @@ export async function updateOwnerProfile(payload = {}) {
     )
   }
 
-  const updatedUser = { ...session.user, name, email, phone }
-  const updatedSession = { ...session, user: updatedUser }
-  persistSession(updatedSession)
-
-  return createSuccessResponse('Owner profile updated successfully.', updatedSession)
+  try {
+    const response = await apiClient.patch('/auth/profile', {
+      name,
+      email,
+      phone,
+    })
+    const session = readAuthSession()
+    const frontendSession = mapBackendUserToFrontend(
+      response.data,
+      getAccessToken(),
+      session?.rememberMe,
+    )
+    persistAuthSession(frontendSession.data)
+    return createSuccessResponse('Owner profile updated successfully.', frontendSession.data)
+  } catch (err) {
+    const message = err.response?.data?.detail || 'Profile update failed.'
+    throw createAuthError(message, err.response?.status || 400, 'PROFILE_UPDATE_ERROR')
+  }
 }
 
 export async function changeOwnerPassword(payload = {}) {
-  await delay()
-
-  const session = readSession()
-  if (!session?.isAuthenticated) {
-    throw createAuthError(
-      'Your session has expired. Please sign in again.',
-      401,
-      'SESSION_REQUIRED',
-    )
-  }
-
   const currentPassword = String(payload.currentPassword || '')
   const newPassword = String(payload.newPassword || '')
 
@@ -346,5 +288,14 @@ export async function changeOwnerPassword(payload = {}) {
     )
   }
 
-  return createSuccessResponse('Password changed successfully.', session)
+  try {
+    await apiClient.post('/auth/change-password', {
+      current_password: currentPassword,
+      new_password: newPassword,
+    })
+    return createSuccessResponse('Password changed successfully.', readAuthSession())
+  } catch (err) {
+    const message = err.response?.data?.detail || 'Password change failed.'
+    throw createAuthError(message, err.response?.status || 400, 'PASSWORD_CHANGE_ERROR')
+  }
 }
