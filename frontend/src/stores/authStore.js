@@ -7,7 +7,7 @@ import * as authService from '../services/authService'
  * Authentication store for Smart Library App.
  *
  * Responsibilities:
- * - Own auth-related UI state such as loading, errors, remember-me, and placeholders.
+ * - Own auth-related UI state such as loading, errors, and remember-me preferences.
  * - Expose reusable getters for user, role, and authentication status.
  * - Delegate all authentication operations to authService.
  *
@@ -22,8 +22,12 @@ export const useAuthStore = defineStore('auth', () => {
   const authStatus = ref('idle')
   const isLoading = ref(false)
   const error = ref(null)
+  const profileError = ref(null)
+  const passwordError = ref(null)
   const token = ref(null)
   const rememberMe = ref(false)
+  const isUpdatingProfile = ref(false)
+  const isChangingPassword = ref(false)
 
   const isAuthenticated = computed(() => Boolean(user.value))
   const currentRole = computed(() => role.value)
@@ -87,14 +91,54 @@ export const useAuthStore = defineStore('auth', () => {
     return runAuthServiceRequest(() => authService.getCurrentUser(), { syncSession: true })
   }
 
+  async function updateProfile(profileData) {
+    isUpdatingProfile.value = true
+    profileError.value = null
+
+    try {
+      const response = await authService.updateOwnerProfile(profileData)
+      syncSession(response)
+      return response
+    } catch (requestError) {
+      profileError.value = requestError
+      throw requestError
+    } finally {
+      isUpdatingProfile.value = false
+    }
+  }
+
+  async function changePassword(passwordData) {
+    isChangingPassword.value = true
+    passwordError.value = null
+
+    try {
+      const response = await authService.changeOwnerPassword(passwordData)
+      syncSession(response)
+      return response
+    } catch (requestError) {
+      passwordError.value = requestError
+      throw requestError
+    } finally {
+      isChangingPassword.value = false
+    }
+  }
+
+  function clearProfileError() {
+    profileError.value = null
+  }
+
   return {
     user,
     role,
     authStatus,
     isLoading,
     error,
+    profileError,
+    passwordError,
     token,
     rememberMe,
+    isUpdatingProfile,
+    isChangingPassword,
     isAuthenticated,
     currentRole,
     currentUser,
@@ -103,5 +147,8 @@ export const useAuthStore = defineStore('auth', () => {
     register,
     forgotPassword,
     checkSession,
+    updateProfile,
+    changePassword,
+    clearProfileError,
   }
 })

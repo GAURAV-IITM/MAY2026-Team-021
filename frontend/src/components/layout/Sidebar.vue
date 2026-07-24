@@ -1,9 +1,12 @@
 <template>
-  <aside class="app-sidebar">Sidebar</aside>
+  <aside class="app-sidebar" aria-label="Application navigation">
+    <div class="app-sidebar__header">
+      <span class="app-sidebar__logo" aria-hidden="true"><LibraryBig :size="22" /></span>
+      <span class="app-sidebar__title">Navigation</span>
+    </div>
+  </aside>
 </template>
 
-<!--
-src/components: Reusable interface building blocks shared across layouts and pages.
-TODO:
-- Add role-aware navigation links when routes and permissions are finalized.
--->
+<script setup>
+import { LibraryBig } from '@lucide/vue'
+</script>

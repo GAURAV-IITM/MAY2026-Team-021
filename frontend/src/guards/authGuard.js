@@ -23,7 +23,7 @@ export function ensureRequiredRole(expectedRole) {
   const authStore = useAuthStore()
 
   if (authStore.currentRole !== expectedRole) {
-    return { name: 'unauthorized' }
+    return { name: 'forbidden' }
   }
 
   return true

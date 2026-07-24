@@ -1,16 +1,16 @@
 <template>
   <footer class="app-footer">
-    <span>Smart Library App</span>
-    <span>Version Placeholder</span>
-    <span>Copyright Placeholder</span>
+    <span class="app-footer__brand"><LibraryBig :size="17" aria-hidden="true" /> Smart Library App</span>
+    <span><BadgeCheck :size="16" aria-hidden="true" /> Library operations platform</span>
+    <span><Copyright :size="16" aria-hidden="true" /> {{ currentYear }} Smart Library App</span>
     <nav aria-label="Footer links">
-      <a href="#" aria-label="Footer link placeholder">Links Placeholder</a>
+      <a href="mailto:support@smartlibrary.app"><LifeBuoy :size="16" aria-hidden="true" /> Support</a>
     </nav>
   </footer>
 </template>
 
-<!--
-src/components: Reusable interface building blocks shared across layouts and pages.
-TODO:
-- Replace placeholders with legal, support, and product metadata as needed.
--->
+<script setup>
+import { BadgeCheck, Copyright, LibraryBig, LifeBuoy } from '@lucide/vue'
+
+const currentYear = new Date().getFullYear()
+</script>

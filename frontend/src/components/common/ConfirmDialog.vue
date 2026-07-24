@@ -17,7 +17,10 @@
       </header>
 
       <div class="modal__body">
-        <p :id="messageId" class="m-0">{{ message }}</p>
+        <div class="confirm-dialog__message">
+          <TriangleAlert :size="22" aria-hidden="true" />
+          <p :id="messageId" class="m-0">{{ message }}</p>
+        </div>
       </div>
 
       <footer class="modal__footer">
@@ -45,6 +48,8 @@
 </template>
 
 <script setup>
+import { TriangleAlert } from '@lucide/vue'
+
 const props = defineProps({
   isOpen: {
     type: Boolean,
@@ -88,6 +93,19 @@ function handleCancel() {
   emit('cancel')
 }
 </script>
+
+<style scoped>
+.confirm-dialog__message {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-3);
+}
+
+.confirm-dialog__message svg {
+  color: var(--color-warning);
+}
+</style>
 
 <!--
 src/components: Reusable confirmation dialog for destructive or important actions.

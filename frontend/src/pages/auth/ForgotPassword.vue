@@ -1,19 +1,20 @@
 <template>
   <section class="forgot-page" aria-labelledby="forgot-title">
     <header class="forgot-page__header">
-      <div class="forgot-page__logo" aria-hidden="true">SLA</div>
+      <div class="forgot-page__logo" aria-hidden="true"><KeyRound :size="27" /></div>
       <p class="text-label text-muted m-0">Smart Library App</p>
       <h1 id="forgot-title" class="forgot-page__title">Reset your password</h1>
       <p class="forgot-page__description">
-        Enter your email and we will show a placeholder reset confirmation.
+        Enter the email linked to your account and we will send password reset instructions.
       </p>
     </header>
 
     <div v-if="isSubmitted" class="alert alert--success" role="status">
+      <MailCheck :size="20" aria-hidden="true" />
       <div>
-        <p class="text-label m-0">Reset link placeholder</p>
+        <p class="text-label m-0">Check your inbox</p>
         <p class="m-0">
-          If this email is connected to an account, reset instructions will be sent later.
+          If this email is connected to an account, reset instructions will be sent shortly.
         </p>
       </div>
     </div>
@@ -31,7 +32,7 @@
           required
         />
         <p class="form-help">
-          {{ emailError || 'Validation placeholder: email is required and must be valid.' }}
+          {{ emailError || 'Use the email connected to your Smart Library account.' }}
         </p>
       </div>
 
@@ -41,17 +42,19 @@
         :disabled="isLoading"
       >
         <span v-if="isLoading" class="btn__loader" aria-hidden="true"></span>
+        <Send v-else :size="18" aria-hidden="true" />
         <span>{{ isLoading ? 'Preparing link' : 'Send Reset Link' }}</span>
       </button>
 
       <RouterLink class="btn btn--outline btn--lg forgot-page__back-link" :to="{ name: 'login' }">
-        Back to Login
+        <ArrowLeft :size="18" aria-hidden="true" /> Back to Login
       </RouterLink>
     </form>
   </section>
 </template>
 
 <script setup>
+import { ArrowLeft, KeyRound, MailCheck, Send } from '@lucide/vue'
 import { computed, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 
@@ -68,7 +71,7 @@ const emailError = computed(() => {
 })
 
 function handleSubmit() {
-  // TODO: Connect this placeholder submit to the backend password-reset endpoint when available.
+  // TODO: Connect this submit to the backend password-reset endpoint when available.
   isSubmitted.value = true
   emit('submit', { email: email.value })
 }
@@ -202,6 +205,5 @@ function handleSubmit() {
 <!--
 src/pages/auth: Authentication and onboarding route pages.
 TODO:
-- Replace placeholder success message with real password-reset response handling.
 - Connect submit to FastAPI password reset integration in a future milestone.
 -->

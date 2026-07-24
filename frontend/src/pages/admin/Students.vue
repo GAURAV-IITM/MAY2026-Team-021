@@ -10,7 +10,7 @@
       </div>
 
       <RouterLink class="btn btn--primary students-page__add-button" :to="{ name: 'adminAddStudent' }">
-        Add Student
+        <UserPlus :size="18" aria-hidden="true" /> Add Student
       </RouterLink>
     </header>
 
@@ -18,7 +18,7 @@
       <article class="stat-card stat-card--dashboard">
         <div class="stat-card__header">
           <span class="text-label text-muted">Total Students</span>
-          <span class="stat-card__icon" aria-hidden="true">T</span>
+          <span class="stat-card__icon" aria-hidden="true"><UsersRound :size="20" /></span>
         </div>
         <strong class="stat-card__value">{{ studentCount }}</strong>
       </article>
@@ -26,7 +26,7 @@
       <article class="stat-card stat-card--dashboard">
         <div class="stat-card__header">
           <span class="text-label text-muted">Active Students</span>
-          <span class="stat-card__icon" aria-hidden="true">A</span>
+          <span class="stat-card__icon" aria-hidden="true"><UserRoundCheck :size="20" /></span>
         </div>
         <strong class="stat-card__value">{{ activeStudentCount }}</strong>
       </article>
@@ -34,7 +34,7 @@
       <article class="stat-card stat-card--dashboard">
         <div class="stat-card__header">
           <span class="text-label text-muted">Inactive Students</span>
-          <span class="stat-card__icon" aria-hidden="true">I</span>
+          <span class="stat-card__icon" aria-hidden="true"><UserRoundX :size="20" /></span>
         </div>
         <strong class="stat-card__value">{{ inactiveStudentCount }}</strong>
       </article>
@@ -62,9 +62,13 @@
         <label class="form-label" for="shift-filter">Shift</label>
         <select id="shift-filter" v-model="shiftFilter" class="form-select">
           <option value="">All shifts</option>
-          <option value="morning">Morning</option>
-          <option value="afternoon">Afternoon</option>
-          <option value="evening">Evening</option>
+          <option
+            v-for="shift in shiftOptions"
+            :key="shift.value"
+            :value="shift.value"
+          >
+            {{ shift.label }}
+          </option>
         </select>
       </div>
 
@@ -74,7 +78,7 @@
         :disabled="!hasActiveFilters"
         @click="clearFilters"
       >
-        Clear Filters
+        <RotateCcw :size="16" aria-hidden="true" /> Clear Filters
       </button>
     </section>
 
@@ -99,6 +103,7 @@
         title="No students found"
         :description="emptyStateDescription"
       >
+        <template #icon><UsersRound :size="26" /></template>
         <template #primary-action>
           <button
             v-if="hasActiveFilters"
@@ -106,11 +111,11 @@
             type="button"
             @click="clearFilters"
           >
-            Clear Filters
+            <RotateCcw :size="16" aria-hidden="true" /> Clear Filters
           </button>
 
           <RouterLink v-else class="btn btn--primary" :to="{ name: 'adminAddStudent' }">
-            Add Student
+            <UserPlus :size="17" aria-hidden="true" /> Add Student
           </RouterLink>
         </template>
 
@@ -132,8 +137,8 @@
             </div>
           </template>
 
-          <template #cell-shift="{ value }">
-            {{ formatLabel(value) }}
+          <template #cell-shift="{ row }">
+            {{ formatShiftList(row) }}
           </template>
 
           <template #cell-status="{ value }">
@@ -154,14 +159,14 @@
                 class="btn btn--secondary btn--sm"
                 :to="{ name: 'adminStudentDetails', params: { studentId: row.id } }"
               >
-                View
+                <Eye :size="15" aria-hidden="true" /> View
               </RouterLink>
 
               <RouterLink
                 class="btn btn--outline btn--sm"
                 :to="{ name: 'adminEditStudent', params: { studentId: row.id } }"
               >
-                Edit
+                <Pencil :size="15" aria-hidden="true" /> Edit
               </RouterLink>
             </div>
           </template>
@@ -184,6 +189,15 @@
 </template>
 
 <script setup>
+import {
+  Eye,
+  Pencil,
+  RotateCcw,
+  UserPlus,
+  UserRoundCheck,
+  UserRoundX,
+  UsersRound,
+} from '@lucide/vue'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
@@ -193,6 +207,7 @@ import EmptyState from '../../components/common/EmptyState.vue'
 import LoadingSpinner from '../../components/common/LoadingSpinner.vue'
 import Pagination from '../../components/common/Pagination.vue'
 import SearchBar from '../../components/common/SearchBar.vue'
+import { shiftMock } from '../../mocks/seatMock'
 import { useStudentStore } from '../../stores/studentStore'
 
 const PAGE_SIZE = 5
@@ -221,6 +236,15 @@ const statusFilter = ref('')
 const shiftFilter = ref('')
 const currentPage = ref(1)
 
+const shiftOptions = computed(() => {
+  return shiftMock
+    .filter((shift) => shift.isEnabled !== false)
+    .map((shift) => ({
+      value: shift.id,
+      label: shift.name,
+    }))
+})
+
 const hasActiveFilters = computed(() => {
   return Boolean(searchQuery.value.trim() || statusFilter.value || shiftFilter.value)
 })
@@ -238,7 +262,8 @@ const filteredStudents = computed(() => {
       seatNumber.includes(normalizedQuery)
 
     const matchesStatus = !statusFilter.value || student.status === statusFilter.value
-    const matchesShift = !shiftFilter.value || student.shift === shiftFilter.value
+    const matchesShift =
+      !shiftFilter.value || getStudentShifts(student).includes(shiftFilter.value)
 
     return matchesSearch && matchesStatus && matchesShift
   })
@@ -291,6 +316,22 @@ function formatLabel(value) {
   return String(value)
     .replace(/[-_]/g, ' ')
     .replace(/\b\w/g, (character) => character.toUpperCase())
+}
+
+function getStudentShifts(student) {
+  if (Array.isArray(student.activeShifts) && student.activeShifts.length > 0) {
+    return student.activeShifts
+  }
+
+  return student.shift ? [student.shift] : []
+}
+
+function formatShiftList(student) {
+  const shifts = getStudentShifts(student)
+
+  if (shifts.length === 0) return '—'
+
+  return shifts.map((shift) => formatLabel(shift)).join(', ')
 }
 
 function getFeeStatusClass(status) {

@@ -11,12 +11,12 @@
           aria-label="Close modal"
           @click="$emit('close')"
         >
-          x
+          <X :size="19" aria-hidden="true" />
         </button>
       </header>
 
       <div class="modal__body">
-        <slot>Modal content placeholder</slot>
+        <slot></slot>
       </div>
 
       <footer class="modal__footer">
@@ -30,14 +30,17 @@
 </template>
 
 <script setup>
-defineProps({
+import { X } from '@lucide/vue'
+import { onBeforeUnmount, watch } from 'vue'
+
+const props = defineProps({
   isOpen: {
     type: Boolean,
     default: true,
   },
   title: {
     type: String,
-    default: 'Modal Title',
+    default: 'Dialog',
   },
   titleId: {
     type: String,
@@ -46,10 +49,24 @@ defineProps({
 })
 
 defineEmits(['close'])
+
+function setBodyScrollLocked(isLocked) {
+  if (typeof document === 'undefined') return
+
+  document.body.style.overflow = isLocked ? 'hidden' : ''
+}
+
+watch(
+  () => props.isOpen,
+  (isOpen) => {
+    setBodyScrollLocked(isOpen)
+  },
+  { immediate: true },
+)
+
+onBeforeUnmount(() => {
+  setBodyScrollLocked(false)
+})
 </script>
 
-<!--
-src/components: Reusable interface building blocks shared across layouts and pages.
-TODO:
-- Add focus trapping and Escape-key handling when modal orchestration is implemented.
--->
+<!-- TODO: Add focus trapping and Escape-key handling when modal orchestration is implemented. -->
