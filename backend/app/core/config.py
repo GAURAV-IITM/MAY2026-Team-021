@@ -48,6 +48,12 @@ class Settings:
         ).split(",")
         if origin.strip()
     )
+    jwt_secret_key: str = os.getenv(
+        "JWT_SECRET_KEY", "change-this-development-secret-before-production"
+    )
+    jwt_algorithm: str = os.getenv("JWT_ALGORITHM", "HS256")
+    access_token_expire_minutes: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
+    refresh_token_expire_days: int = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "14"))
 
 
 @lru_cache

@@ -18,6 +18,21 @@ alembic upgrade head
 uvicorn app.main:app --reload
 ```
 
+## Authentication
+
+JWT authentication is available under `/api/v1/auth`:
+
+- `POST /register-library` creates an owner account, active library, membership, and session.
+- `POST /login` issues a short-lived access JWT plus a rotating refresh token.
+- `POST /refresh` rotates the refresh token.
+- `POST /logout` revokes the current access-token session.
+- `GET /me` returns the authenticated user.
+
+Set a strong, unique `JWT_SECRET_KEY` in `backend/.env` before any shared or
+production deployment. The access token defaults to 30 minutes and the refresh
+token to 14 days; configure these with `ACCESS_TOKEN_EXPIRE_MINUTES` and
+`REFRESH_TOKEN_EXPIRE_DAYS`.
+
 The default development database is SQLite. PostgreSQL URLs in the common
 `postgresql://user:password@host/database` format are automatically configured
 to use the bundled Psycopg 3 binary driver, so local compiler and PostgreSQL
