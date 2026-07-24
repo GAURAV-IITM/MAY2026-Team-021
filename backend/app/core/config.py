@@ -11,6 +11,10 @@ from dotenv import load_dotenv
 BASE_DIR = Path(__file__).resolve().parents[2]
 load_dotenv(BASE_DIR / ".env")
 
+SUPPORTED_JWT_ALGORITHMS = frozenset({"HS256", "HS384", "HS512"})
+LOCAL_ENVIRONMENTS = frozenset({"development", "local", "test"})
+DEFAULT_JWT_SECRET = "change-this-development-secret-before-production"
+
 
 def _as_bool(value: str | None, default: bool = False) -> bool:
     if value is None:
@@ -25,6 +29,16 @@ def _normalize_database_url(value: str) -> str:
     if value.startswith("postgresql://"):
         return value.replace("postgresql://", "postgresql+psycopg://", 1)
     return value
+
+
+def _is_insecure_jwt_secret(value: str) -> bool:
+    normalized = value.strip().lower()
+    return (
+        len(value) < 32
+        or value == DEFAULT_JWT_SECRET
+        or "change-this" in normalized
+        or "replace-with" in normalized
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -48,6 +62,29 @@ class Settings:
         ).split(",")
         if origin.strip()
     )
+    jwt_secret_key: str = os.getenv("JWT_SECRET_KEY", DEFAULT_JWT_SECRET)
+    jwt_algorithm: str = os.getenv("JWT_ALGORITHM", "HS256")
+    access_token_expire_minutes: int = int(
+        os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30")
+    )
+    refresh_token_expire_days: int = int(
+        os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "14")
+    )
+
+    def __post_init__(self) -> None:
+        if self.jwt_algorithm not in SUPPORTED_JWT_ALGORITHMS:
+            raise RuntimeError(f"Unsupported JWT algorithm: {self.jwt_algorithm}")
+
+        if self.environment.lower() not in LOCAL_ENVIRONMENTS:
+            if _is_insecure_jwt_secret(self.jwt_secret_key):
+                raise RuntimeError(
+                    "JWT_SECRET_KEY must be a unique secret of at least 32 characters "
+                    "outside local development."
+                )
+            if self.access_token_expire_minutes <= 0:
+                raise RuntimeError("ACCESS_TOKEN_EXPIRE_MINUTES must be positive.")
+            if self.refresh_token_expire_days <= 0:
+                raise RuntimeError("REFRESH_TOKEN_EXPIRE_DAYS must be positive.")
 
 
 @lru_cache
