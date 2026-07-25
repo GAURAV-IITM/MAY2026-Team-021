@@ -2,7 +2,10 @@
 
 The frontend for **Smart Library App**, a role-based library operations platform built for library owners, students, and platform administrators.
 
-The application currently uses mock services and local frontend state so the complete user experience can be developed independently of the backend. The service layer is intentionally separated from pages and stores to support a later FastAPI integration with minimal UI changes.
+Authentication is integrated with the FastAPI backend. Other feature modules
+continue to use mock services until their corresponding APIs are implemented.
+The service layer remains separated from pages and stores so each module can be
+migrated without rewriting its UI.
 
 ## Application Areas
 
@@ -42,7 +45,7 @@ The application currently uses mock services and local frontend state so the com
 | Vite 8                 | Development server and production build tooling          |
 | Pinia                  | Feature and session state management                     |
 | Vue Router             | Public, authenticated, and role-protected navigation     |
-| Axios                  | HTTP client scaffold for backend API integration         |
+| Axios                  | Backend API client with JWT refresh handling             |
 | Chart.js / vue-chartjs | Dashboard and report visualizations                      |
 | Lucide Vue             | Application icons                                        |
 | ESLint / Prettier      | Code quality and formatting                              |
@@ -59,24 +62,22 @@ From the repository root:
 ```bash
 cd frontend
 npm ci
+cp .env.example .env
 npm run dev
 ```
 
 Vite prints the local development URL in the terminal, normally `http://localhost:5173`.
 
-No environment variables or running backend are required for the current mock-service implementation.
+Authentication requires the FastAPI backend, which defaults to
+`http://localhost:8000`. Configure another development target with
+`VITE_API_PROXY_TARGET`, or set `VITE_API_BASE_URL` when the API is available at
+a different public URL.
 
-## Demo Accounts
+## Authentication
 
-Use these accounts on the login page to open each role-specific portal:
-
-| Role          | Email                          | Password      |
-| ------------- | ------------------------------ | ------------- |
-| Library Owner | `owner@smartlibrary.test`      | `Owner@123`   |
-| Student       | `student@smartlibrary.test`    | `Student@123` |
-| Super Admin   | `superadmin@smartlibrary.test` | `Super@123`   |
-
-These credentials are development-only mock data and must not be used in production.
+Library owners can create an account from `/register-library`. All users sign in
+through `/login` with backend-managed credentials. Access tokens are kept only
+in memory; rotating refresh tokens are stored in Secure, HttpOnly cookies.
 
 ## Available Scripts
 
@@ -84,6 +85,7 @@ These credentials are development-only mock data and must not be used in product
 npm run dev       # Start the Vite development server
 npm run build     # Create a production build in dist/
 npm run preview   # Preview the production build locally
+npm test          # Run frontend authentication regression tests
 npm run lint      # Run ESLint across the frontend
 npm run format    # Format supported files with Prettier
 ```
@@ -92,10 +94,9 @@ Before opening a pull request, run:
 
 ```bash
 npm run lint
+npm test
 npm run build
 ```
-
-An automated test command is not configured yet.
 
 ## Architecture
 
@@ -108,7 +109,7 @@ Pinia Store
       ↓
 Feature Service
       ↓
-Mock Data (current) or HTTP API (future)
+Backend API or module mock service
 ```
 
 - **Pages** compose screens and trigger user actions.
@@ -126,7 +127,7 @@ Pages should not import mock files directly. Keep data access behind the store a
 frontend/
 ├── public/                 Static public assets
 ├── src/
-│   ├── api/                Shared Axios client and future API adapters
+│   ├── api/                Axios client and authentication session state
 │   ├── assets/             Images, logos, icons, and illustrations
 │   ├── components/         Shared and feature-level Vue components
 │   ├── composables/        Reusable Composition API logic
@@ -162,9 +163,9 @@ Unknown routes display the dedicated 404 page. Authenticated users are redirecte
 
 ## Mock Data Behavior
 
-- Authentication uses mock users and a fake session token stored in `localStorage`.
+- Authentication uses the FastAPI JWT and HttpOnly-cookie session endpoints.
 - Most feature services work with in-memory mock data and may reset after a browser refresh.
-- Library registration creates a mock owner session and initializes the requested number of seats.
+- Library registration creates the owner, library, initial floor, default shifts, and requested seats through the backend.
 - Mock delays are used in several services to exercise loading and error UI.
 - Tenant isolation and permissions are represented in the frontend but must be enforced by the backend before production use.
 
@@ -172,15 +173,17 @@ Mock files are located in `src/mocks/`; pages must access them through their cor
 
 ## Backend Integration
 
-The shared Axios client is available at `src/api/axios.js` with `/api` as its current base URL. Backend integration should preserve the existing store contracts where possible.
+The shared Axios client is available at `src/api/axios.js` with `/api/v1` as its
+default base URL. It attaches in-memory access tokens, performs one shared
+refresh operation for concurrent unauthorized requests, and retries the
+original requests after rotation.
 
 When connecting FastAPI:
 
 1. Replace mock operations inside feature services with Axios requests.
-2. Move authentication from fake local storage tokens to backend-issued secure tokens or sessions.
-3. Add authentication headers and centralized request/response interceptors.
-4. Enforce roles, library tenancy, validation, and conflict rules on the backend.
-5. Add environment-based API configuration and automated tests.
+2. Preserve the existing page → store → service boundaries.
+3. Enforce roles, library tenancy, validation, and conflict rules on the backend.
+4. Add integration tests for each migrated module.
 
 Frontend validation is for usability only. Security-sensitive and business-critical rules must also be validated by the backend.
 

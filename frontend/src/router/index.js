@@ -13,8 +13,7 @@ import studentGuard from '../guards/studentGuard'
 import superAdminGuard from '../guards/superAdminGuard'
 
 // src/router: Central route composition and future navigation guard registration.
-// Authentication Guard is registered below and currently reads the mock session from authStore.
-// Role Guard is registered below and currently validates role meta against authStore.currentRole.
+// Authentication and role guards read the backend-validated session from authStore.
 // TODO: Register the Tenant Guard here after tenant validation is available from the backend.
 // TODO: Replace mock guard behavior with JWT, role claims, and tenant claims from FastAPI.
 const routes = [

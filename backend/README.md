@@ -29,6 +29,10 @@ JWT authentication is available under `/api/v1/auth`:
 - `POST /refresh` rotates the refresh token.
 - `POST /logout` revokes the current access-token session.
 - `GET /me` returns the authenticated user.
+- `POST /session/login`, `/session/refresh`, and `/session/logout` provide the
+  browser flow using a rotating HttpOnly refresh-token cookie.
+- `PATCH /profile` persists authenticated account profile changes.
+- `POST /change-password` verifies and updates the authenticated password.
 
 Set a strong, unique `JWT_SECRET_KEY` in `backend/.env` before any shared or
 production deployment. The access token defaults to 30 minutes and the refresh

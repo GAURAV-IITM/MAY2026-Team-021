@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 
+import { subscribeAccessToken, subscribeSessionCleared } from '../api/authSession.js'
 import * as authService from '../services/authService'
 
 /**
@@ -11,9 +12,9 @@ import * as authService from '../services/authService'
  * - Expose reusable getters for user, role, and authentication status.
  * - Delegate all authentication operations to authService.
  *
- * Future JWT notes:
- * - token is a placeholder for the eventual JWT or session token.
- * - Token persistence, refresh, expiry checks, and role validation should live in services/guards.
+ * JWT notes:
+ * - Access tokens are kept in memory and refresh tokens use HttpOnly cookies.
+ * - Refresh, expiry checks, and role validation live in services/guards.
  * - This store should remain a thin state layer, not an authentication engine.
  */
 export const useAuthStore = defineStore('auth', () => {
@@ -32,6 +33,17 @@ export const useAuthStore = defineStore('auth', () => {
   const isAuthenticated = computed(() => Boolean(user.value))
   const currentRole = computed(() => role.value)
   const currentUser = computed(() => user.value)
+
+  subscribeAccessToken((accessToken) => {
+    token.value = accessToken
+  })
+  subscribeSessionCleared(() => {
+    user.value = null
+    role.value = null
+    token.value = null
+    rememberMe.value = false
+    authStatus.value = 'guest'
+  })
 
   function syncSession(response) {
     const session = response?.data || {}
