@@ -520,6 +520,2177 @@ paths:
       - BearerAuth: []
       x-user-stories:
       - AUTH-CHANGE-PASSWORD
+  /api/v1/auth/invitations/validate:
+    get:
+      tags:
+      - Authentication
+      summary: Validate a student portal invitation
+      operationId: validateStudentInvitation
+      parameters:
+      - name: token
+        in: query
+        required: true
+        schema:
+          type: string
+          title: Token
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidateInvitationResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Request validation or a business rule failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      x-user-stories:
+      - STUDENT-PORTAL-INVITATION
+  /api/v1/auth/invitations/accept:
+    post:
+      tags:
+      - Authentication
+      summary: Create a student password from an invitation
+      operationId: acceptStudentInvitation
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AcceptInvitationRequest'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AcceptInvitationResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '409':
+          description: The request conflicts with existing data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Request validation or a business rule failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      x-user-stories:
+      - STUDENT-PORTAL-ACTIVATION
+  /api/v1/students:
+    get:
+      tags:
+      - Students
+      summary: List Students
+      operationId: listStudents
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: status
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/StudentStatus'
+          - type: 'null'
+          title: Status
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+          title: Page
+      - name: pageSize
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+          default: 20
+          title: Pagesize
+      - name: search
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            maxLength: 200
+          - type: 'null'
+          title: Search
+      - name: sortBy
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 80
+          default: createdAt
+          title: Sortby
+      - name: sortOrder
+        in: query
+        required: false
+        schema:
+          type: string
+          pattern: ^(asc|desc)$
+          default: desc
+          title: Sortorder
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedResponse_StudentResponse_'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Request validation or a business rule failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      x-user-stories:
+      - STUDENT-LIST
+    post:
+      tags:
+      - Students
+      summary: Create Student
+      operationId: createStudent
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StudentCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse_StudentResponse_'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '409':
+          description: The request conflicts with existing data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Request validation or a business rule failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      x-user-stories:
+      - STUDENT-CREATE
+  /api/v1/students/{student_id}:
+    get:
+      tags:
+      - Students
+      summary: Get Student
+      operationId: getStudent
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: student_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Student Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse_StudentResponse_'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '404':
+          description: The requested resource was not found in the current scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      x-user-stories:
+      - STUDENT-DETAIL
+    patch:
+      tags:
+      - Students
+      summary: Update Student
+      operationId: updateStudent
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: student_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Student Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StudentUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse_StudentResponse_'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '404':
+          description: The requested resource was not found in the current scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '409':
+          description: The request conflicts with existing data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Request validation or a business rule failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      x-user-stories:
+      - STUDENT-UPDATE
+    delete:
+      tags:
+      - Students
+      summary: Delete Student
+      operationId: deleteStudent
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: student_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Student Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '404':
+          description: The requested resource was not found in the current scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      x-user-stories:
+      - STUDENT-DELETE
+  /api/v1/students/{student_id}/status:
+    patch:
+      tags:
+      - Students
+      summary: Change Student Status
+      operationId: changeStudentStatus
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: student_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Student Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StudentStatusUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse_StudentResponse_'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '404':
+          description: The requested resource was not found in the current scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Request validation or a business rule failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      x-user-stories:
+      - STUDENT-STATUS
+  /api/v1/students/{student_id}/invitation:
+    post:
+      tags:
+      - Students
+      summary: Invite Student
+      operationId: inviteStudent
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: student_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Student Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse_StudentInvitationResponse_'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '404':
+          description: The requested resource was not found in the current scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '409':
+          description: The request conflicts with existing data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      x-user-stories:
+      - STUDENT-INVITE
+  /api/v1/floors:
+    get:
+      tags:
+      - Floors
+      summary: List Floors
+      operationId: listFloors
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse_list_FloorResponse__'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      security:
+      - BearerAuth: []
+      x-user-stories:
+      - FLOOR-LIST
+    post:
+      tags:
+      - Floors
+      summary: Create Floor
+      operationId: createFloor
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FloorCreate'
+        required: true
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse_FloorResponse_'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '409':
+          description: The request conflicts with existing data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Request validation or a business rule failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      security:
+      - BearerAuth: []
+      x-user-stories:
+      - FLOOR-CREATE
+  /api/v1/floors/{floor_id}:
+    patch:
+      tags:
+      - Floors
+      summary: Update Floor
+      operationId: updateFloor
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: floor_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Floor Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FloorUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse_FloorResponse_'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '404':
+          description: The requested resource was not found in the current scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '409':
+          description: The request conflicts with existing data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Request validation or a business rule failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      x-user-stories:
+      - FLOOR-UPDATE
+    delete:
+      tags:
+      - Floors
+      summary: Delete Floor
+      operationId: deleteFloor
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: floor_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Floor Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '404':
+          description: The requested resource was not found in the current scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '409':
+          description: The request conflicts with existing data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      x-user-stories:
+      - FLOOR-DELETE
+  /api/v1/seats:
+    get:
+      tags:
+      - Seats
+      summary: List Seats
+      operationId: listSeats
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: search
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            maxLength: 200
+          - type: 'null'
+          title: Search
+      - name: floorId
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Floorid
+      - name: status
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/SeatOperationalStatus'
+          - type: 'null'
+          title: Status
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse_SeatListResponse_'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Request validation or a business rule failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      x-user-stories:
+      - SEAT-LIST
+    post:
+      tags:
+      - Seats
+      summary: Create Seat
+      operationId: createSeat
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SeatCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse_SeatResponse_'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '404':
+          description: The requested resource was not found in the current scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '409':
+          description: The request conflicts with existing data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Request validation or a business rule failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      x-user-stories:
+      - SEAT-CREATE
+  /api/v1/seats/bulk/status:
+    patch:
+      tags:
+      - Seats
+      summary: Bulk Change Status
+      operationId: bulkChangeSeatStatus
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkSeatStatusUpdate'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse_BulkSeatResult_'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '404':
+          description: The requested resource was not found in the current scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '409':
+          description: The request conflicts with existing data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Request validation or a business rule failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      security:
+      - BearerAuth: []
+      x-user-stories:
+      - SEAT-BULK-STATUS
+  /api/v1/seats/bulk/delete:
+    post:
+      tags:
+      - Seats
+      summary: Bulk Delete Seats
+      operationId: bulkDeleteSeats
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkSeatDeleteRequest'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse_BulkSeatResult_'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '404':
+          description: The requested resource was not found in the current scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '409':
+          description: The request conflicts with existing data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Request validation or a business rule failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      security:
+      - BearerAuth: []
+      x-user-stories:
+      - SEAT-BULK-DELETE
+  /api/v1/seats/{seat_id}:
+    get:
+      tags:
+      - Seats
+      summary: Get Seat
+      operationId: getSeat
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: seat_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Seat Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse_SeatResponse_'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '404':
+          description: The requested resource was not found in the current scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      x-user-stories:
+      - SEAT-DETAIL
+    patch:
+      tags:
+      - Seats
+      summary: Update Seat
+      operationId: updateSeat
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: seat_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Seat Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SeatUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse_SeatResponse_'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '404':
+          description: The requested resource was not found in the current scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '409':
+          description: The request conflicts with existing data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Request validation or a business rule failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      x-user-stories:
+      - SEAT-UPDATE
+    delete:
+      tags:
+      - Seats
+      summary: Delete Seat
+      operationId: deleteSeat
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: seat_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Seat Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse_BulkSeatResult_'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '404':
+          description: The requested resource was not found in the current scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '409':
+          description: The request conflicts with existing data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      x-user-stories:
+      - SEAT-DELETE
+  /api/v1/seats/{seat_id}/status:
+    patch:
+      tags:
+      - Seats
+      summary: Change Seat Status
+      operationId: changeSeatStatus
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: seat_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Seat Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SeatStatusUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse_SeatResponse_'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '404':
+          description: The requested resource was not found in the current scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '409':
+          description: The request conflicts with existing data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Request validation or a business rule failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      x-user-stories:
+      - SEAT-STATUS
+  /api/v1/shifts:
+    get:
+      tags:
+      - Shifts
+      summary: List Shifts
+      operationId: listShifts
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: includeInactive
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: true
+          title: Includeinactive
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse_list_ShiftResponse__'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      x-user-stories:
+      - SHIFT-LIST
+    post:
+      tags:
+      - Shifts
+      summary: Create Shift
+      operationId: createShift
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ShiftCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse_ShiftResponse_'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '409':
+          description: The request conflicts with existing data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Request validation or a business rule failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      x-user-stories:
+      - SHIFT-CREATE
+  /api/v1/shifts/validate-selection:
+    post:
+      tags:
+      - Shifts
+      summary: Validate Shift Selection
+      operationId: validateShiftSelection
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ShiftSelectionValidation'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse_ShiftSelectionResult_'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Request validation or a business rule failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      security:
+      - BearerAuth: []
+      x-user-stories:
+      - SHIFT-VALIDATE-SELECTION
+  /api/v1/shifts/{shift_id}:
+    patch:
+      tags:
+      - Shifts
+      summary: Update Shift
+      operationId: updateShift
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: shift_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Shift Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ShiftUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse_ShiftResponse_'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '404':
+          description: The requested resource was not found in the current scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '409':
+          description: The request conflicts with existing data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Request validation or a business rule failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      x-user-stories:
+      - SHIFT-UPDATE
+    delete:
+      tags:
+      - Shifts
+      summary: Delete Shift
+      operationId: deleteShift
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: shift_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Shift Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '404':
+          description: The requested resource was not found in the current scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '409':
+          description: The request conflicts with existing data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      x-user-stories:
+      - SHIFT-DELETE
+  /api/v1/shifts/{shift_id}/status:
+    patch:
+      tags:
+      - Shifts
+      summary: Change Shift Status
+      operationId: changeShiftStatus
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: shift_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Shift Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ShiftStatusUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse_ShiftResponse_'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '404':
+          description: The requested resource was not found in the current scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Request validation or a business rule failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      x-user-stories:
+      - SHIFT-STATUS
+  /api/v1/settings/library:
+    get:
+      tags:
+      - Settings
+      summary: Get Library Settings
+      operationId: getLibrarySettings
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse_LibrarySettingsResponse_'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '404':
+          description: The requested resource was not found in the current scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      security:
+      - BearerAuth: []
+      x-user-stories:
+      - LIBRARY-SETTINGS-READ
+    patch:
+      tags:
+      - Settings
+      summary: Update Library Settings
+      operationId: updateLibrarySettings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LibrarySettingsUpdate'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse_LibrarySettingsResponse_'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '404':
+          description: The requested resource was not found in the current scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Request validation or a business rule failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      security:
+      - BearerAuth: []
+      x-user-stories:
+      - LIBRARY-SETTINGS-UPDATE
   /:
     get:
       tags:
@@ -560,6 +2731,36 @@ paths:
               $ref: '#/components/headers/XRequestId'
 components:
   schemas:
+    AcceptInvitationRequest:
+      properties:
+        token:
+          type: string
+          maxLength: 512
+          minLength: 32
+          title: Token
+        password:
+          type: string
+          maxLength: 128
+          minLength: 8
+          title: Password
+      type: object
+      required:
+      - token
+      - password
+      title: AcceptInvitationRequest
+    AcceptInvitationResponse:
+      properties:
+        message:
+          type: string
+          title: Message
+        email:
+          type: string
+          title: Email
+      type: object
+      required:
+      - message
+      - email
+      title: AcceptInvitationResponse
     AuthResponse:
       properties:
         accessToken:
@@ -629,6 +2830,58 @@ components:
           name: Library Owner
           phone: '9876543210'
           role: admin
+    BulkSeatDeleteRequest:
+      properties:
+        seatIds:
+          items:
+            type: string
+            format: uuid
+          type: array
+          maxItems: 500
+          minItems: 1
+          title: Seatids
+      type: object
+      required:
+      - seatIds
+      title: BulkSeatDeleteRequest
+    BulkSeatResult:
+      properties:
+        seats:
+          items:
+            $ref: '#/components/schemas/SeatResponse'
+          type: array
+          title: Seats
+        deletedSeatIds:
+          items:
+            type: string
+            format: uuid
+          type: array
+          title: Deletedseatids
+      type: object
+      title: BulkSeatResult
+    BulkSeatStatusUpdate:
+      properties:
+        status:
+          $ref: '#/components/schemas/SeatOperationalStatus'
+        reason:
+          anyOf:
+          - type: string
+            maxLength: 2000
+          - type: 'null'
+          title: Reason
+        seatIds:
+          items:
+            type: string
+            format: uuid
+          type: array
+          maxItems: 500
+          minItems: 1
+          title: Seatids
+      type: object
+      required:
+      - status
+      - seatIds
+      title: BulkSeatStatusUpdate
     ChangePasswordRequest:
       properties:
         currentPassword:
@@ -684,6 +2937,378 @@ components:
           details: {}
           message: The request conflicts with existing data.
         requestId: frontend-request-123
+    FloorCreate:
+      properties:
+        name:
+          type: string
+          maxLength: 100
+          minLength: 1
+          title: Name
+        code:
+          type: string
+          maxLength: 32
+          minLength: 1
+          title: Code
+        levelNumber:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Levelnumber
+        sortOrder:
+          type: integer
+          minimum: 0.0
+          title: Sortorder
+          default: 0
+        isActive:
+          type: boolean
+          title: Isactive
+          default: true
+      type: object
+      required:
+      - name
+      - code
+      title: FloorCreate
+    FloorResponse:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        name:
+          type: string
+          title: Name
+        code:
+          type: string
+          title: Code
+        levelNumber:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Levelnumber
+        sortOrder:
+          type: integer
+          title: Sortorder
+        isActive:
+          type: boolean
+          title: Isactive
+        seatCount:
+          type: integer
+          title: Seatcount
+        createdAt:
+          type: string
+          format: date-time
+          title: Createdat
+        updatedAt:
+          type: string
+          format: date-time
+          title: Updatedat
+      type: object
+      required:
+      - id
+      - name
+      - code
+      - levelNumber
+      - sortOrder
+      - isActive
+      - seatCount
+      - createdAt
+      - updatedAt
+      title: FloorResponse
+    FloorUpdate:
+      properties:
+        name:
+          anyOf:
+          - type: string
+            maxLength: 100
+            minLength: 1
+          - type: 'null'
+          title: Name
+        code:
+          anyOf:
+          - type: string
+            maxLength: 32
+            minLength: 1
+          - type: 'null'
+          title: Code
+        levelNumber:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Levelnumber
+        sortOrder:
+          anyOf:
+          - type: integer
+            minimum: 0.0
+          - type: 'null'
+          title: Sortorder
+        isActive:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Isactive
+      type: object
+      title: FloorUpdate
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    InvitationStatus:
+      type: string
+      enum:
+      - pending
+      - accepted
+      - expired
+      - revoked
+      title: InvitationStatus
+    LibrarySettingsResponse:
+      properties:
+        libraryName:
+          type: string
+          maxLength: 180
+          minLength: 2
+          title: Libraryname
+        contactEmail:
+          type: string
+          pattern: ^[^\s@]+@[^\s@]+\.[^\s@]+$
+          title: Contactemail
+        contactPhone:
+          anyOf:
+          - type: string
+            maxLength: 32
+          - type: 'null'
+          title: Contactphone
+        address:
+          anyOf:
+          - type: string
+            maxLength: 255
+          - type: 'null'
+          title: Address
+        city:
+          anyOf:
+          - type: string
+            maxLength: 100
+          - type: 'null'
+          title: City
+        state:
+          anyOf:
+          - type: string
+            maxLength: 100
+          - type: 'null'
+          title: State
+        postalCode:
+          anyOf:
+          - type: string
+            maxLength: 20
+          - type: 'null'
+          title: Postalcode
+        timezone:
+          type: string
+          maxLength: 64
+          minLength: 1
+          title: Timezone
+        openingTime:
+          type: string
+          format: time
+          title: Openingtime
+        closingTime:
+          type: string
+          format: time
+          title: Closingtime
+        weeklyOff:
+          type: string
+          maxLength: 16
+          title: Weeklyoff
+          default: none
+        defaultMonthlyFee:
+          type: number
+          minimum: 0.0
+          title: Defaultmonthlyfee
+        feeDueDay:
+          type: integer
+          maximum: 28.0
+          minimum: 1.0
+          title: Feedueday
+        paymentGraceDays:
+          type: integer
+          maximum: 30.0
+          minimum: 0.0
+          title: Paymentgracedays
+        receiptPrefix:
+          type: string
+          pattern: ^[A-Za-z0-9]{2,10}$
+          title: Receiptprefix
+        allowSeatChangeRequests:
+          type: boolean
+          title: Allowseatchangerequests
+        requireSeatRequestReason:
+          type: boolean
+          title: Requireseatrequestreason
+        whatsappRemindersEnabled:
+          type: boolean
+          title: Whatsappremindersenabled
+        notifyPendingPayments:
+          type: boolean
+          title: Notifypendingpayments
+        notifySeatRequests:
+          type: boolean
+          title: Notifyseatrequests
+        notifyMaintenanceSeats:
+          type: boolean
+          title: Notifymaintenanceseats
+        emailAnnouncementCopy:
+          type: boolean
+          title: Emailannouncementcopy
+        libraryId:
+          type: string
+          format: uuid
+          title: Libraryid
+        updatedAt:
+          type: string
+          format: date-time
+          title: Updatedat
+      type: object
+      required:
+      - libraryName
+      - contactEmail
+      - timezone
+      - openingTime
+      - closingTime
+      - defaultMonthlyFee
+      - feeDueDay
+      - paymentGraceDays
+      - receiptPrefix
+      - allowSeatChangeRequests
+      - requireSeatRequestReason
+      - whatsappRemindersEnabled
+      - notifyPendingPayments
+      - notifySeatRequests
+      - notifyMaintenanceSeats
+      - emailAnnouncementCopy
+      - libraryId
+      - updatedAt
+      title: LibrarySettingsResponse
+    LibrarySettingsUpdate:
+      properties:
+        libraryName:
+          type: string
+          maxLength: 180
+          minLength: 2
+          title: Libraryname
+        contactEmail:
+          type: string
+          pattern: ^[^\s@]+@[^\s@]+\.[^\s@]+$
+          title: Contactemail
+        contactPhone:
+          anyOf:
+          - type: string
+            maxLength: 32
+          - type: 'null'
+          title: Contactphone
+        address:
+          anyOf:
+          - type: string
+            maxLength: 255
+          - type: 'null'
+          title: Address
+        city:
+          anyOf:
+          - type: string
+            maxLength: 100
+          - type: 'null'
+          title: City
+        state:
+          anyOf:
+          - type: string
+            maxLength: 100
+          - type: 'null'
+          title: State
+        postalCode:
+          anyOf:
+          - type: string
+            maxLength: 20
+          - type: 'null'
+          title: Postalcode
+        timezone:
+          type: string
+          maxLength: 64
+          minLength: 1
+          title: Timezone
+        openingTime:
+          type: string
+          format: time
+          title: Openingtime
+        closingTime:
+          type: string
+          format: time
+          title: Closingtime
+        weeklyOff:
+          type: string
+          maxLength: 16
+          title: Weeklyoff
+          default: none
+        defaultMonthlyFee:
+          type: number
+          minimum: 0.0
+          title: Defaultmonthlyfee
+        feeDueDay:
+          type: integer
+          maximum: 28.0
+          minimum: 1.0
+          title: Feedueday
+        paymentGraceDays:
+          type: integer
+          maximum: 30.0
+          minimum: 0.0
+          title: Paymentgracedays
+        receiptPrefix:
+          type: string
+          pattern: ^[A-Za-z0-9]{2,10}$
+          title: Receiptprefix
+        allowSeatChangeRequests:
+          type: boolean
+          title: Allowseatchangerequests
+        requireSeatRequestReason:
+          type: boolean
+          title: Requireseatrequestreason
+        whatsappRemindersEnabled:
+          type: boolean
+          title: Whatsappremindersenabled
+        notifyPendingPayments:
+          type: boolean
+          title: Notifypendingpayments
+        notifySeatRequests:
+          type: boolean
+          title: Notifyseatrequests
+        notifyMaintenanceSeats:
+          type: boolean
+          title: Notifymaintenanceseats
+        emailAnnouncementCopy:
+          type: boolean
+          title: Emailannouncementcopy
+      type: object
+      required:
+      - libraryName
+      - contactEmail
+      - timezone
+      - openingTime
+      - closingTime
+      - defaultMonthlyFee
+      - feeDueDay
+      - paymentGraceDays
+      - receiptPrefix
+      - allowSeatChangeRequests
+      - requireSeatRequestReason
+      - whatsappRemindersEnabled
+      - notifyPendingPayments
+      - notifySeatRequests
+      - notifyMaintenanceSeats
+      - emailAnnouncementCopy
+      title: LibrarySettingsUpdate
     LoginRequest:
       properties:
         email:
@@ -719,6 +3344,55 @@ components:
       title: MessageResponse
       examples:
       - message: Operation completed successfully.
+    PaginatedResponse_StudentResponse_:
+      properties:
+        message:
+          type: string
+          title: Message
+        data:
+          items:
+            $ref: '#/components/schemas/StudentResponse'
+          type: array
+          title: Data
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+      type: object
+      required:
+      - message
+      - data
+      - meta
+      title: PaginatedResponse[StudentResponse]
+    PaginationMeta:
+      properties:
+        page:
+          type: integer
+          minimum: 1.0
+          title: Page
+        pageSize:
+          type: integer
+          maximum: 100.0
+          minimum: 1.0
+          title: Pagesize
+        totalItems:
+          type: integer
+          minimum: 0.0
+          title: Totalitems
+        totalPages:
+          type: integer
+          minimum: 0.0
+          title: Totalpages
+      type: object
+      required:
+      - page
+      - pageSize
+      - totalItems
+      - totalPages
+      title: PaginationMeta
+      examples:
+      - page: 1
+        pageSize: 20
+        totalItems: 42
+        totalPages: 3
     RefreshRequest:
       properties:
         refreshToken:
@@ -785,6 +3459,950 @@ components:
         password: SecurePass123
         phone: '9876543210'
         seatCount: 25
+    SeatCreate:
+      properties:
+        seatNumber:
+          type: string
+          maxLength: 64
+          minLength: 1
+          title: Seatnumber
+        floorId:
+          type: string
+          format: uuid
+          title: Floorid
+        seatType:
+          $ref: '#/components/schemas/SeatType'
+          default: standard
+        status:
+          $ref: '#/components/schemas/SeatOperationalStatus'
+          default: available
+        statusNote:
+          anyOf:
+          - type: string
+            maxLength: 255
+          - type: 'null'
+          title: Statusnote
+        notes:
+          anyOf:
+          - type: string
+            maxLength: 4000
+          - type: 'null'
+          title: Notes
+      type: object
+      required:
+      - seatNumber
+      - floorId
+      title: SeatCreate
+    SeatListResponse:
+      properties:
+        seats:
+          items:
+            $ref: '#/components/schemas/SeatResponse'
+          type: array
+          title: Seats
+        shifts:
+          items:
+            $ref: '#/components/schemas/ShiftResponse'
+          type: array
+          title: Shifts
+      type: object
+      required:
+      - seats
+      - shifts
+      title: SeatListResponse
+    SeatOperationalStatus:
+      type: string
+      enum:
+      - available
+      - maintenance
+      - blocked
+      title: SeatOperationalStatus
+    SeatResponse:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        seatNumber:
+          type: string
+          title: Seatnumber
+        floorId:
+          type: string
+          format: uuid
+          title: Floorid
+        floorName:
+          type: string
+          title: Floorname
+        floor:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Floor
+        seatType:
+          $ref: '#/components/schemas/SeatType'
+        physicalStatus:
+          $ref: '#/components/schemas/SeatOperationalStatus'
+        status:
+          $ref: '#/components/schemas/SeatOperationalStatus'
+        statusNote:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Statusnote
+        currentOccupancy:
+          type: string
+          title: Currentoccupancy
+        isOccupied:
+          type: boolean
+          title: Isoccupied
+        occupiedShiftCount:
+          type: integer
+          title: Occupiedshiftcount
+        notes:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Notes
+        isActive:
+          type: boolean
+          title: Isactive
+        activeShifts:
+          items:
+            type: string
+          type: array
+          title: Activeshifts
+        shiftAvailability:
+          items:
+            $ref: '#/components/schemas/ShiftAvailabilityResponse'
+          type: array
+          title: Shiftavailability
+        createdAt:
+          type: string
+          format: date-time
+          title: Createdat
+        updatedAt:
+          type: string
+          format: date-time
+          title: Updatedat
+      type: object
+      required:
+      - id
+      - seatNumber
+      - floorId
+      - floorName
+      - floor
+      - seatType
+      - physicalStatus
+      - status
+      - statusNote
+      - currentOccupancy
+      - isOccupied
+      - occupiedShiftCount
+      - notes
+      - isActive
+      - createdAt
+      - updatedAt
+      title: SeatResponse
+    SeatStatusUpdate:
+      properties:
+        status:
+          $ref: '#/components/schemas/SeatOperationalStatus'
+        reason:
+          anyOf:
+          - type: string
+            maxLength: 2000
+          - type: 'null'
+          title: Reason
+      type: object
+      required:
+      - status
+      title: SeatStatusUpdate
+    SeatType:
+      type: string
+      enum:
+      - standard
+      - premium
+      - cabin
+      - accessible
+      title: SeatType
+    SeatUpdate:
+      properties:
+        seatNumber:
+          anyOf:
+          - type: string
+            maxLength: 64
+            minLength: 1
+          - type: 'null'
+          title: Seatnumber
+        floorId:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Floorid
+        seatType:
+          anyOf:
+          - $ref: '#/components/schemas/SeatType'
+          - type: 'null'
+        status:
+          anyOf:
+          - $ref: '#/components/schemas/SeatOperationalStatus'
+          - type: 'null'
+        statusNote:
+          anyOf:
+          - type: string
+            maxLength: 255
+          - type: 'null'
+          title: Statusnote
+        notes:
+          anyOf:
+          - type: string
+            maxLength: 4000
+          - type: 'null'
+          title: Notes
+      type: object
+      title: SeatUpdate
+    ShiftAvailabilityResponse:
+      properties:
+        shiftId:
+          type: string
+          format: uuid
+          title: Shiftid
+        shiftName:
+          type: string
+          title: Shiftname
+        status:
+          type: string
+          title: Status
+        isPartialBlock:
+          type: boolean
+          title: Ispartialblock
+          default: false
+      type: object
+      required:
+      - shiftId
+      - shiftName
+      - status
+      title: ShiftAvailabilityResponse
+    ShiftConflict:
+      properties:
+        firstShiftId:
+          type: string
+          format: uuid
+          title: Firstshiftid
+        firstShiftName:
+          type: string
+          title: Firstshiftname
+        secondShiftId:
+          type: string
+          format: uuid
+          title: Secondshiftid
+        secondShiftName:
+          type: string
+          title: Secondshiftname
+      type: object
+      required:
+      - firstShiftId
+      - firstShiftName
+      - secondShiftId
+      - secondShiftName
+      title: ShiftConflict
+    ShiftCreate:
+      properties:
+        name:
+          type: string
+          maxLength: 100
+          minLength: 1
+          title: Name
+        startTime:
+          type: string
+          format: time
+          title: Starttime
+        endTime:
+          type: string
+          format: time
+          title: Endtime
+        isEnabled:
+          type: boolean
+          title: Isenabled
+          default: true
+      type: object
+      required:
+      - name
+      - startTime
+      - endTime
+      title: ShiftCreate
+    ShiftResponse:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        name:
+          type: string
+          title: Name
+        startTime:
+          type: string
+          title: Starttime
+        endTime:
+          type: string
+          title: Endtime
+        crossesMidnight:
+          type: boolean
+          title: Crossesmidnight
+        isDefault:
+          type: boolean
+          title: Isdefault
+        isEnabled:
+          type: boolean
+          title: Isenabled
+        createdAt:
+          type: string
+          format: date-time
+          title: Createdat
+        updatedAt:
+          type: string
+          format: date-time
+          title: Updatedat
+      type: object
+      required:
+      - id
+      - name
+      - startTime
+      - endTime
+      - crossesMidnight
+      - isDefault
+      - isEnabled
+      - createdAt
+      - updatedAt
+      title: ShiftResponse
+    ShiftSelectionResult:
+      properties:
+        valid:
+          type: boolean
+          title: Valid
+        conflicts:
+          items:
+            $ref: '#/components/schemas/ShiftConflict'
+          type: array
+          title: Conflicts
+      type: object
+      required:
+      - valid
+      title: ShiftSelectionResult
+    ShiftSelectionValidation:
+      properties:
+        shiftIds:
+          items:
+            type: string
+            format: uuid
+          type: array
+          maxItems: 24
+          minItems: 1
+          title: Shiftids
+      type: object
+      required:
+      - shiftIds
+      title: ShiftSelectionValidation
+    ShiftStatusUpdate:
+      properties:
+        isEnabled:
+          type: boolean
+          title: Isenabled
+      type: object
+      required:
+      - isEnabled
+      title: ShiftStatusUpdate
+    ShiftUpdate:
+      properties:
+        name:
+          anyOf:
+          - type: string
+            maxLength: 100
+            minLength: 1
+          - type: 'null'
+          title: Name
+        startTime:
+          anyOf:
+          - type: string
+            format: time
+          - type: 'null'
+          title: Starttime
+        endTime:
+          anyOf:
+          - type: string
+            format: time
+          - type: 'null'
+          title: Endtime
+        isEnabled:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Isenabled
+      type: object
+      title: ShiftUpdate
+    StudentCreate:
+      properties:
+        enrollmentNumber:
+          anyOf:
+          - type: string
+            maxLength: 64
+            minLength: 1
+          - type: 'null'
+          title: Enrollmentnumber
+        firstName:
+          type: string
+          maxLength: 100
+          minLength: 1
+          title: Firstname
+        lastName:
+          type: string
+          maxLength: 100
+          minLength: 1
+          title: Lastname
+        email:
+          type: string
+          pattern: ^[^\s@]+@[^\s@]+\.[^\s@]+$
+          title: Email
+        phone:
+          type: string
+          maxLength: 32
+          minLength: 7
+          title: Phone
+        address:
+          anyOf:
+          - type: string
+            maxLength: 2000
+          - type: 'null'
+          title: Address
+        guardianName:
+          anyOf:
+          - type: string
+            maxLength: 160
+          - type: 'null'
+          title: Guardianname
+        guardianPhone:
+          anyOf:
+          - type: string
+            maxLength: 32
+          - type: 'null'
+          title: Guardianphone
+        dateOfBirth:
+          anyOf:
+          - type: string
+            format: date
+          - type: 'null'
+          title: Dateofbirth
+        preferredLanguage:
+          type: string
+          maxLength: 16
+          minLength: 2
+          title: Preferredlanguage
+          default: en
+        joiningDate:
+          type: string
+          format: date
+          title: Joiningdate
+        feeAmount:
+          type: number
+          minimum: 0.0
+          title: Feeamount
+        status:
+          $ref: '#/components/schemas/StudentStatus'
+          default: active
+        notes:
+          anyOf:
+          - type: string
+            maxLength: 4000
+          - type: 'null'
+          title: Notes
+        sendInvitation:
+          type: boolean
+          title: Sendinvitation
+          default: true
+      type: object
+      required:
+      - firstName
+      - lastName
+      - email
+      - phone
+      - feeAmount
+      title: StudentCreate
+    StudentInvitationResponse:
+      properties:
+        studentId:
+          type: string
+          format: uuid
+          title: Studentid
+        email:
+          type: string
+          title: Email
+        status:
+          $ref: '#/components/schemas/InvitationStatus'
+        expiresAt:
+          type: string
+          format: date-time
+          title: Expiresat
+        setupUrl:
+          type: string
+          title: Setupurl
+        deliveryMethod:
+          type: string
+          title: Deliverymethod
+          default: manual
+      type: object
+      required:
+      - studentId
+      - email
+      - status
+      - expiresAt
+      - setupUrl
+      title: StudentInvitationResponse
+    StudentResponse:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        enrollmentNumber:
+          type: string
+          title: Enrollmentnumber
+        firstName:
+          type: string
+          title: Firstname
+        lastName:
+          type: string
+          title: Lastname
+        email:
+          type: string
+          title: Email
+        phone:
+          type: string
+          title: Phone
+        address:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Address
+        guardianName:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Guardianname
+        guardianPhone:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Guardianphone
+        dateOfBirth:
+          anyOf:
+          - type: string
+            format: date
+          - type: 'null'
+          title: Dateofbirth
+        preferredLanguage:
+          type: string
+          title: Preferredlanguage
+        joiningDate:
+          type: string
+          format: date
+          title: Joiningdate
+        leftOn:
+          anyOf:
+          - type: string
+            format: date
+          - type: 'null'
+          title: Lefton
+        feeAmount:
+          type: number
+          title: Feeamount
+        status:
+          $ref: '#/components/schemas/StudentStatus'
+        notes:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Notes
+        portalAccessStatus:
+          type: string
+          title: Portalaccessstatus
+        invitationStatus:
+          anyOf:
+          - $ref: '#/components/schemas/InvitationStatus'
+          - type: 'null'
+        invitationExpiresAt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Invitationexpiresat
+        invitationSetupUrl:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Invitationsetupurl
+        seatNumber:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Seatnumber
+        activeShifts:
+          items:
+            type: string
+          type: array
+          title: Activeshifts
+        feeStatus:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Feestatus
+        feeDueDate:
+          anyOf:
+          - type: string
+            format: date
+          - type: 'null'
+          title: Feeduedate
+        createdAt:
+          type: string
+          format: date-time
+          title: Createdat
+        updatedAt:
+          type: string
+          format: date-time
+          title: Updatedat
+      type: object
+      required:
+      - id
+      - enrollmentNumber
+      - firstName
+      - lastName
+      - email
+      - phone
+      - address
+      - guardianName
+      - guardianPhone
+      - dateOfBirth
+      - preferredLanguage
+      - joiningDate
+      - leftOn
+      - feeAmount
+      - status
+      - notes
+      - portalAccessStatus
+      - createdAt
+      - updatedAt
+      title: StudentResponse
+    StudentStatus:
+      type: string
+      enum:
+      - active
+      - inactive
+      - left
+      - suspended
+      title: StudentStatus
+    StudentStatusUpdate:
+      properties:
+        status:
+          $ref: '#/components/schemas/StudentStatus'
+      type: object
+      required:
+      - status
+      title: StudentStatusUpdate
+    StudentUpdate:
+      properties:
+        enrollmentNumber:
+          anyOf:
+          - type: string
+            maxLength: 64
+            minLength: 1
+          - type: 'null'
+          title: Enrollmentnumber
+        firstName:
+          anyOf:
+          - type: string
+            maxLength: 100
+            minLength: 1
+          - type: 'null'
+          title: Firstname
+        lastName:
+          anyOf:
+          - type: string
+            maxLength: 100
+            minLength: 1
+          - type: 'null'
+          title: Lastname
+        email:
+          anyOf:
+          - type: string
+            pattern: ^[^\s@]+@[^\s@]+\.[^\s@]+$
+          - type: 'null'
+          title: Email
+        phone:
+          anyOf:
+          - type: string
+            maxLength: 32
+            minLength: 7
+          - type: 'null'
+          title: Phone
+        address:
+          anyOf:
+          - type: string
+            maxLength: 2000
+          - type: 'null'
+          title: Address
+        guardianName:
+          anyOf:
+          - type: string
+            maxLength: 160
+          - type: 'null'
+          title: Guardianname
+        guardianPhone:
+          anyOf:
+          - type: string
+            maxLength: 32
+          - type: 'null'
+          title: Guardianphone
+        dateOfBirth:
+          anyOf:
+          - type: string
+            format: date
+          - type: 'null'
+          title: Dateofbirth
+        preferredLanguage:
+          anyOf:
+          - type: string
+            maxLength: 16
+            minLength: 2
+          - type: 'null'
+          title: Preferredlanguage
+        joiningDate:
+          anyOf:
+          - type: string
+            format: date
+          - type: 'null'
+          title: Joiningdate
+        feeAmount:
+          anyOf:
+          - type: number
+            minimum: 0.0
+          - type: 'null'
+          title: Feeamount
+        status:
+          anyOf:
+          - $ref: '#/components/schemas/StudentStatus'
+          - type: 'null'
+        notes:
+          anyOf:
+          - type: string
+            maxLength: 4000
+          - type: 'null'
+          title: Notes
+      type: object
+      title: StudentUpdate
+    SuccessResponse_BulkSeatResult_:
+      properties:
+        message:
+          type: string
+          title: Message
+        data:
+          $ref: '#/components/schemas/BulkSeatResult'
+        meta:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Meta
+      type: object
+      required:
+      - message
+      - data
+      title: SuccessResponse[BulkSeatResult]
+    SuccessResponse_FloorResponse_:
+      properties:
+        message:
+          type: string
+          title: Message
+        data:
+          $ref: '#/components/schemas/FloorResponse'
+        meta:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Meta
+      type: object
+      required:
+      - message
+      - data
+      title: SuccessResponse[FloorResponse]
+    SuccessResponse_LibrarySettingsResponse_:
+      properties:
+        message:
+          type: string
+          title: Message
+        data:
+          $ref: '#/components/schemas/LibrarySettingsResponse'
+        meta:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Meta
+      type: object
+      required:
+      - message
+      - data
+      title: SuccessResponse[LibrarySettingsResponse]
+    SuccessResponse_SeatListResponse_:
+      properties:
+        message:
+          type: string
+          title: Message
+        data:
+          $ref: '#/components/schemas/SeatListResponse'
+        meta:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Meta
+      type: object
+      required:
+      - message
+      - data
+      title: SuccessResponse[SeatListResponse]
+    SuccessResponse_SeatResponse_:
+      properties:
+        message:
+          type: string
+          title: Message
+        data:
+          $ref: '#/components/schemas/SeatResponse'
+        meta:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Meta
+      type: object
+      required:
+      - message
+      - data
+      title: SuccessResponse[SeatResponse]
+    SuccessResponse_ShiftResponse_:
+      properties:
+        message:
+          type: string
+          title: Message
+        data:
+          $ref: '#/components/schemas/ShiftResponse'
+        meta:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Meta
+      type: object
+      required:
+      - message
+      - data
+      title: SuccessResponse[ShiftResponse]
+    SuccessResponse_ShiftSelectionResult_:
+      properties:
+        message:
+          type: string
+          title: Message
+        data:
+          $ref: '#/components/schemas/ShiftSelectionResult'
+        meta:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Meta
+      type: object
+      required:
+      - message
+      - data
+      title: SuccessResponse[ShiftSelectionResult]
+    SuccessResponse_StudentInvitationResponse_:
+      properties:
+        message:
+          type: string
+          title: Message
+        data:
+          $ref: '#/components/schemas/StudentInvitationResponse'
+        meta:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Meta
+      type: object
+      required:
+      - message
+      - data
+      title: SuccessResponse[StudentInvitationResponse]
+    SuccessResponse_StudentResponse_:
+      properties:
+        message:
+          type: string
+          title: Message
+        data:
+          $ref: '#/components/schemas/StudentResponse'
+        meta:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Meta
+      type: object
+      required:
+      - message
+      - data
+      title: SuccessResponse[StudentResponse]
+    SuccessResponse_list_FloorResponse__:
+      properties:
+        message:
+          type: string
+          title: Message
+        data:
+          items:
+            $ref: '#/components/schemas/FloorResponse'
+          type: array
+          title: Data
+        meta:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Meta
+      type: object
+      required:
+      - message
+      - data
+      title: SuccessResponse[list[FloorResponse]]
+    SuccessResponse_list_ShiftResponse__:
+      properties:
+        message:
+          type: string
+          title: Message
+        data:
+          items:
+            $ref: '#/components/schemas/ShiftResponse'
+          type: array
+          title: Data
+        meta:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Meta
+      type: object
+      required:
+      - message
+      - data
+      title: SuccessResponse[list[ShiftResponse]]
     UpdateProfileRequest:
       properties:
         name:
@@ -858,37 +4476,58 @@ components:
         name: Library Owner
         phone: '9876543210'
         role: admin
-    PaginationMeta:
-      examples:
-      - page: 1
-        pageSize: 20
-        totalItems: 42
-        totalPages: 3
+    ValidateInvitationResponse:
       properties:
-        page:
-          minimum: 1
-          title: Page
-          type: integer
-        pageSize:
-          maximum: 100
-          minimum: 1
-          title: Pagesize
-          type: integer
-        totalItems:
-          minimum: 0
-          title: Totalitems
-          type: integer
-        totalPages:
-          minimum: 0
-          title: Totalpages
-          type: integer
-      required:
-      - page
-      - pageSize
-      - totalItems
-      - totalPages
-      title: PaginationMeta
+        valid:
+          type: boolean
+          title: Valid
+        email:
+          type: string
+          title: Email
+        libraryName:
+          type: string
+          title: Libraryname
+        studentName:
+          type: string
+          title: Studentname
+        expiresAt:
+          type: string
+          format: date-time
+          title: Expiresat
       type: object
+      required:
+      - valid
+      - email
+      - libraryName
+      - studentName
+      - expiresAt
+      title: ValidateInvitationResponse
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+        input:
+          title: Input
+        ctx:
+          type: object
+          title: Context
+      type: object
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError
     PaginationParams:
       examples:
       - page: 1
@@ -988,6 +4627,16 @@ tags:
   description: API discovery and health endpoints.
 - name: Authentication
   description: Library registration, JWT sessions, current-user access, and account security.
+- name: Students
+  description: Tenant-scoped student profiles, statuses, and invitations.
+- name: Floors
+  description: Physical library floor management.
+- name: Seats
+  description: Physical seat records and operational statuses.
+- name: Shifts
+  description: Study shift definitions and overlap validation.
+- name: Settings
+  description: Library profile and operating preferences.
 servers:
 - url: /
   description: Current host

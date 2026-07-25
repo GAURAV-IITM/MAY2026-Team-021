@@ -14,7 +14,7 @@
         </h1>
 
         <p class="add-student-page__description">
-          Register a new student and assign their library details.
+          Register a student and create their portal invitation.
         </p>
       </div>
     </header>
@@ -44,8 +44,6 @@
     </div>
 
     <StudentForm
-      :seats="seats"
-      :shifts="enabledShifts"
       :is-submitting="isLoading"
       submit-label="Add Student"
       submitting-label="Adding Student"
@@ -58,21 +56,18 @@
 <script setup>
 import { ArrowLeft } from '@lucide/vue'
 import { storeToRefs } from 'pinia'
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { onBeforeUnmount, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 
 import StudentForm from '../../components/student/StudentForm.vue'
-import { useSeatStore } from '../../stores/seatStore'
 import { useStudentStore } from '../../stores/studentStore'
 
 const SUCCESS_REDIRECT_DELAY_MS = 700
 
 const router = useRouter()
 const studentStore = useStudentStore()
-const seatStore = useSeatStore()
 
 const { isLoading, errorMessage } = storeToRefs(studentStore)
-const { seats, enabledShifts } = storeToRefs(seatStore)
 
 const successMessage = ref('')
 let redirectTimer = null
@@ -90,6 +85,7 @@ async function handleCreateStudent(studentData) {
       router.push({
         name: 'adminStudentDetails',
         params: { studentId: createdStudent.id },
+        state: { setupLink: createdStudent.invitationSetupUrl || '' },
       })
     }, SUCCESS_REDIRECT_DELAY_MS)
   } catch {
@@ -100,16 +96,6 @@ async function handleCreateStudent(studentData) {
 function handleCancel() {
   router.push({ name: 'adminStudents' })
 }
-
-async function loadSeatOptions() {
-  try {
-    await seatStore.fetchSeats()
-  } catch {
-    // The student store owns submit errors; seat options can render empty if unavailable.
-  }
-}
-
-onMounted(loadSeatOptions)
 
 onBeforeUnmount(() => {
   if (redirectTimer) {

@@ -44,7 +44,7 @@
       <div class="students-page__search">
         <SearchBar
           v-model="searchQuery"
-          placeholder="Search by student name or seat number"
+          placeholder="Search by name, email, phone, or enrollment number"
           @clear="clearSearch"
         />
       </div>
@@ -55,20 +55,8 @@
           <option value="">All statuses</option>
           <option value="active">Active</option>
           <option value="inactive">Inactive</option>
-        </select>
-      </div>
-
-      <div class="students-page__filter">
-        <label class="form-label" for="shift-filter">Shift</label>
-        <select id="shift-filter" v-model="shiftFilter" class="form-select">
-          <option value="">All shifts</option>
-          <option
-            v-for="shift in shiftOptions"
-            :key="shift.value"
-            :value="shift.value"
-          >
-            {{ shift.label }}
-          </option>
+          <option value="suspended">Suspended</option>
+          <option value="left">Left</option>
         </select>
       </div>
 
@@ -137,19 +125,18 @@
             </div>
           </template>
 
-          <template #cell-shift="{ row }">
-            {{ formatShiftList(row) }}
-          </template>
-
           <template #cell-status="{ value }">
             <span class="badge" :class="`badge--${value}`">
               {{ formatLabel(value) }}
             </span>
           </template>
 
-          <template #cell-feeStatus="{ value }">
-            <span class="badge" :class="getFeeStatusClass(value)">
-              {{ formatLabel(value) }}
+          <template #cell-portalAccessStatus="{ value }">
+            <span
+              class="badge"
+              :class="value === 'active' ? 'badge--success' : 'badge--pending'"
+            >
+              {{ value === 'active' ? 'Active' : 'Not activated' }}
             </span>
           </template>
 
@@ -207,17 +194,16 @@ import EmptyState from '../../components/common/EmptyState.vue'
 import LoadingSpinner from '../../components/common/LoadingSpinner.vue'
 import Pagination from '../../components/common/Pagination.vue'
 import SearchBar from '../../components/common/SearchBar.vue'
-import { shiftMock } from '../../mocks/seatMock'
 import { useStudentStore } from '../../stores/studentStore'
 
 const PAGE_SIZE = 5
 
 const columns = Object.freeze([
   { key: 'name', label: 'Student' },
-  { key: 'seatNumber', label: 'Seat' },
-  { key: 'shift', label: 'Shift' },
+  { key: 'enrollmentNumber', label: 'Enrollment' },
+  { key: 'phone', label: 'Phone' },
   { key: 'status', label: 'Status' },
-  { key: 'feeStatus', label: 'Fee Status' },
+  { key: 'portalAccessStatus', label: 'Portal Access' },
 ])
 
 const studentStore = useStudentStore()
@@ -233,20 +219,10 @@ const {
 
 const searchQuery = ref('')
 const statusFilter = ref('')
-const shiftFilter = ref('')
 const currentPage = ref(1)
 
-const shiftOptions = computed(() => {
-  return shiftMock
-    .filter((shift) => shift.isEnabled !== false)
-    .map((shift) => ({
-      value: shift.id,
-      label: shift.name,
-    }))
-})
-
 const hasActiveFilters = computed(() => {
-  return Boolean(searchQuery.value.trim() || statusFilter.value || shiftFilter.value)
+  return Boolean(searchQuery.value.trim() || statusFilter.value)
 })
 
 const filteredStudents = computed(() => {
@@ -254,18 +230,23 @@ const filteredStudents = computed(() => {
 
   return students.value.filter((student) => {
     const fullName = getStudentFullName(student).toLowerCase()
-    const seatNumber = String(student.seatNumber || '').toLowerCase()
+    const searchableDetails = [
+      student.email,
+      student.phone,
+      student.enrollmentNumber,
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase()
 
     const matchesSearch =
       !normalizedQuery ||
       fullName.includes(normalizedQuery) ||
-      seatNumber.includes(normalizedQuery)
+      searchableDetails.includes(normalizedQuery)
 
     const matchesStatus = !statusFilter.value || student.status === statusFilter.value
-    const matchesShift =
-      !shiftFilter.value || getStudentShifts(student).includes(shiftFilter.value)
 
-    return matchesSearch && matchesStatus && matchesShift
+    return matchesSearch && matchesStatus
   })
 })
 
@@ -296,7 +277,7 @@ const emptyStateDescription = computed(() => {
   return 'Registered students will appear here after they are added.'
 })
 
-watch([searchQuery, statusFilter, shiftFilter], () => {
+watch([searchQuery, statusFilter], () => {
   currentPage.value = 1
 })
 
@@ -318,28 +299,6 @@ function formatLabel(value) {
     .replace(/\b\w/g, (character) => character.toUpperCase())
 }
 
-function getStudentShifts(student) {
-  if (Array.isArray(student.activeShifts) && student.activeShifts.length > 0) {
-    return student.activeShifts
-  }
-
-  return student.shift ? [student.shift] : []
-}
-
-function formatShiftList(student) {
-  const shifts = getStudentShifts(student)
-
-  if (shifts.length === 0) return '—'
-
-  return shifts.map((shift) => formatLabel(shift)).join(', ')
-}
-
-function getFeeStatusClass(status) {
-  if (status === 'paid') return 'badge--paid'
-  if (status === 'overdue') return 'badge--inactive'
-  return 'badge--pending'
-}
-
 function clearSearch() {
   searchQuery.value = ''
 }
@@ -347,7 +306,6 @@ function clearSearch() {
 function clearFilters() {
   searchQuery.value = ''
   statusFilter.value = ''
-  shiftFilter.value = ''
 }
 
 async function loadStudents() {
@@ -397,7 +355,7 @@ onMounted(loadStudents)
 
 .students-page__filters {
   display: grid;
-  grid-template-columns: minmax(240px, 1fr) minmax(150px, 200px) minmax(150px, 200px) auto;
+  grid-template-columns: minmax(240px, 1fr) minmax(150px, 220px) auto;
   align-items: end;
   gap: var(--space-4);
   padding: var(--space-4);

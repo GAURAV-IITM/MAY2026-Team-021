@@ -174,6 +174,37 @@ export async function registerLibrary(registrationData = {}) {
   return register(registrationData)
 }
 
+export async function validateStudentInvitation(token) {
+  try {
+    const response = await apiClient.get('/auth/invitations/validate', {
+      params: { token },
+    })
+    return response.data
+  } catch (err) {
+    throw createAuthError(
+      getApiErrorMessage(err, 'This invitation is invalid or has expired.'),
+      err.response?.status || 422,
+      'INVITATION_INVALID',
+    )
+  }
+}
+
+export async function acceptStudentInvitation(token, password) {
+  try {
+    const response = await apiClient.post('/auth/invitations/accept', {
+      token,
+      password,
+    })
+    return response.data
+  } catch (err) {
+    throw createAuthError(
+      getApiErrorMessage(err, 'Unable to create the student password.'),
+      err.response?.status || 422,
+      'INVITATION_ACCEPT_FAILED',
+    )
+  }
+}
+
 export async function forgotPassword(payload = {}) {
   await delay()
 

@@ -4,6 +4,7 @@ from app.api.v1.endpoints import (
     allocations,
     announcements,
     auth,
+    floors,
     libraries,
     payments,
     reports,
@@ -19,6 +20,7 @@ api_router = APIRouter()
 api_router.include_router(auth.router, prefix="/auth", tags=["Authentication"])
 api_router.include_router(libraries.router, prefix="/libraries", tags=["Libraries"])
 api_router.include_router(students.router, prefix="/students", tags=["Students"])
+api_router.include_router(floors.router, prefix="/floors", tags=["Floors"])
 api_router.include_router(seats.router, prefix="/seats", tags=["Seats"])
 api_router.include_router(shifts.router, prefix="/shifts", tags=["Shifts"])
 api_router.include_router(allocations.router, prefix="/seat-allocations", tags=["Seat allocations"])

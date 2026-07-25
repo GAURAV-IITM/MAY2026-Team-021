@@ -25,6 +25,26 @@ def create_app() -> FastAPI:
                     "and account security."
                 ),
             },
+            {
+                "name": "Students",
+                "description": "Tenant-scoped student profiles, statuses, and invitations.",
+            },
+            {
+                "name": "Floors",
+                "description": "Physical library floor management.",
+            },
+            {
+                "name": "Seats",
+                "description": "Physical seat records and operational statuses.",
+            },
+            {
+                "name": "Shifts",
+                "description": "Study shift definitions and overlap validation.",
+            },
+            {
+                "name": "Settings",
+                "description": "Library profile and operating preferences.",
+            },
         ],
     )
     application.add_middleware(

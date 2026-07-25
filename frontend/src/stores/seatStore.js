@@ -8,6 +8,7 @@ import * as seatService from '../services/seatService'
 export const useSeatStore = defineStore('seat', () => {
   const seats = ref([])
   const studyShifts = ref([])
+  const floors = ref([])
   const selectedSeatRecord = ref(null)
   const selectedStudent = ref(null)
   const selectedShift = ref('')
@@ -172,6 +173,7 @@ export const useSeatStore = defineStore('seat', () => {
 
   function getErrorMessage(requestError) {
     return (
+      requestError?.response?.data?.error?.message ||
       requestError?.response?.data?.message ||
       requestError?.message ||
       'An unexpected seat service error occurred.'
@@ -277,6 +279,32 @@ export const useSeatStore = defineStore('seat', () => {
       studyShifts.value = data.shifts
     }
 
+    return response
+  }
+
+  async function fetchFloors() {
+    const response = await runSeatServiceRequest(() => seatService.fetchFloors())
+    floors.value = response.data
+    return response
+  }
+
+  async function createFloor(payload) {
+    const response = await runSeatServiceRequest(() => seatService.createFloor(payload))
+    await fetchFloors()
+    return response
+  }
+
+  async function updateFloor(floorId, payload) {
+    const response = await runSeatServiceRequest(() =>
+      seatService.updateFloor(floorId, payload),
+    )
+    await fetchFloors()
+    return response
+  }
+
+  async function deleteFloor(floorId) {
+    const response = await runSeatServiceRequest(() => seatService.deleteFloor(floorId))
+    await fetchFloors()
     return response
   }
 
@@ -536,6 +564,7 @@ export const useSeatStore = defineStore('seat', () => {
   return {
     seats,
     studyShifts,
+    floors,
     selectedStudent,
     selectedShift,
     seatFilters,
@@ -557,6 +586,10 @@ export const useSeatStore = defineStore('seat', () => {
     errorMessage,
 
     fetchSeats,
+    fetchFloors,
+    createFloor,
+    updateFloor,
+    deleteFloor,
     createSeat,
     updateSeat,
     deleteSeat,

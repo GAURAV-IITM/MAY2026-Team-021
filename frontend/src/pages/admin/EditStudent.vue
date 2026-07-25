@@ -14,7 +14,7 @@
         </h1>
 
         <p class="edit-student-page__description">
-          Update student information and library details.
+          Update the student profile, status, and monthly fee.
         </p>
       </div>
     </header>
@@ -53,8 +53,6 @@
     <StudentForm
       v-else-if="selectedStudent"
       :initial-values="selectedStudent"
-      :seats="seats"
-      :shifts="enabledShifts"
       :is-submitting="isLoading"
       submit-label="Save Changes"
       submitting-label="Saving Changes"
@@ -72,7 +70,6 @@ import { RouterLink, useRoute, useRouter } from 'vue-router'
 
 import LoadingSpinner from '../../components/common/LoadingSpinner.vue'
 import StudentForm from '../../components/student/StudentForm.vue'
-import { useSeatStore } from '../../stores/seatStore'
 import { useStudentStore } from '../../stores/studentStore'
 
 const SUCCESS_REDIRECT_DELAY_MS = 700
@@ -80,10 +77,8 @@ const SUCCESS_REDIRECT_DELAY_MS = 700
 const route = useRoute()
 const router = useRouter()
 const studentStore = useStudentStore()
-const seatStore = useSeatStore()
 
 const { selectedStudent, isLoading, errorMessage } = storeToRefs(studentStore)
-const { seats, enabledShifts } = storeToRefs(seatStore)
 
 const successMessage = ref('')
 let redirectTimer = null
@@ -95,14 +90,6 @@ async function loadStudent() {
     await studentStore.fetchStudentById(studentId.value)
   } catch {
     // Store-owned error state is rendered above the page content.
-  }
-}
-
-async function loadSeatOptions() {
-  try {
-    await seatStore.fetchSeats()
-  } catch {
-    // Student loading should not be blocked by unavailable seat option data.
   }
 }
 
@@ -140,7 +127,6 @@ function handleCancel() {
 
 onMounted(() => {
   loadStudent()
-  loadSeatOptions()
 })
 
 onBeforeUnmount(() => {

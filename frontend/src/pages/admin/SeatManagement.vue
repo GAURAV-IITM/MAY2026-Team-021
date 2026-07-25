@@ -14,6 +14,9 @@
       </div>
 
       <div class="seat-management-page__actions">
+        <button class="btn btn--secondary" type="button" @click="isFloorModalOpen = true">
+          <Layers3 :size="17" aria-hidden="true" /> Manage Floors
+        </button>
         <button class="btn btn--primary" type="button" @click="openAddSeatModal">
           <Plus :size="18" aria-hidden="true" /> Add Seat
         </button>
@@ -123,6 +126,7 @@
     <AddSeatModal
       :is-open="isAddSeatModalOpen"
       :seats="seats"
+      :floors="floors"
       :is-submitting="isLoading"
       @close="closeAddSeatModal"
       @create="handleCreateSeat"
@@ -132,9 +136,20 @@
       :is-open="isEditSeatModalOpen"
       :seat="selectedSeatForEdit"
       :seats="seats"
+      :floors="floors"
       :is-submitting="isLoading"
       @close="closeEditSeatModal"
       @save="handleUpdateSeat"
+    />
+
+    <FloorManagementModal
+      :is-open="isFloorModalOpen"
+      :floors="floors"
+      :is-submitting="isLoading"
+      @close="isFloorModalOpen = false"
+      @create="handleCreateFloor"
+      @update="handleUpdateFloor"
+      @delete="handleDeleteFloor"
     />
 
     <ConfirmDialog
@@ -151,7 +166,7 @@
 </template>
 
 <script setup>
-import { Armchair, Plus, RefreshCw } from '@lucide/vue'
+import { Armchair, Layers3, Plus, RefreshCw } from '@lucide/vue'
 import { storeToRefs } from 'pinia'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
@@ -163,6 +178,7 @@ import Toast from '../../components/common/Toast.vue'
 import AddSeatModal from '../../components/seat/AddSeatModal.vue'
 import BulkActionMenu from '../../components/seat/BulkActionMenu.vue'
 import EditSeatModal from '../../components/seat/EditSeatModal.vue'
+import FloorManagementModal from '../../components/seat/FloorManagementModal.vue'
 import SeatFilters from '../../components/seat/SeatFilters.vue'
 import SeatSummaryCards from '../../components/seat/SeatSummaryCards.vue'
 import SeatTable from '../../components/seat/SeatTable.vue'
@@ -172,6 +188,7 @@ const router = useRouter()
 const seatStore = useSeatStore()
 const isAddSeatModalOpen = ref(false)
 const isEditSeatModalOpen = ref(false)
+const isFloorModalOpen = ref(false)
 const selectedSeatForEdit = ref(null)
 const selectedSeatIds = ref([])
 const deleteTarget = ref(null)
@@ -180,6 +197,7 @@ let successToastTimer = null
 
 const {
   seats,
+  floors,
   availableSeats,
   occupiedSeats,
   totalSeats,
@@ -326,6 +344,34 @@ async function handleCreateSeat(seatPayload) {
   }
 }
 
+async function handleCreateFloor(_unused, payload) {
+  try {
+    await seatStore.createFloor(payload)
+    showSuccessToast(`${payload.name} created successfully.`)
+  } catch {
+    // Store-owned error state is rendered above the page.
+  }
+}
+
+async function handleUpdateFloor(floorId, payload) {
+  try {
+    await seatStore.updateFloor(floorId, payload)
+    await seatStore.fetchSeats()
+    showSuccessToast(`${payload.name} updated successfully.`)
+  } catch {
+    // Store-owned error state is rendered above the page.
+  }
+}
+
+async function handleDeleteFloor(floorId) {
+  try {
+    await seatStore.deleteFloor(floorId)
+    showSuccessToast('Floor deleted successfully.')
+  } catch {
+    // Store-owned error state is rendered above the page.
+  }
+}
+
 async function handleUpdateSeat(seatPayload) {
   if (!selectedSeatForEdit.value) return
 
@@ -401,7 +447,7 @@ function formatLabel(value) {
 
 async function loadSeats() {
   try {
-    await seatStore.fetchSeats()
+    await Promise.all([seatStore.fetchSeats(), seatStore.fetchFloors()])
   } catch {
     // Store-owned error state is rendered above the page.
   }

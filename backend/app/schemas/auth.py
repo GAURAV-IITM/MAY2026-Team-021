@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import uuid
+from datetime import datetime
 
 from pydantic import ConfigDict, Field
 
@@ -169,3 +170,21 @@ class ChangePasswordRequest(APIModel):
 
     current_password: str = Field(min_length=8, max_length=128)
     new_password: str = Field(min_length=8, max_length=128)
+
+
+class ValidateInvitationResponse(APIModel):
+    valid: bool
+    email: str
+    library_name: str
+    student_name: str
+    expires_at: datetime
+
+
+class AcceptInvitationRequest(APIModel):
+    token: str = Field(min_length=32, max_length=512)
+    password: str = Field(min_length=8, max_length=128)
+
+
+class AcceptInvitationResponse(APIModel):
+    message: str
+    email: str

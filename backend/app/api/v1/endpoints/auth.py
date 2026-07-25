@@ -5,6 +5,8 @@ from app.core.config import settings
 from app.core.security import decode_access_token
 from app.models.identity import User
 from app.schemas.auth import (
+    AcceptInvitationRequest,
+    AcceptInvitationResponse,
     AuthResponse,
     BrowserAuthResponse,
     ChangePasswordRequest,
@@ -14,6 +16,7 @@ from app.schemas.auth import (
     RegisterLibraryRequest,
     UpdateProfileRequest,
     UserResponse,
+    ValidateInvitationResponse,
 )
 from app.schemas.common import error_responses
 from app.services import auth as auth_service
@@ -327,3 +330,37 @@ def change_password(
         new_password=payload.new_password,
     )
     return MessageResponse(message="Password changed successfully.")
+
+
+@router.get(
+    "/invitations/validate",
+    response_model=ValidateInvitationResponse,
+    operation_id="validateStudentInvitation",
+    summary="Validate a student portal invitation",
+    responses=error_responses(422),
+    openapi_extra={"x-user-stories": ["STUDENT-PORTAL-INVITATION"]},
+)
+def validate_invitation(
+    token: str,
+    db: DatabaseSession,
+) -> ValidateInvitationResponse:
+    return auth_service.validate_student_invitation(db, token)
+
+
+@router.post(
+    "/invitations/accept",
+    response_model=AcceptInvitationResponse,
+    operation_id="acceptStudentInvitation",
+    summary="Create a student password from an invitation",
+    responses=error_responses(409, 422),
+    openapi_extra={"x-user-stories": ["STUDENT-PORTAL-ACTIVATION"]},
+)
+def accept_invitation(
+    payload: AcceptInvitationRequest,
+    db: DatabaseSession,
+) -> AcceptInvitationResponse:
+    return auth_service.accept_student_invitation(
+        db,
+        payload.token,
+        payload.password,
+    )

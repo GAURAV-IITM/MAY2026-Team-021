@@ -108,3 +108,17 @@ Every operation must include:
 
 The contract test fails when the checked-in YAML differs from the current
 FastAPI schema.
+
+## Phase 2 Route Groups
+
+The checked-in contract now includes the following real vertical slices:
+
+- `/students`: list, create, detail, update, status, delete, and invitation;
+- `/auth/invitations`: public validation and password setup;
+- `/floors`: list, create, update, and delete;
+- `/seats`: list, create, detail, update, delete, status, and bulk actions;
+- `/shifts`: list, create, update, status, delete, and selection validation;
+- `/settings/library`: read and update library settings.
+
+Every protected operation derives its library from `CurrentTenant`. Client
+payloads do not contain an authorization-level `libraryId`.

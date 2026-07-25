@@ -42,6 +42,9 @@
             :aria-invalid="Boolean(errors.endTime)"
           />
           <p v-if="errors.endTime" class="form-help">{{ errors.endTime }}</p>
+          <p v-else-if="form.startTime && form.endTime && form.endTime < form.startTime" class="form-help">
+            This shift ends on the next day.
+          </p>
         </div>
       </div>
 
@@ -77,7 +80,6 @@
 <script setup>
 import { computed, reactive, watch } from 'vue'
 
-import { isSameDayTimeRange } from '../../utils/timeIntervals'
 import Modal from '../common/Modal.vue'
 
 const props = defineProps({
@@ -163,8 +165,8 @@ function validateForm() {
 
   if (!form.endTime) {
     errors.endTime = 'End time is required.'
-  } else if (form.startTime && !isSameDayTimeRange(form.startTime, form.endTime)) {
-    errors.endTime = 'End time must be later than start time.'
+  } else if (form.startTime && form.startTime === form.endTime) {
+    errors.endTime = 'Start and end time must be different.'
   }
 
   return Object.keys(errors).length === 0
@@ -215,8 +217,4 @@ function handleClose() {
 }
 </style>
 
-<!--
-src/components/seat: Reusable create/edit modal for tenant-defined study shifts.
-TODO:
-- Replace frontend-only validation with FastAPI-backed validation errors in Milestone 3.
--->
+<!-- Reusable create/edit modal for same-day and overnight study shifts. -->

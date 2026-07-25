@@ -11,7 +11,7 @@ export const useLibrarySettingsStore = defineStore('librarySettings', () => {
 
   const errorMessage = computed(() => {
     if (!error.value) return ''
-    return error.value?.response?.data?.message || error.value?.message || 'An unexpected settings service error occurred.'
+    return error.value?.response?.data?.error?.message || error.value?.response?.data?.message || error.value?.message || 'An unexpected settings service error occurred.'
   })
 
   async function fetchSettings() {
@@ -46,4 +46,3 @@ export const useLibrarySettingsStore = defineStore('librarySettings', () => {
 
   return { settings, isLoading, isSaving, error, errorMessage, fetchSettings, updateSettings }
 })
-
