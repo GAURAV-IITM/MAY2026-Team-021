@@ -386,12 +386,12 @@ def change_password(
 ) -> None:
     if not verify_password(current_password, user.password_hash):
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="The current password is incorrect.",
         )
     if current_password == new_password:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="The new password must be different from the current password.",
         )
 

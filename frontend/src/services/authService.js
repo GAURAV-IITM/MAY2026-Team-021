@@ -40,6 +40,10 @@ function createAuthError(message, status = 400, code = 'AUTH_ERROR') {
   return error
 }
 
+function getApiErrorMessage(error, fallbackMessage) {
+  return error.response?.data?.error?.message || error.response?.data?.detail || fallbackMessage
+}
+
 function normalizeIndianPhone(value) {
   const digits = String(value || '').replace(/\D/g, '')
   return digits.length === 12 && digits.startsWith('91') ? digits.slice(2) : digits
@@ -56,8 +60,8 @@ function mapBackendUserToFrontend(user, accessToken, rememberMe = false) {
         email: user.email,
         phone: user.phone,
         role: user.role, // 'admin', 'student', or 'superadmin'
-        libraryId: user.library_id,
-        libraryName: user.library_name,
+        libraryId: user.libraryId,
+        libraryName: user.libraryName,
       },
       role: user.role,
       token: accessToken,
@@ -78,17 +82,17 @@ export async function login(credentials = {}) {
     const response = await apiClient.post('/auth/session/login', {
       email,
       password,
-      remember_me: rememberMe,
+      rememberMe,
     })
-    const { access_token, user } = response.data
-    setAccessToken(access_token)
+    const { accessToken, user } = response.data
+    setAccessToken(accessToken)
 
-    const frontendSession = mapBackendUserToFrontend(user, access_token, rememberMe)
+    const frontendSession = mapBackendUserToFrontend(user, accessToken, rememberMe)
     persistAuthSession(frontendSession.data)
 
     return frontendSession
   } catch (err) {
-    const message = err.response?.data?.detail || 'Invalid email or password.'
+    const message = getApiErrorMessage(err, 'Invalid email or password.')
     throw createAuthError(message, err.response?.status || 401, 'INVALID_CREDENTIALS')
   }
 }
@@ -138,21 +142,21 @@ export async function register(registrationData = {}) {
   }
 
   const payload = {
-    library_name: libraryName,
-    owner_name: ownerName,
+    libraryName,
+    ownerName,
     email,
     password,
     phone: phone || null,
     address: registrationData.address || null,
-    seat_count: seatCount,
+    seatCount,
   }
 
   try {
     const response = await apiClient.post('/auth/session/register-library', payload)
-    const { access_token, user } = response.data
-    setAccessToken(access_token)
+    const { accessToken, user } = response.data
+    setAccessToken(accessToken)
 
-    const frontendSession = mapBackendUserToFrontend(user, access_token, false)
+    const frontendSession = mapBackendUserToFrontend(user, accessToken, false)
     frontendSession.data.registrationStatus = 'created'
     frontendSession.data.seatCount = seatCount
     frontendSession.data.seatsCreated = seatCount
@@ -161,7 +165,7 @@ export async function register(registrationData = {}) {
 
     return frontendSession
   } catch (err) {
-    const message = err.response?.data?.detail || 'Registration failed.'
+    const message = getApiErrorMessage(err, 'Registration failed.')
     throw createAuthError(message, err.response?.status || 400, 'REGISTRATION_ERROR')
   }
 }
@@ -255,7 +259,7 @@ export async function updateOwnerProfile(payload = {}) {
     persistAuthSession(frontendSession.data)
     return createSuccessResponse('Owner profile updated successfully.', frontendSession.data)
   } catch (err) {
-    const message = err.response?.data?.detail || 'Profile update failed.'
+    const message = getApiErrorMessage(err, 'Profile update failed.')
     throw createAuthError(message, err.response?.status || 400, 'PROFILE_UPDATE_ERROR')
   }
 }
@@ -290,12 +294,12 @@ export async function changeOwnerPassword(payload = {}) {
 
   try {
     await apiClient.post('/auth/change-password', {
-      current_password: currentPassword,
-      new_password: newPassword,
+      currentPassword,
+      newPassword,
     })
     return createSuccessResponse('Password changed successfully.', readAuthSession())
   } catch (err) {
-    const message = err.response?.data?.detail || 'Password change failed.'
+    const message = getApiErrorMessage(err, 'Password change failed.')
     throw createAuthError(message, err.response?.status || 400, 'PASSWORD_CHANGE_ERROR')
   }
 }

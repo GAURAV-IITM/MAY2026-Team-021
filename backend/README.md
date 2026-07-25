@@ -1,9 +1,10 @@
 # Smart Library Backend
 
 FastAPI and SQLAlchemy foundation for the Smart Library application. The
-current backend includes the database models, Alembic migrations, and module
-boundaries required by the completed frontend. API use cases are intentionally
-left as placeholders for Milestone 3.
+backend includes database models, Alembic migrations, JWT authentication,
+tenant and role dependencies, structured API errors, request correlation, and
+the module boundaries required by the completed frontend. Domain APIs beyond
+authentication are implemented incrementally as Milestone 3 vertical slices.
 
 ## Setup
 
@@ -45,6 +46,25 @@ Run the backend tests from `backend/`:
 ```bash
 pytest
 ```
+
+## API Contract
+
+Swagger UI is available at `/docs`. The checked-in OpenAPI 3.1 contract is
+`../docs/api/openapi.yaml`.
+
+API JSON uses `camelCase`, while Python and database fields remain
+`snake_case`. Expected errors use a shared error envelope and every response
+includes an `X-Request-ID` correlation header.
+
+Generate or verify the contract from `backend/`:
+
+```bash
+python scripts/export_openapi.py
+python scripts/export_openapi.py --check
+```
+
+The check validates the YAML and fails when it differs from FastAPI's current
+schema. It also runs in backend CI.
 
 The default development database is SQLite. PostgreSQL URLs in the common
 `postgresql://user:password@host/database` format are automatically configured

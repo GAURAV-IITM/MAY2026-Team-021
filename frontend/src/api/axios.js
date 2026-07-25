@@ -36,8 +36,8 @@ async function refreshAccessToken() {
     refreshPromise = refreshClient
       .post('/auth/session/refresh')
       .then(({ data }) => {
-        setAccessToken(data.access_token)
-        return data.access_token
+        setAccessToken(data.accessToken)
+        return data.accessToken
       })
       .finally(() => {
         refreshPromise = null

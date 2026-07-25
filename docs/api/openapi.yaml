@@ -1,0 +1,998 @@
+openapi: 3.1.0
+info:
+  title: Smart Library API
+  description: Contract for the Smart Library App. Library-owned resources are tenant-scoped from the
+    authenticated membership.
+  version: 0.1.0
+  contact:
+    name: MAY2026-Team-021
+paths:
+  /api/v1/auth/register-library:
+    post:
+      tags:
+      - Authentication
+      summary: Register a library and owner
+      description: Creates the library, owner account, active membership, settings, default shifts, first
+        floor, requested seats, and an API token session.
+      operationId: registerLibraryWithTokens
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterLibraryRequest'
+        required: true
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '409':
+          description: The request conflicts with existing data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Request validation or a business rule failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      x-user-stories:
+      - AUTH-REGISTER-LIBRARY
+  /api/v1/auth/login:
+    post:
+      tags:
+      - Authentication
+      summary: Log in and return API tokens
+      operationId: loginWithTokens
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Request validation or a business rule failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      x-user-stories:
+      - AUTH-LOGIN
+  /api/v1/auth/refresh:
+    post:
+      tags:
+      - Authentication
+      summary: Rotate an API refresh token
+      description: Rotates the supplied refresh token and revokes its previous session.
+      operationId: refreshTokenSession
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Request validation or a business rule failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      x-user-stories:
+      - AUTH-REFRESH-SESSION
+  /api/v1/auth/logout:
+    post:
+      tags:
+      - Authentication
+      summary: Log out an API token session
+      operationId: logoutTokenSession
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      security:
+      - BearerAuth: []
+      x-user-stories:
+      - AUTH-LOGOUT
+  /api/v1/auth/me:
+    get:
+      tags:
+      - Authentication
+      summary: Get the authenticated user
+      operationId: getAuthenticatedUser
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      security:
+      - BearerAuth: []
+      x-user-stories:
+      - AUTH-CURRENT-USER
+  /api/v1/auth/session/register-library:
+    post:
+      tags:
+      - Authentication
+      summary: Register a library using a browser session
+      description: Creates the library account and sets a rotating HttpOnly refresh cookie. The refresh
+        token is never returned to browser JavaScript.
+      operationId: registerLibraryBrowserSession
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterLibraryRequest'
+        required: true
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BrowserAuthResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '409':
+          description: The request conflicts with existing data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Request validation or a business rule failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      x-user-stories:
+      - AUTH-REGISTER-LIBRARY
+  /api/v1/auth/session/login:
+    post:
+      tags:
+      - Authentication
+      summary: Log in using a browser session
+      description: Returns an access token and sets a rotating HttpOnly refresh cookie.
+      operationId: loginBrowserSession
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BrowserAuthResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Request validation or a business rule failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      x-user-stories:
+      - AUTH-LOGIN
+  /api/v1/auth/session/refresh:
+    post:
+      tags:
+      - Authentication
+      summary: Refresh a browser session
+      description: Rotates the HttpOnly refresh cookie and returns a new access token.
+      operationId: refreshBrowserSession
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BrowserAuthResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      x-user-stories:
+      - AUTH-REFRESH-SESSION
+      security:
+      - RefreshCookie: []
+  /api/v1/auth/session/logout:
+    post:
+      tags:
+      - Authentication
+      summary: Log out a browser session
+      description: Revokes available refresh and access-token sessions and clears cookies.
+      operationId: logoutBrowserSession
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      x-user-stories:
+      - AUTH-LOGOUT
+      security:
+      - RefreshCookie: []
+      - BearerAuth: []
+  /api/v1/auth/profile:
+    patch:
+      tags:
+      - Authentication
+      summary: Update the authenticated profile
+      operationId: updateAuthenticatedProfile
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProfileRequest'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '409':
+          description: The request conflicts with existing data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Request validation or a business rule failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      security:
+      - BearerAuth: []
+      x-user-stories:
+      - AUTH-UPDATE-PROFILE
+  /api/v1/auth/change-password:
+    post:
+      tags:
+      - Authentication
+      summary: Change the authenticated password
+      operationId: changeAuthenticatedPassword
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Request validation or a business rule failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      security:
+      - BearerAuth: []
+      x-user-stories:
+      - AUTH-CHANGE-PASSWORD
+  /:
+    get:
+      tags:
+      - System
+      summary: Get API information
+      operationId: getApiRoot
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+                title: Response Getapiroot
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+  /health:
+    get:
+      tags:
+      - System
+      summary: Check API health
+      operationId: getHealth
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+                title: Response Gethealth
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+components:
+  schemas:
+    AuthResponse:
+      properties:
+        accessToken:
+          type: string
+          title: Accesstoken
+        refreshToken:
+          type: string
+          title: Refreshtoken
+        tokenType:
+          type: string
+          title: Tokentype
+          default: bearer
+        expiresIn:
+          type: integer
+          title: Expiresin
+        user:
+          $ref: '#/components/schemas/UserResponse'
+      type: object
+      required:
+      - accessToken
+      - refreshToken
+      - expiresIn
+      - user
+      title: AuthResponse
+      examples:
+      - accessToken: header.payload.signature
+        expiresIn: 1800
+        refreshToken: refresh-token-value-at-least-32-characters
+        tokenType: bearer
+        user:
+          email: owner@example.com
+          id: f2618f84-afc1-4b94-9339-d4113a9c9134
+          libraryId: 24b9ce74-59bb-44a3-b67c-d92b121e01c9
+          libraryName: Central Study Library
+          name: Library Owner
+          phone: '9876543210'
+          role: admin
+    BrowserAuthResponse:
+      properties:
+        accessToken:
+          type: string
+          title: Accesstoken
+        tokenType:
+          type: string
+          title: Tokentype
+          default: bearer
+        expiresIn:
+          type: integer
+          title: Expiresin
+        user:
+          $ref: '#/components/schemas/UserResponse'
+      type: object
+      required:
+      - accessToken
+      - expiresIn
+      - user
+      title: BrowserAuthResponse
+      examples:
+      - accessToken: header.payload.signature
+        expiresIn: 1800
+        tokenType: bearer
+        user:
+          email: owner@example.com
+          id: f2618f84-afc1-4b94-9339-d4113a9c9134
+          libraryId: 24b9ce74-59bb-44a3-b67c-d92b121e01c9
+          libraryName: Central Study Library
+          name: Library Owner
+          phone: '9876543210'
+          role: admin
+    ChangePasswordRequest:
+      properties:
+        currentPassword:
+          type: string
+          maxLength: 128
+          minLength: 8
+          title: Currentpassword
+        newPassword:
+          type: string
+          maxLength: 128
+          minLength: 8
+          title: Newpassword
+      type: object
+      required:
+      - currentPassword
+      - newPassword
+      title: ChangePasswordRequest
+      examples:
+      - currentPassword: SecurePass123
+        newPassword: NewSecurePass456
+    ErrorDetail:
+      properties:
+        code:
+          type: string
+          title: Code
+        message:
+          type: string
+          title: Message
+        details:
+          additionalProperties: true
+          type: object
+          title: Details
+      type: object
+      required:
+      - code
+      - message
+      title: ErrorDetail
+    ErrorResponse:
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorDetail'
+        requestId:
+          type: string
+          title: Requestid
+      type: object
+      required:
+      - error
+      - requestId
+      title: ErrorResponse
+      examples:
+      - error:
+          code: RESOURCE_CONFLICT
+          details: {}
+          message: The request conflicts with existing data.
+        requestId: frontend-request-123
+    LoginRequest:
+      properties:
+        email:
+          type: string
+          pattern: ^[^\s@]+@[^\s@]+\.[^\s@]+$
+          title: Email
+        password:
+          type: string
+          maxLength: 128
+          minLength: 8
+          title: Password
+        rememberMe:
+          type: boolean
+          title: Rememberme
+          default: false
+      type: object
+      required:
+      - email
+      - password
+      title: LoginRequest
+      examples:
+      - email: owner@example.com
+        password: SecurePass123
+        rememberMe: true
+    MessageResponse:
+      properties:
+        message:
+          type: string
+          title: Message
+      type: object
+      required:
+      - message
+      title: MessageResponse
+      examples:
+      - message: Operation completed successfully.
+    RefreshRequest:
+      properties:
+        refreshToken:
+          type: string
+          minLength: 32
+          title: Refreshtoken
+      type: object
+      required:
+      - refreshToken
+      title: RefreshRequest
+      examples:
+      - refreshToken: refresh-token-value-at-least-32-characters
+    RegisterLibraryRequest:
+      properties:
+        libraryName:
+          type: string
+          maxLength: 180
+          minLength: 2
+          title: Libraryname
+        ownerName:
+          type: string
+          maxLength: 160
+          minLength: 2
+          title: Ownername
+        email:
+          type: string
+          pattern: ^[^\s@]+@[^\s@]+\.[^\s@]+$
+          title: Email
+        password:
+          type: string
+          maxLength: 128
+          minLength: 8
+          title: Password
+        phone:
+          anyOf:
+          - type: string
+            maxLength: 32
+          - type: 'null'
+          title: Phone
+        address:
+          anyOf:
+          - type: string
+            maxLength: 255
+          - type: 'null'
+          title: Address
+        seatCount:
+          type: integer
+          maximum: 1000.0
+          minimum: 1.0
+          title: Seatcount
+          default: 1
+      type: object
+      required:
+      - libraryName
+      - ownerName
+      - email
+      - password
+      title: RegisterLibraryRequest
+      examples:
+      - address: 1 Reading Lane
+        email: owner@example.com
+        libraryName: Central Study Library
+        ownerName: Library Owner
+        password: SecurePass123
+        phone: '9876543210'
+        seatCount: 25
+    UpdateProfileRequest:
+      properties:
+        name:
+          type: string
+          maxLength: 160
+          minLength: 2
+          title: Name
+        email:
+          type: string
+          pattern: ^[^\s@]+@[^\s@]+\.[^\s@]+$
+          title: Email
+        phone:
+          anyOf:
+          - type: string
+            maxLength: 32
+          - type: 'null'
+          title: Phone
+      type: object
+      required:
+      - name
+      - email
+      title: UpdateProfileRequest
+      examples:
+      - email: updated.owner@example.com
+        name: Updated Owner
+        phone: '9876543210'
+    UserResponse:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        name:
+          type: string
+          title: Name
+        email:
+          type: string
+          title: Email
+        phone:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Phone
+        role:
+          type: string
+          title: Role
+        libraryId:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Libraryid
+        libraryName:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Libraryname
+      type: object
+      required:
+      - id
+      - name
+      - email
+      - phone
+      - role
+      title: UserResponse
+      examples:
+      - email: owner@example.com
+        id: f2618f84-afc1-4b94-9339-d4113a9c9134
+        libraryId: 24b9ce74-59bb-44a3-b67c-d92b121e01c9
+        libraryName: Central Study Library
+        name: Library Owner
+        phone: '9876543210'
+        role: admin
+    PaginationMeta:
+      examples:
+      - page: 1
+        pageSize: 20
+        totalItems: 42
+        totalPages: 3
+      properties:
+        page:
+          minimum: 1
+          title: Page
+          type: integer
+        pageSize:
+          maximum: 100
+          minimum: 1
+          title: Pagesize
+          type: integer
+        totalItems:
+          minimum: 0
+          title: Totalitems
+          type: integer
+        totalPages:
+          minimum: 0
+          title: Totalpages
+          type: integer
+      required:
+      - page
+      - pageSize
+      - totalItems
+      - totalPages
+      title: PaginationMeta
+      type: object
+    PaginationParams:
+      examples:
+      - page: 1
+        pageSize: 20
+        search: A-01
+        sortBy: createdAt
+        sortOrder: desc
+      properties:
+        page:
+          default: 1
+          minimum: 1
+          title: Page
+          type: integer
+        pageSize:
+          default: 20
+          maximum: 100
+          minimum: 1
+          title: Pagesize
+          type: integer
+        search:
+          anyOf:
+          - maxLength: 200
+            type: string
+          - type: 'null'
+          default: null
+          title: Search
+        sortBy:
+          default: createdAt
+          maxLength: 80
+          title: Sortby
+          type: string
+        sortOrder:
+          default: desc
+          pattern: ^(asc|desc)$
+          title: Sortorder
+          type: string
+      title: PaginationParams
+      type: object
+    SuccessResponse:
+      properties:
+        message:
+          title: Message
+          type: string
+        data:
+          additionalProperties: true
+          title: Data
+          type: object
+        meta:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          default: null
+          title: Meta
+      required:
+      - message
+      - data
+      title: SuccessResponse
+      type: object
+    PaginatedResponse:
+      properties:
+        message:
+          title: Message
+          type: string
+        data:
+          items:
+            additionalProperties: true
+            type: object
+          title: Data
+          type: array
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+      required:
+      - message
+      - data
+      - meta
+      title: PaginatedResponse
+      type: object
+  securitySchemes:
+    BearerAuth:
+      type: http
+      description: Short-lived JWT access token returned by an authentication endpoint.
+      scheme: bearer
+    RefreshCookie:
+      type: apiKey
+      in: cookie
+      name: smart_library_refresh_token
+      description: Rotating HttpOnly refresh cookie set by browser-session authentication endpoints.
+  headers:
+    XRequestId:
+      description: Correlation identifier for the request.
+      schema:
+        type: string
+        example: req-7d566b29-8d93-4b09-8a22-b6ce8fba25c1
+tags:
+- name: System
+  description: API discovery and health endpoints.
+- name: Authentication
+  description: Library registration, JWT sessions, current-user access, and account security.
+servers:
+- url: /
+  description: Current host
+x-api-conventions:
+  dates: YYYY-MM-DD
+  dateTimes: ISO 8601 with timezone
+  identifiers: UUID strings
+  errors: Structured ErrorResponse with requestId
