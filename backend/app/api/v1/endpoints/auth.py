@@ -5,6 +5,8 @@ from app.core.config import settings
 from app.core.security import decode_access_token
 from app.models.identity import User
 from app.schemas.auth import (
+    AcceptInvitationRequest,
+    AcceptInvitationResponse,
     AuthResponse,
     BrowserAuthResponse,
     ChangePasswordRequest,
@@ -14,11 +16,13 @@ from app.schemas.auth import (
     RegisterLibraryRequest,
     UpdateProfileRequest,
     UserResponse,
+    ValidateInvitationResponse,
 )
+from app.schemas.common import error_responses
 from app.services import auth as auth_service
 
 
-router = APIRouter()
+router = APIRouter(responses=error_responses(500))
 REFRESH_COOKIE_NAME = "smart_library_refresh_token"
 REMEMBER_COOKIE_NAME = "smart_library_remember_session"
 AUTH_COOKIE_PATH = f"{settings.api_v1_prefix}/auth"
@@ -78,25 +82,65 @@ def _clear_refresh_cookie(response: Response) -> None:
     )
 
 
-@router.post("/register-library", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
-def register_library(payload: RegisterLibraryRequest, request: Request, db: DatabaseSession) -> AuthResponse:
+@router.post(
+    "/register-library",
+    response_model=AuthResponse,
+    status_code=status.HTTP_201_CREATED,
+    operation_id="registerLibraryWithTokens",
+    summary="Register a library and owner",
+    description=(
+        "Creates the library, owner account, active membership, settings, "
+        "default shifts, first floor, requested seats, and an API token session."
+    ),
+    responses=error_responses(409, 422),
+    openapi_extra={"x-user-stories": ["AUTH-REGISTER-LIBRARY"]},
+)
+def register_library(
+    payload: RegisterLibraryRequest,
+    request: Request,
+    db: DatabaseSession,
+) -> AuthResponse:
     ip_address, user_agent = _request_metadata(request)
     return auth_service.register_library(db, payload, ip_address=ip_address, user_agent=user_agent)
 
 
-@router.post("/login", response_model=AuthResponse)
+@router.post(
+    "/login",
+    response_model=AuthResponse,
+    operation_id="loginWithTokens",
+    summary="Log in and return API tokens",
+    responses=error_responses(401, 422),
+    openapi_extra={"x-user-stories": ["AUTH-LOGIN"]},
+)
 def login(payload: LoginRequest, request: Request, db: DatabaseSession) -> AuthResponse:
     ip_address, user_agent = _request_metadata(request)
     return auth_service.login(db, payload.email, payload.password, ip_address=ip_address, user_agent=user_agent)
 
 
-@router.post("/refresh", response_model=AuthResponse)
+@router.post(
+    "/refresh",
+    response_model=AuthResponse,
+    operation_id="refreshTokenSession",
+    summary="Rotate an API refresh token",
+    description="Rotates the supplied refresh token and revokes its previous session.",
+    responses=error_responses(401, 422),
+    openapi_extra={"x-user-stories": ["AUTH-REFRESH-SESSION"]},
+)
 def refresh(payload: RefreshRequest, request: Request, db: DatabaseSession) -> AuthResponse:
     ip_address, user_agent = _request_metadata(request)
     return auth_service.refresh(db, payload.refresh_token, ip_address=ip_address, user_agent=user_agent)
 
 
-@router.post("/logout", response_model=MessageResponse)
+@router.post(
+    "/logout",
+    response_model=MessageResponse,
+    operation_id="logoutTokenSession",
+    summary="Log out an API token session",
+    openapi_extra={
+        "security": [{"BearerAuth": []}],
+        "x-user-stories": ["AUTH-LOGOUT"],
+    },
+)
 def logout(request: Request, response: Response, db: DatabaseSession) -> MessageResponse:
     authorization = request.headers.get("authorization", "")
     if authorization.lower().startswith("bearer "):
@@ -107,7 +151,14 @@ def logout(request: Request, response: Response, db: DatabaseSession) -> Message
     return MessageResponse(message="Logged out successfully.")
 
 
-@router.get("/me", response_model=UserResponse)
+@router.get(
+    "/me",
+    response_model=UserResponse,
+    operation_id="getAuthenticatedUser",
+    summary="Get the authenticated user",
+    responses=error_responses(401),
+    openapi_extra={"x-user-stories": ["AUTH-CURRENT-USER"]},
+)
 def me(db: DatabaseSession, current_user: User = Depends(get_current_user)) -> UserResponse:
     return auth_service.user_response(db, current_user)
 
@@ -116,6 +167,14 @@ def me(db: DatabaseSession, current_user: User = Depends(get_current_user)) -> U
     "/session/register-library",
     response_model=BrowserAuthResponse,
     status_code=status.HTTP_201_CREATED,
+    operation_id="registerLibraryBrowserSession",
+    summary="Register a library using a browser session",
+    description=(
+        "Creates the library account and sets a rotating HttpOnly refresh cookie. "
+        "The refresh token is never returned to browser JavaScript."
+    ),
+    responses=error_responses(409, 422),
+    openapi_extra={"x-user-stories": ["AUTH-REGISTER-LIBRARY"]},
 )
 def register_library_session(
     payload: RegisterLibraryRequest,
@@ -134,7 +193,15 @@ def register_library_session(
     return _browser_auth_response(result)
 
 
-@router.post("/session/login", response_model=BrowserAuthResponse)
+@router.post(
+    "/session/login",
+    response_model=BrowserAuthResponse,
+    operation_id="loginBrowserSession",
+    summary="Log in using a browser session",
+    description="Returns an access token and sets a rotating HttpOnly refresh cookie.",
+    responses=error_responses(401, 422),
+    openapi_extra={"x-user-stories": ["AUTH-LOGIN"]},
+)
 def login_session(
     payload: LoginRequest,
     request: Request,
@@ -157,7 +224,15 @@ def login_session(
     return _browser_auth_response(result)
 
 
-@router.post("/session/refresh", response_model=BrowserAuthResponse)
+@router.post(
+    "/session/refresh",
+    response_model=BrowserAuthResponse,
+    operation_id="refreshBrowserSession",
+    summary="Refresh a browser session",
+    description="Rotates the HttpOnly refresh cookie and returns a new access token.",
+    responses=error_responses(401),
+    openapi_extra={"x-user-stories": ["AUTH-REFRESH-SESSION"]},
+)
 def refresh_session(
     request: Request,
     response: Response,
@@ -186,7 +261,14 @@ def refresh_session(
     return _browser_auth_response(result)
 
 
-@router.post("/session/logout", response_model=MessageResponse)
+@router.post(
+    "/session/logout",
+    response_model=MessageResponse,
+    operation_id="logoutBrowserSession",
+    summary="Log out a browser session",
+    description="Revokes available refresh and access-token sessions and clears cookies.",
+    openapi_extra={"x-user-stories": ["AUTH-LOGOUT"]},
+)
 def logout_session(
     request: Request,
     response: Response,
@@ -206,7 +288,14 @@ def logout_session(
     return MessageResponse(message="Logged out successfully.")
 
 
-@router.patch("/profile", response_model=UserResponse)
+@router.patch(
+    "/profile",
+    response_model=UserResponse,
+    operation_id="updateAuthenticatedProfile",
+    summary="Update the authenticated profile",
+    responses=error_responses(401, 409, 422),
+    openapi_extra={"x-user-stories": ["AUTH-UPDATE-PROFILE"]},
+)
 def update_profile(
     payload: UpdateProfileRequest,
     db: DatabaseSession,
@@ -221,7 +310,14 @@ def update_profile(
     )
 
 
-@router.post("/change-password", response_model=MessageResponse)
+@router.post(
+    "/change-password",
+    response_model=MessageResponse,
+    operation_id="changeAuthenticatedPassword",
+    summary="Change the authenticated password",
+    responses=error_responses(401, 422),
+    openapi_extra={"x-user-stories": ["AUTH-CHANGE-PASSWORD"]},
+)
 def change_password(
     payload: ChangePasswordRequest,
     db: DatabaseSession,
@@ -234,3 +330,37 @@ def change_password(
         new_password=payload.new_password,
     )
     return MessageResponse(message="Password changed successfully.")
+
+
+@router.get(
+    "/invitations/validate",
+    response_model=ValidateInvitationResponse,
+    operation_id="validateStudentInvitation",
+    summary="Validate a student portal invitation",
+    responses=error_responses(422),
+    openapi_extra={"x-user-stories": ["STUDENT-PORTAL-INVITATION"]},
+)
+def validate_invitation(
+    token: str,
+    db: DatabaseSession,
+) -> ValidateInvitationResponse:
+    return auth_service.validate_student_invitation(db, token)
+
+
+@router.post(
+    "/invitations/accept",
+    response_model=AcceptInvitationResponse,
+    operation_id="acceptStudentInvitation",
+    summary="Create a student password from an invitation",
+    responses=error_responses(409, 422),
+    openapi_extra={"x-user-stories": ["STUDENT-PORTAL-ACTIVATION"]},
+)
+def accept_invitation(
+    payload: AcceptInvitationRequest,
+    db: DatabaseSession,
+) -> AcceptInvitationResponse:
+    return auth_service.accept_student_invitation(
+        db,
+        payload.token,
+        payload.password,
+    )

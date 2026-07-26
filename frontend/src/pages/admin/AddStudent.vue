@@ -14,7 +14,7 @@
         </h1>
 
         <p class="add-student-page__description">
-          Register a new student and assign their library details.
+          Register a student and create their portal invitation.
         </p>
       </div>
     </header>
@@ -44,11 +44,16 @@
     </div>
 
     <StudentForm
-      :seats="seats"
-      :shifts="enabledShifts"
       :is-submitting="isLoading"
+      :enable-seat-assignment="true"
+      :shifts="studyShifts"
+      :allocation-availability="allocationAvailability"
+      :is-availability-loading="isAvailabilityLoading"
+      :availability-error="seatAvailabilityError"
       submit-label="Add Student"
       submitting-label="Adding Student"
+      @availability-request="loadSeatAvailability"
+      @availability-clear="seatStore.clearAllocationAvailability"
       @submit="handleCreateStudent"
       @cancel="handleCancel"
     />
@@ -58,7 +63,7 @@
 <script setup>
 import { ArrowLeft } from '@lucide/vue'
 import { storeToRefs } from 'pinia'
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 
 import StudentForm from '../../components/student/StudentForm.vue'
@@ -72,10 +77,28 @@ const studentStore = useStudentStore()
 const seatStore = useSeatStore()
 
 const { isLoading, errorMessage } = storeToRefs(studentStore)
-const { seats, enabledShifts } = storeToRefs(seatStore)
+const {
+  studyShifts,
+  allocationAvailability,
+  isAvailabilityLoading,
+  availabilityErrorMessage,
+  errorMessage: seatErrorMessage,
+} = storeToRefs(seatStore)
 
 const successMessage = ref('')
 let redirectTimer = null
+
+const seatAvailabilityError = computed(() => {
+  return availabilityErrorMessage.value || seatErrorMessage.value
+})
+
+async function loadSeatAvailability(filters) {
+  try {
+    await seatStore.fetchAllocationAvailability(filters)
+  } catch {
+    // The form renders the seat-store error next to the seat selector.
+  }
+}
 
 async function handleCreateStudent(studentData) {
   successMessage.value = ''
@@ -84,12 +107,18 @@ async function handleCreateStudent(studentData) {
     const response = await studentStore.createStudent(studentData)
     const createdStudent = response.data
 
-    successMessage.value = `${createdStudent.firstName} ${createdStudent.lastName} was added successfully.`
+    const assignmentMessage = createdStudent.seatNumber
+      ? ` Seat ${createdStudent.seatNumber} was assigned successfully.`
+      : ''
+    successMessage.value =
+      `${createdStudent.firstName} ${createdStudent.lastName} was added successfully.` +
+      assignmentMessage
 
     redirectTimer = window.setTimeout(() => {
       router.push({
         name: 'adminStudentDetails',
         params: { studentId: createdStudent.id },
+        state: { setupLink: createdStudent.invitationSetupUrl || '' },
       })
     }, SUCCESS_REDIRECT_DELAY_MS)
   } catch {
@@ -101,15 +130,13 @@ function handleCancel() {
   router.push({ name: 'adminStudents' })
 }
 
-async function loadSeatOptions() {
+onMounted(async () => {
   try {
-    await seatStore.fetchSeats()
+    await seatStore.fetchShifts()
   } catch {
-    // The student store owns submit errors; seat options can render empty if unavailable.
+    // The form renders the seat-store error in the assignment section.
   }
-}
-
-onMounted(loadSeatOptions)
+})
 
 onBeforeUnmount(() => {
   if (redirectTimer) {
@@ -117,6 +144,8 @@ onBeforeUnmount(() => {
   }
 
   studentStore.clearError()
+  seatStore.clearAllocationAvailability()
+  seatStore.clearError()
 })
 </script>
 

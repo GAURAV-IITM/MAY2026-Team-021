@@ -57,24 +57,26 @@ Both milestones must include:
 - Backend package structure for API, schemas, repositories, services, and
   tasks.
 - PostgreSQL connectivity through Psycopg 3.
+- JWT authentication with rotating browser refresh cookies and frontend
+  integration.
+- Shared camelCase API models, pagination contracts, structured errors,
+  request IDs, tenant context, and role dependencies.
+- Checked-in OpenAPI 3.1 YAML with validation and schema-drift checks.
+- Reusable API/database pytest fixtures and backend CI.
 
 ### Still Required
 
-- Real authentication, authorization, and tenant dependencies.
-- Pydantic request and response schemas.
 - Repository queries and transactional service implementations.
-- FastAPI endpoint implementations.
-- Standard error responses and pagination.
-- API-level pytest coverage.
-- Checked-in OpenAPI YAML and user-story mapping.
-- Axios authentication, API base URL, proxy, and error interceptors.
+- Domain Pydantic request and response schemas.
+- Domain FastAPI endpoint implementations.
+- API-level pytest coverage for the remaining route groups.
 - Replacement of mock service operations with HTTP requests.
 - End-to-end integration and user feedback.
 
 ## 4. Delivery Principles
 
-1. API contract first: update and review `docs/api/openapi.yaml` before coding
-   an endpoint.
+1. API contract first: define route metadata and schemas, export and review
+   `docs/api/openapi.yaml`, then complete the endpoint behavior.
 2. Vertical slices: complete contract, backend, tests, frontend integration,
    and documentation for a workflow before starting another.
 3. Backend authority: authorization, tenancy, validation, conflicts, and
@@ -139,6 +141,8 @@ Endpoints must not query mock data or contain large SQL/business-rule blocks.
 
 ## 7. API Conventions to Freeze on 25 July
 
+Status: frozen and enforced by `tests/test_openapi_contract.py`.
+
 ### URLs and JSON
 
 - Base path: `/api/v1`.
@@ -190,7 +194,10 @@ Endpoints must not query mock data or contain large SQL/business-rule blocks.
 ### Authentication
 
 - Short-lived JWT access token.
-- Rotating refresh session stored in `user_sessions`.
+- Access tokens are held in frontend memory.
+- Rotating refresh sessions are stored in `user_sessions`.
+- Browser refresh tokens use Secure HttpOnly cookies outside local/test
+  environments.
 - Passwords hashed with a supported password-hashing library.
 - `get_current_user`, `get_current_library`, and role dependencies are required
   for protected routes.
@@ -683,16 +690,19 @@ request would touch unrelated workflows.
 
 ## 21. Kickoff Decisions Required
 
-Record these decisions on 24-25 July:
+The following decisions were confirmed on 25 July:
 
-1. Confirm the proposed feature owners and reviewers.
-2. Confirm the exact list of user stories submitted in Sprint 1.
-3. Confirm access-token storage and refresh-cookie behavior.
-4. Confirm JSON camelCase and response envelope.
-5. Confirm the shared development and test database strategy.
-6. Confirm the primary user and feedback-session time.
-7. Confirm who owns the PDF report, YAML validation, test matrix, and final
-   submission upload.
+1. Access tokens stay in frontend memory and rotating browser refresh tokens
+   use HttpOnly cookies.
+2. API JSON uses camelCase; Python and database fields use snake_case.
+3. Expected errors use `ErrorResponse`; resource endpoints use shared success
+   or paginated responses. Authentication token responses remain direct.
+4. Every response includes `X-Request-ID`.
+5. Library tenancy comes from the authenticated active membership.
+6. Fast SQLite API tests run on every PR; migration and critical integration
+   tests also run against PostgreSQL before milestone release.
+7. FastAPI route metadata and schemas generate `docs/api/openapi.yaml`; CI
+   validates the document and checks exact schema drift.
 
-Once confirmed, convert each workstream into GitHub issues and link those issue
-numbers from this document or the sprint board.
+The team must still confirm feature-owner substitutions, the primary-user
+feedback session, and report/evidence owners in the kickoff minutes.

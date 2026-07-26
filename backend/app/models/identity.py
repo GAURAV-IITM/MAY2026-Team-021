@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String, Text, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -96,7 +96,14 @@ class UserSession(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 class AccountInvitation(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "account_invitations"
     __table_args__ = (
-        UniqueConstraint("library_id", "email", "status", name="uq_invitation_library_email_status"),
+        Index(
+            "uq_pending_invitation_library_email",
+            "library_id",
+            "email",
+            unique=True,
+            sqlite_where=text("status = 'pending'"),
+            postgresql_where=text("status = 'pending'"),
+        ),
     )
 
     library_id: Mapped[uuid.UUID | None] = mapped_column(

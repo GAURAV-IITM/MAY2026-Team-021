@@ -148,7 +148,7 @@
             </template>
 
             <template #empty>
-              Shifts will appear after the mock service responds.
+              Shifts will appear after they are created.
             </template>
           </DataTable>
         </div>
@@ -245,7 +245,7 @@ const unassignedOccupiedSeats = computed(() => {
 
 const deleteShiftMessage = computed(() => {
   if (!shiftPendingDelete.value) {
-    return 'This shift will be removed from the mock shift list.'
+    return 'This shift will be removed.'
   }
 
   return `Delete ${shiftPendingDelete.value.name}? Seats using this shift will have availability recalculated.`

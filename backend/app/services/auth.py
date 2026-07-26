@@ -19,11 +19,24 @@ from app.core.security import (
     new_refresh_token,
     verify_password,
 )
-from app.models.enums import LibraryStatus, MembershipStatus, RoleName
-from app.models.identity import Role, User, UserRole, UserSession
+from app.models.enums import (
+    InvitationStatus,
+    LibraryStatus,
+    MembershipStatus,
+    RoleName,
+    StudentStatus,
+)
+from app.models.identity import AccountInvitation, Role, User, UserRole, UserSession
 from app.models.library import Library, LibraryMembership, LibrarySettings
 from app.models.seat import Floor, Seat, Shift
-from app.schemas.auth import AuthResponse, RegisterLibraryRequest, UserResponse
+from app.models.student import Student
+from app.schemas.auth import (
+    AcceptInvitationResponse,
+    AuthResponse,
+    RegisterLibraryRequest,
+    UserResponse,
+    ValidateInvitationResponse,
+)
 
 
 DEFAULT_SHIFTS = (
@@ -386,14 +399,129 @@ def change_password(
 ) -> None:
     if not verify_password(current_password, user.password_hash):
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="The current password is incorrect.",
         )
     if current_password == new_password:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="The new password must be different from the current password.",
         )
 
     user.password_hash = hash_password(new_password)
     db.commit()
+
+
+def _invitation_record(db: Session, token: str) -> AccountInvitation:
+    invitation = db.scalar(
+        select(AccountInvitation).where(
+            AccountInvitation.token_hash == hash_token(token),
+            AccountInvitation.status == InvitationStatus.PENDING,
+        )
+    )
+    if invitation is None or is_expired(invitation.expires_at):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="This invitation is invalid or has expired.",
+        )
+    return invitation
+
+
+def validate_student_invitation(
+    db: Session,
+    token: str,
+) -> ValidateInvitationResponse:
+    invitation = _invitation_record(db, token)
+    student = db.scalar(
+        select(Student).where(
+            Student.library_id == invitation.library_id,
+            Student.email == invitation.email,
+            Student.deleted_at.is_(None),
+        )
+    )
+    library = db.get(Library, invitation.library_id)
+    if student is None or library is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="This invitation can no longer be used.",
+        )
+    return ValidateInvitationResponse(
+        valid=True,
+        email=student.email,
+        library_name=library.name,
+        student_name=f"{student.first_name} {student.last_name}".strip(),
+        expires_at=invitation.expires_at,
+    )
+
+
+def accept_student_invitation(
+    db: Session,
+    token: str,
+    password: str,
+) -> AcceptInvitationResponse:
+    invitation = _invitation_record(db, token)
+    student = db.scalar(
+        select(Student).where(
+            Student.library_id == invitation.library_id,
+            Student.email == invitation.email,
+            Student.deleted_at.is_(None),
+        )
+    )
+    if student is None or student.user_id is not None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="This invitation can no longer be used.",
+        )
+    if student.status != StudentStatus.ACTIVE:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Only active students can activate portal access.",
+        )
+    if db.scalar(select(User.id).where(User.email == student.email)):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="An account already exists for this email address.",
+        )
+
+    try:
+        student_role = db.scalar(select(Role).where(Role.name == RoleName.STUDENT))
+        if student_role is None:
+            student_role = Role(
+                name=RoleName.STUDENT,
+                description="Student portal user",
+            )
+            db.add(student_role)
+            db.flush()
+        user = User(
+            email=student.email,
+            password_hash=hash_password(password),
+            full_name=f"{student.first_name} {student.last_name}".strip(),
+            phone=student.phone,
+            email_verified_at=datetime.now(timezone.utc),
+        )
+        user.role_links.append(UserRole(role=student_role))
+        db.add(user)
+        db.flush()
+        db.add(
+            LibraryMembership(
+                library_id=student.library_id,
+                user_id=user.id,
+                role=RoleName.STUDENT,
+                status=MembershipStatus.ACTIVE,
+                joined_at=datetime.now(timezone.utc),
+            )
+        )
+        student.user_id = user.id
+        invitation.status = InvitationStatus.ACCEPTED
+        invitation.accepted_at = datetime.now(timezone.utc)
+        db.commit()
+        return AcceptInvitationResponse(
+            message="Student portal password created successfully.",
+            email=student.email,
+        )
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="The student account conflicts with an existing account.",
+        ) from exc

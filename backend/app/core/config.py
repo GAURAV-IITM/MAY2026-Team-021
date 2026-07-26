@@ -70,6 +70,13 @@ class Settings:
     refresh_token_expire_days: int = int(
         os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "14")
     )
+    account_invitation_expire_hours: int = int(
+        os.getenv("ACCOUNT_INVITATION_EXPIRE_HOURS", "72")
+    )
+    frontend_base_url: str = os.getenv(
+        "FRONTEND_BASE_URL",
+        "http://localhost:5173",
+    ).rstrip("/")
 
     def __post_init__(self) -> None:
         if self.jwt_algorithm not in SUPPORTED_JWT_ALGORITHMS:
@@ -85,6 +92,8 @@ class Settings:
                 raise RuntimeError("ACCESS_TOKEN_EXPIRE_MINUTES must be positive.")
             if self.refresh_token_expire_days <= 0:
                 raise RuntimeError("REFRESH_TOKEN_EXPIRE_DAYS must be positive.")
+        if self.account_invitation_expire_hours <= 0:
+            raise RuntimeError("ACCOUNT_INVITATION_EXPIRE_HOURS must be positive.")
 
 
 @lru_cache

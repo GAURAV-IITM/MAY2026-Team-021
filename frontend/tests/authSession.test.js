@@ -106,7 +106,7 @@ test('uses one refresh request for simultaneous unauthorized responses', async (
   refreshClient.defaults.adapter = async (config) => {
     refreshCalls += 1
     await new Promise((resolve) => setTimeout(resolve, 10))
-    return axiosResponse(config, { access_token: 'rotated-access-token' })
+    return axiosResponse(config, { accessToken: 'rotated-access-token' })
   }
 
   apiClient.defaults.adapter = (config) => {

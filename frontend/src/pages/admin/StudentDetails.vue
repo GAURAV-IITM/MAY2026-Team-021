@@ -19,6 +19,16 @@
       </div>
 
       <div v-if="selectedStudent" class="student-details-page__actions">
+  <button
+    v-if="selectedStudent.portalAccessStatus !== 'active'"
+    class="btn btn--secondary"
+    type="button"
+    :disabled="isLoading"
+    @click="handleCreateInvitation"
+  >
+    <KeyRound :size="17" aria-hidden="true" /> Create Setup Link
+  </button>
+
   <RouterLink
     class="btn btn--primary"
     :to="{
@@ -61,6 +71,17 @@
   <p class="m-0">{{ successMessage }}</p>
 </div>
 
+    <div v-if="setupLink" class="alert alert--info student-details-page__setup-link">
+      <div>
+        <strong>Student password setup link</strong>
+        <p class="m-0">Share this one-time link with {{ studentFullName }}.</p>
+        <input class="form-control" :value="setupLink" readonly />
+      </div>
+      <button class="btn btn--secondary btn--sm" type="button" @click="copySetupLink">
+        <Copy :size="15" aria-hidden="true" /> Copy Link
+      </button>
+    </div>
+
     <div v-if="isLoading && !selectedStudent" class="student-details-page__loading">
       <LoadingSpinner label="Loading student details" />
     </div>
@@ -84,7 +105,7 @@
             </span>
 
             <span class="badge badge--neutral">
-              Seat {{ selectedStudent.seatNumber }}
+              {{ selectedStudent.enrollmentNumber }}
             </span>
           </div>
         </div>
@@ -149,55 +170,131 @@
 
         <section class="card student-details-page__section">
           <header class="student-details-page__section-header">
-            <h2 class="text-h5 m-0">Seat & Shift Information</h2>
+            <h2 class="text-h5 m-0">Portal Access</h2>
           </header>
 
           <dl class="student-details-page__details">
             <div>
-              <dt>Seat Number</dt>
-              <dd>{{ displayValue(selectedStudent.seatNumber) }}</dd>
+              <dt>Access Status</dt>
+              <dd>{{ formatLabel(selectedStudent.portalAccessStatus) }}</dd>
             </div>
 
             <div>
-              <dt>Shifts</dt>
-              <dd>{{ formatShiftList(selectedStudent) }}</dd>
+              <dt>Invitation Status</dt>
+              <dd>{{ formatLabel(selectedStudent.invitationStatus) }}</dd>
+            </div>
+
+            <div>
+              <dt>Invitation Expires</dt>
+              <dd>{{ formatDateTime(selectedStudent.invitationExpiresAt) }}</dd>
             </div>
           </dl>
         </section>
 
         <section class="card student-details-page__section">
           <header class="student-details-page__section-header">
-            <h2 class="text-h5 m-0">Payment Summary</h2>
+            <h2 class="text-h5 m-0">Fee Preference</h2>
           </header>
 
           <dl class="student-details-page__details">
             <div>
-              <dt>Fee Amount</dt>
+              <dt>Default Monthly Fee</dt>
               <dd>{{ formatCurrency(selectedStudent.feeAmount) }}</dd>
             </div>
 
             <div>
-              <dt>Fee Status</dt>
-              <dd>
-                <span
-                  class="badge"
-                  :class="getFeeStatusClass(selectedStudent.feeStatus)"
-                >
-                  {{ formatLabel(selectedStudent.feeStatus) }}
-                </span>
-              </dd>
-            </div>
-
-            <div>
-              <dt>Fee Due Date</dt>
-              <dd>{{ formatDate(selectedStudent.feeDueDate) }}</dd>
-            </div>
-
-            <div>
-              <dt>Payment History</dt>
-              <dd class="text-muted">Payment history will be available in the Payments module.</dd>
+              <dt>Billing Records</dt>
+              <dd class="text-muted">Monthly records are managed in the Payments module.</dd>
             </div>
           </dl>
+        </section>
+
+        <section class="card student-details-page__section student-details-page__full-section">
+          <header class="student-details-page__section-header">
+            <h2 class="text-h5 m-0">Current and Upcoming Seat Assignments</h2>
+          </header>
+
+          <div
+            v-if="selectedStudent.seatAssignments?.length"
+            class="student-details-page__assignments"
+          >
+            <div
+              v-for="assignment in selectedStudent.seatAssignments"
+              :key="`${assignment.seatId}-${assignment.startDate}-${assignment.endDate}`"
+              class="student-details-page__assignment"
+            >
+              <div>
+                <span class="text-small text-muted">Seat</span>
+                <strong>{{ assignment.seatNumber }}</strong>
+                <span class="text-small text-muted">{{ assignment.floorName }}</span>
+              </div>
+              <div>
+                <span class="text-small text-muted">Shifts</span>
+                <strong>{{ assignment.shiftNames.join(', ') }}</strong>
+              </div>
+              <div>
+                <span class="text-small text-muted">Allocation period</span>
+                <strong>
+                  {{ formatDate(assignment.startDate) }} -
+                  {{ formatDate(assignment.endDate) }}
+                </strong>
+              </div>
+              <span class="badge badge--active">
+                {{ formatLabel(assignment.status) }}
+              </span>
+            </div>
+          </div>
+
+          <p v-else class="text-muted m-0">
+            No active or future seat assignment.
+          </p>
+        </section>
+
+        <section class="card student-details-page__section student-details-page__full-section">
+          <header class="student-details-page__section-header">
+            <h2 class="text-h5 m-0">Allocation History</h2>
+          </header>
+
+          <div
+            v-if="selectedStudent.allocationHistory?.length"
+            class="student-details-page__assignments"
+          >
+            <div
+              v-for="assignment in selectedStudent.allocationHistory"
+              :key="`history-${assignment.seatId}-${assignment.startDate}-${assignment.endDate}-${assignment.status}`"
+              class="student-details-page__assignment"
+            >
+              <div>
+                <span class="text-small text-muted">Seat</span>
+                <strong>{{ assignment.seatNumber }}</strong>
+                <span class="text-small text-muted">{{ assignment.floorName }}</span>
+              </div>
+              <div>
+                <span class="text-small text-muted">Shifts</span>
+                <strong>{{ assignment.shiftNames.join(', ') }}</strong>
+              </div>
+              <div>
+                <span class="text-small text-muted">Allocation period</span>
+                <strong>
+                  {{ formatDate(assignment.startDate) }} -
+                  {{ formatDate(assignment.endDate) }}
+                </strong>
+                <span v-if="assignment.closeReason" class="text-small text-muted">
+                  {{ assignment.closeReason }}
+                </span>
+              </div>
+              <span
+                class="badge"
+                :class="allocationStatusClass(assignment.status)"
+              >
+                {{ formatLabel(assignment.status) }}
+              </span>
+            </div>
+          </div>
+
+          <p v-else class="text-muted m-0">
+            No seat allocation history.
+          </p>
         </section>
             </div>
           </template>
@@ -217,7 +314,7 @@
 
 
 <script setup>
-import { ArrowLeft, Pencil, UserRoundX } from '@lucide/vue'
+import { ArrowLeft, Copy, KeyRound, Pencil, UserRoundX } from '@lucide/vue'
 import { storeToRefs } from 'pinia'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
@@ -235,6 +332,7 @@ const studentId = computed(() => String(route.params.studentId))
 
 const showDeactivateDialog = ref(false)
 const successMessage = ref('')
+const setupLink = ref(globalThis.history?.state?.setupLink || '')
 
 const studentFullName = computed(() => {
   if (!selectedStudent.value) return ''
@@ -273,22 +371,6 @@ function formatLabel(value) {
     .replace(/\b\w/g, (character) => character.toUpperCase())
 }
 
-function getStudentShifts(student) {
-  if (Array.isArray(student.activeShifts) && student.activeShifts.length > 0) {
-    return student.activeShifts
-  }
-
-  return student?.shift ? [student.shift] : []
-}
-
-function formatShiftList(student) {
-  const shifts = getStudentShifts(student)
-
-  if (shifts.length === 0) return '—'
-
-  return shifts.map((shift) => formatLabel(shift)).join(', ')
-}
-
 function formatDate(value) {
   if (!value) return '—'
 
@@ -315,10 +397,23 @@ function formatCurrency(value) {
   }).format(amount)
 }
 
-function getFeeStatusClass(status) {
-  if (status === 'paid') return 'badge--paid'
-  if (status === 'overdue') return 'badge--inactive'
-  return 'badge--pending'
+function formatDateTime(value) {
+  if (!value) return '—'
+  return new Intl.DateTimeFormat('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(new Date(value))
+}
+
+function allocationStatusClass(status) {
+  return {
+    active: 'badge--active',
+    completed: 'student-details-page__badge--completed',
+    cancelled: 'badge--cancelled',
+  }[status] || 'student-details-page__badge--completed'
 }
 
 async function loadStudent() {
@@ -343,10 +438,28 @@ async function handleDeactivateStudent() {
   }
 }
 
+async function handleCreateInvitation() {
+  successMessage.value = ''
+  try {
+    const response = await studentStore.inviteStudent(studentId.value)
+    setupLink.value = response.data.setupUrl
+    successMessage.value = 'A new password setup link was created.'
+    await loadStudent()
+  } catch {
+    // Store-owned error state is rendered above the details content.
+  }
+}
+
+async function copySetupLink() {
+  await navigator.clipboard.writeText(setupLink.value)
+  successMessage.value = 'Setup link copied to clipboard.'
+}
+
 onMounted(loadStudent)
 
 onBeforeUnmount(() => {
   showDeactivateDialog.value = false
+  setupLink.value = ''
   studentStore.clearSelectedStudent()
   studentStore.clearError()
 })
@@ -401,6 +514,19 @@ onBeforeUnmount(() => {
   background: var(--color-surface-elevated);
 }
 
+.student-details-page__setup-link {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.student-details-page__setup-link > div {
+  display: grid;
+  flex: 1;
+  gap: var(--space-2);
+}
+
 .student-details-page__profile {
   display: flex;
   align-items: center;
@@ -442,6 +568,10 @@ onBeforeUnmount(() => {
   padding: var(--space-5);
 }
 
+.student-details-page__full-section {
+  grid-column: 1 / -1;
+}
+
 .student-details-page__section-header {
   padding-bottom: var(--space-4);
   border-bottom: 1px solid var(--color-border);
@@ -475,9 +605,49 @@ onBeforeUnmount(() => {
   grid-column: 1 / -1;
 }
 
+.student-details-page__assignments {
+  display: grid;
+}
+
+.student-details-page__assignment {
+  display: grid;
+  grid-template-columns:
+    minmax(120px, 0.75fr)
+    minmax(180px, 1fr)
+    minmax(220px, 1.25fr)
+    auto;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-4) 0;
+  border-bottom: 1px solid var(--color-divider);
+}
+
+.student-details-page__assignment:last-child {
+  border-bottom: 0;
+}
+
+.student-details-page__assignment > div {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-1);
+}
+
+.student-details-page__assignment strong {
+  overflow-wrap: anywhere;
+}
+
+.student-details-page__badge--completed {
+  background: var(--color-surface-muted);
+  color: var(--color-text-secondary);
+}
+
 @media (max-width: 900px) {
   .student-details-page__grid {
     grid-template-columns: 1fr;
+  }
+
+  .student-details-page__assignment {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -506,6 +676,10 @@ onBeforeUnmount(() => {
 
   .student-details-page__full-row {
     grid-column: auto;
+  }
+
+  .student-details-page__assignment {
+    grid-template-columns: 1fr;
   }
 }
 </style>
