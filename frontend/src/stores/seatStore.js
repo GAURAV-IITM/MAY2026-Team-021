@@ -3,6 +3,8 @@ import { computed, ref } from 'vue'
 
 import * as seatService from '../services/seatService'
 
+let allocationAvailabilityRequestId = 0
+
 // src/stores: Centralized Seat Management state for the Smart Library App.
 // TODO: Keep this store as the single frontend state boundary when FastAPI seat APIs are added.
 export const useSeatStore = defineStore('seat', () => {
@@ -18,8 +20,11 @@ export const useSeatStore = defineStore('seat', () => {
     floor: '',
   })
   const seatAvailability = ref(null)
+  const allocationAvailability = ref(null)
   const isLoading = ref(false)
+  const isAvailabilityLoading = ref(false)
   const error = ref(null)
+  const availabilityError = ref(null)
 
   const occupiedSeats = computed(() => {
     return seats.value.filter((seat) => isOccupiedSeat(seat))
@@ -114,6 +119,12 @@ export const useSeatStore = defineStore('seat', () => {
 
   const errorMessage = computed(() => {
     return error.value ? getErrorMessage(error.value) : ''
+  })
+
+  const availabilityErrorMessage = computed(() => {
+    return availabilityError.value
+      ? getErrorMessage(availabilityError.value)
+      : ''
   })
 
   function isOccupiedSeat(seat) {
@@ -509,6 +520,37 @@ export const useSeatStore = defineStore('seat', () => {
     return response
   }
 
+  async function fetchAllocationAvailability(filters) {
+    const requestId = ++allocationAvailabilityRequestId
+    isAvailabilityLoading.value = true
+    availabilityError.value = null
+
+    try {
+      const response = await seatService.fetchSeatAvailability(filters)
+      if (requestId === allocationAvailabilityRequestId) {
+        allocationAvailability.value = response.data
+      }
+      return response
+    } catch (requestError) {
+      if (requestId === allocationAvailabilityRequestId) {
+        allocationAvailability.value = null
+        availabilityError.value = requestError
+      }
+      throw requestError
+    } finally {
+      if (requestId === allocationAvailabilityRequestId) {
+        isAvailabilityLoading.value = false
+      }
+    }
+  }
+
+  function clearAllocationAvailability() {
+    allocationAvailabilityRequestId += 1
+    allocationAvailability.value = null
+    availabilityError.value = null
+    isAvailabilityLoading.value = false
+  }
+
   /**
    * Selects a seat by loading the service-confirmed record into store state.
    * TODO: Replace mock detail fetch with FastAPI GET /seats/{seatId}.
@@ -569,8 +611,11 @@ export const useSeatStore = defineStore('seat', () => {
     selectedShift,
     seatFilters,
     seatAvailability,
+    allocationAvailability,
     isLoading,
+    isAvailabilityLoading,
     error,
+    availabilityError,
 
     occupiedSeats,
     availableSeats,
@@ -584,6 +629,7 @@ export const useSeatStore = defineStore('seat', () => {
     hasActiveSeatFilters,
     selectedSeat,
     errorMessage,
+    availabilityErrorMessage,
 
     fetchSeats,
     fetchFloors,
@@ -605,6 +651,8 @@ export const useSeatStore = defineStore('seat', () => {
     updateSeatStatus,
     updateShift,
     refreshSeatAvailability,
+    fetchAllocationAvailability,
+    clearAllocationAvailability,
     selectSeat,
     clearSelection,
     updateSeatFilter,

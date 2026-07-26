@@ -137,7 +137,23 @@ export async function validateShiftSelection(shiftIds = []) {
 }
 
 export async function fetchSeatAvailability(filters = {}) {
-  return fetchSeats(filters)
+  const params = new URLSearchParams()
+  const shiftIds = Array.isArray(filters.shiftIds) ? filters.shiftIds : []
+
+  shiftIds.forEach((shiftId) => {
+    params.append('shiftId', shiftId)
+  })
+  params.set('startDate', filters.startDate)
+  params.set('endDate', filters.endDate)
+  if (filters.floorId) params.set('floorId', filters.floorId)
+  if (filters.excludeStudentId) {
+    params.set('excludeStudentId', filters.excludeStudentId)
+  }
+
+  const response = await apiClient.get('/seat-allocations/availability', {
+    params,
+  })
+  return response.data
 }
 
 export async function refreshSeatAvailability(filters = {}) {

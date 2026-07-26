@@ -134,6 +134,7 @@ def update_student(
             tenant.library_id,
             student_id,
             payload,
+            tenant.user.id,
         ),
     )
 
@@ -158,6 +159,7 @@ def change_student_status(
             tenant.library_id,
             student_id,
             payload.status,
+            tenant.user.id,
         ),
     )
 
@@ -198,5 +200,10 @@ def delete_student(
     db: DatabaseSession,
     tenant: CurrentTenant,
 ) -> MessageResponse:
-    student_service.delete_student(db, tenant.library_id, student_id)
+    student_service.delete_student(
+        db,
+        tenant.library_id,
+        student_id,
+        tenant.user.id,
+    )
     return MessageResponse(message="Student deleted successfully.")

@@ -52,10 +52,18 @@
 
     <StudentForm
       v-else-if="selectedStudent"
+      :key="studentFormKey"
       :initial-values="selectedStudent"
       :is-submitting="isLoading"
+      :enable-seat-assignment="true"
+      :shifts="studyShifts"
+      :allocation-availability="allocationAvailability"
+      :is-availability-loading="isAvailabilityLoading"
+      :availability-error="seatAvailabilityError"
       submit-label="Save Changes"
       submitting-label="Saving Changes"
+      @availability-request="loadSeatAvailability"
+      @availability-clear="seatStore.clearAllocationAvailability"
       @submit="handleUpdateStudent"
       @cancel="handleCancel"
     />
@@ -70,6 +78,7 @@ import { RouterLink, useRoute, useRouter } from 'vue-router'
 
 import LoadingSpinner from '../../components/common/LoadingSpinner.vue'
 import StudentForm from '../../components/student/StudentForm.vue'
+import { useSeatStore } from '../../stores/seatStore'
 import { useStudentStore } from '../../stores/studentStore'
 
 const SUCCESS_REDIRECT_DELAY_MS = 700
@@ -77,19 +86,45 @@ const SUCCESS_REDIRECT_DELAY_MS = 700
 const route = useRoute()
 const router = useRouter()
 const studentStore = useStudentStore()
+const seatStore = useSeatStore()
 
 const { selectedStudent, isLoading, errorMessage } = storeToRefs(studentStore)
+const {
+  studyShifts,
+  allocationAvailability,
+  isAvailabilityLoading,
+  availabilityErrorMessage,
+  errorMessage: seatErrorMessage,
+} = storeToRefs(seatStore)
 
 const successMessage = ref('')
 let redirectTimer = null
 
 const studentId = computed(() => String(route.params.studentId))
+const studentFormKey = computed(() => {
+  return `${selectedStudent.value?.id}:${selectedStudent.value?.updatedAt || ''}`
+})
+const seatAvailabilityError = computed(() => {
+  return availabilityErrorMessage.value || seatErrorMessage.value
+})
 
 async function loadStudent() {
+  studentStore.clearSelectedStudent()
   try {
     await studentStore.fetchStudentById(studentId.value)
   } catch {
     // Store-owned error state is rendered above the page content.
+  }
+}
+
+async function loadSeatAvailability(filters) {
+  try {
+    await seatStore.fetchAllocationAvailability({
+      ...filters,
+      excludeStudentId: studentId.value,
+    })
+  } catch {
+    // The form renders the seat-store error next to the seat selector.
   }
 }
 
@@ -104,8 +139,12 @@ async function handleUpdateStudent(studentData) {
 
     const updatedStudent = response.data
 
+    const allocationMessage = studentData.seatAllocationChange
+      ? ' The seat allocation was updated and its history was preserved.'
+      : ''
     successMessage.value =
-      `${updatedStudent.firstName} ${updatedStudent.lastName} was updated successfully.`
+      `${updatedStudent.firstName} ${updatedStudent.lastName} was updated successfully.` +
+      allocationMessage
 
     redirectTimer = window.setTimeout(() => {
       router.push({
@@ -125,8 +164,11 @@ function handleCancel() {
   })
 }
 
-onMounted(() => {
-  loadStudent()
+onMounted(async () => {
+  await Promise.allSettled([
+    loadStudent(),
+    seatStore.fetchShifts(),
+  ])
 })
 
 onBeforeUnmount(() => {
@@ -136,6 +178,8 @@ onBeforeUnmount(() => {
 
   studentStore.clearSelectedStudent()
   studentStore.clearError()
+  seatStore.clearAllocationAvailability()
+  seatStore.clearError()
 })
 </script>
 

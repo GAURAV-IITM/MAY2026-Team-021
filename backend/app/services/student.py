@@ -12,13 +12,24 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.core.exceptions import ConflictError, ResourceNotFoundError
+from app.core.exceptions import (
+    BusinessRuleError,
+    ConflictError,
+    ResourceNotFoundError,
+)
 from app.core.security import hash_token
-from app.models.enums import InvitationStatus, MembershipStatus, RoleName, StudentStatus
+from app.models.enums import (
+    AllocationStatus,
+    InvitationStatus,
+    MembershipStatus,
+    RoleName,
+    StudentStatus,
+)
 from app.models.identity import AccountInvitation, User
 from app.models.library import LibraryMembership
 from app.models.student import Student
 from app.repositories import student as repository
+from app.services import allocation as allocation_service
 from app.schemas.common import PaginationParams
 from app.schemas.student import (
     StudentCreate,
@@ -44,6 +55,34 @@ def _student_response(
     setup_url: str | None = None,
 ) -> StudentResponse:
     invitation = repository.latest_invitation(db, student.library_id, student.email)
+    allocation_history = allocation_service.student_seat_assignments(
+        db,
+        student.library_id,
+        student.id,
+    )
+    seat_assignments = [
+        assignment
+        for assignment in allocation_history
+        if (
+            assignment.status == AllocationStatus.ACTIVE
+            and assignment.end_date >= date.today()
+        )
+    ]
+    primary_assignment = seat_assignments[0] if seat_assignments else None
+    active_shift_ids = list(
+        dict.fromkeys(
+            str(shift_id)
+            for assignment in seat_assignments
+            for shift_id in assignment.shift_ids
+        )
+    )
+    active_shift_names = list(
+        dict.fromkeys(
+            shift_name
+            for assignment in seat_assignments
+            for shift_name in assignment.shift_names
+        )
+    )
     return StudentResponse(
         id=student.id,
         enrollment_number=student.enrollment_number,
@@ -65,6 +104,15 @@ def _student_response(
         invitation_status=invitation.status if invitation else None,
         invitation_expires_at=invitation.expires_at if invitation else None,
         invitation_setup_url=setup_url,
+        seat_number=(
+            primary_assignment.seat_number
+            if primary_assignment
+            else None
+        ),
+        active_shifts=active_shift_ids,
+        active_shift_names=active_shift_names,
+        seat_assignments=seat_assignments,
+        allocation_history=allocation_history,
         created_at=student.created_at,
         updated_at=student.updated_at,
     )
@@ -213,6 +261,14 @@ def create_student(
     db.add(student)
     try:
         db.flush()
+        if payload.seat_allocation is not None:
+            allocation_service.create_student_allocations(
+                db,
+                library_id,
+                student,
+                payload.seat_allocation,
+                invited_by_user_id,
+            )
         invitation = (
             _create_invitation(db, student, invited_by_user_id)
             if payload.send_invitation
@@ -241,12 +297,16 @@ def update_student(
     library_id: uuid.UUID,
     student_id: uuid.UUID,
     payload: StudentUpdate,
+    updated_by_user_id: uuid.UUID,
 ) -> StudentResponse:
     student = repository.get_student(db, library_id, student_id)
     if student is None:
         raise ResourceNotFoundError("Student not found.", code="STUDENT_NOT_FOUND")
-    changes = payload.model_dump(exclude_unset=True)
+    changes = payload.model_dump(exclude_unset=True, by_alias=False)
+    allocation_change = payload.seat_allocation_change
+    changes.pop("seat_allocation_change", None)
     previous_email = student.email
+    previous_status = student.status
     email = str(changes.get("email", student.email)).strip().lower()
     enrollment = str(
         changes.get("enrollment_number", student.enrollment_number)
@@ -308,8 +368,39 @@ def update_student(
     if linked_user:
         linked_user.full_name = f"{student.first_name} {student.last_name}".strip()
         linked_user.phone = student.phone
-    _apply_status_side_effects(db, student, student.status)
     try:
+        _apply_status_side_effects(db, student, student.status)
+        if (
+            allocation_change is not None
+            and allocation_change.action == "replace"
+            and student.status != StudentStatus.ACTIVE
+        ):
+            raise BusinessRuleError(
+                "Only active students can receive a seat allocation.",
+                code="STUDENT_NOT_ACTIVE",
+            )
+        if (
+            previous_status == StudentStatus.ACTIVE
+            and student.status != StudentStatus.ACTIVE
+        ):
+            allocation_service.close_student_allocations(
+                db,
+                library_id,
+                student.id,
+                updated_by_user_id,
+                reason=(
+                    "Seat allocation closed because the student was marked "
+                    f"{student.status.value}."
+                ),
+            )
+        elif allocation_change is not None:
+            allocation_service.apply_student_allocation_change(
+                db,
+                library_id,
+                student,
+                allocation_change,
+                updated_by_user_id,
+            )
         db.commit()
         db.refresh(student)
         return _student_response(db, student)
@@ -319,6 +410,9 @@ def update_student(
             "The student conflicts with an existing record.",
             code="STUDENT_CONFLICT",
         ) from exc
+    except Exception:
+        db.rollback()
+        raise
 
 
 def _apply_status_side_effects(
@@ -357,20 +451,41 @@ def change_status(
     library_id: uuid.UUID,
     student_id: uuid.UUID,
     status: StudentStatus,
+    changed_by_user_id: uuid.UUID,
 ) -> StudentResponse:
     student = repository.get_student(db, library_id, student_id)
     if student is None:
         raise ResourceNotFoundError("Student not found.", code="STUDENT_NOT_FOUND")
+    previous_status = student.status
     _apply_status_side_effects(db, student, status)
-    db.commit()
-    db.refresh(student)
-    return _student_response(db, student)
+    try:
+        if (
+            previous_status == StudentStatus.ACTIVE
+            and status != StudentStatus.ACTIVE
+        ):
+            allocation_service.close_student_allocations(
+                db,
+                library_id,
+                student.id,
+                changed_by_user_id,
+                reason=(
+                    "Seat allocation closed because the student was marked "
+                    f"{status.value}."
+                ),
+            )
+        db.commit()
+        db.refresh(student)
+        return _student_response(db, student)
+    except Exception:
+        db.rollback()
+        raise
 
 
 def delete_student(
     db: Session,
     library_id: uuid.UUID,
     student_id: uuid.UUID,
+    deleted_by_user_id: uuid.UUID,
 ) -> None:
     student = repository.get_student(db, library_id, student_id)
     if student is None:
@@ -380,7 +495,18 @@ def delete_student(
     pending = repository.pending_invitation(db, library_id, student.email)
     if pending:
         pending.status = InvitationStatus.REVOKED
-    db.commit()
+    try:
+        allocation_service.close_student_allocations(
+            db,
+            library_id,
+            student.id,
+            deleted_by_user_id,
+            reason="Seat allocation closed because the student was deleted.",
+        )
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
 
 
 def invite_student(

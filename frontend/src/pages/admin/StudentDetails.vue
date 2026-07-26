@@ -208,6 +208,94 @@
             </div>
           </dl>
         </section>
+
+        <section class="card student-details-page__section student-details-page__full-section">
+          <header class="student-details-page__section-header">
+            <h2 class="text-h5 m-0">Current and Upcoming Seat Assignments</h2>
+          </header>
+
+          <div
+            v-if="selectedStudent.seatAssignments?.length"
+            class="student-details-page__assignments"
+          >
+            <div
+              v-for="assignment in selectedStudent.seatAssignments"
+              :key="`${assignment.seatId}-${assignment.startDate}-${assignment.endDate}`"
+              class="student-details-page__assignment"
+            >
+              <div>
+                <span class="text-small text-muted">Seat</span>
+                <strong>{{ assignment.seatNumber }}</strong>
+                <span class="text-small text-muted">{{ assignment.floorName }}</span>
+              </div>
+              <div>
+                <span class="text-small text-muted">Shifts</span>
+                <strong>{{ assignment.shiftNames.join(', ') }}</strong>
+              </div>
+              <div>
+                <span class="text-small text-muted">Allocation period</span>
+                <strong>
+                  {{ formatDate(assignment.startDate) }} -
+                  {{ formatDate(assignment.endDate) }}
+                </strong>
+              </div>
+              <span class="badge badge--active">
+                {{ formatLabel(assignment.status) }}
+              </span>
+            </div>
+          </div>
+
+          <p v-else class="text-muted m-0">
+            No active or future seat assignment.
+          </p>
+        </section>
+
+        <section class="card student-details-page__section student-details-page__full-section">
+          <header class="student-details-page__section-header">
+            <h2 class="text-h5 m-0">Allocation History</h2>
+          </header>
+
+          <div
+            v-if="selectedStudent.allocationHistory?.length"
+            class="student-details-page__assignments"
+          >
+            <div
+              v-for="assignment in selectedStudent.allocationHistory"
+              :key="`history-${assignment.seatId}-${assignment.startDate}-${assignment.endDate}-${assignment.status}`"
+              class="student-details-page__assignment"
+            >
+              <div>
+                <span class="text-small text-muted">Seat</span>
+                <strong>{{ assignment.seatNumber }}</strong>
+                <span class="text-small text-muted">{{ assignment.floorName }}</span>
+              </div>
+              <div>
+                <span class="text-small text-muted">Shifts</span>
+                <strong>{{ assignment.shiftNames.join(', ') }}</strong>
+              </div>
+              <div>
+                <span class="text-small text-muted">Allocation period</span>
+                <strong>
+                  {{ formatDate(assignment.startDate) }} -
+                  {{ formatDate(assignment.endDate) }}
+                </strong>
+                <span v-if="assignment.closeReason" class="text-small text-muted">
+                  {{ assignment.closeReason }}
+                </span>
+              </div>
+              <span
+                class="badge"
+                :class="allocationStatusClass(assignment.status)"
+              >
+                {{ formatLabel(assignment.status) }}
+              </span>
+            </div>
+          </div>
+
+          <p v-else class="text-muted m-0">
+            No seat allocation history.
+          </p>
+        </section>
             </div>
           </template>
 
@@ -318,6 +406,14 @@ function formatDateTime(value) {
     hour: 'numeric',
     minute: '2-digit',
   }).format(new Date(value))
+}
+
+function allocationStatusClass(status) {
+  return {
+    active: 'badge--active',
+    completed: 'student-details-page__badge--completed',
+    cancelled: 'badge--cancelled',
+  }[status] || 'student-details-page__badge--completed'
 }
 
 async function loadStudent() {
@@ -472,6 +568,10 @@ onBeforeUnmount(() => {
   padding: var(--space-5);
 }
 
+.student-details-page__full-section {
+  grid-column: 1 / -1;
+}
+
 .student-details-page__section-header {
   padding-bottom: var(--space-4);
   border-bottom: 1px solid var(--color-border);
@@ -505,9 +605,49 @@ onBeforeUnmount(() => {
   grid-column: 1 / -1;
 }
 
+.student-details-page__assignments {
+  display: grid;
+}
+
+.student-details-page__assignment {
+  display: grid;
+  grid-template-columns:
+    minmax(120px, 0.75fr)
+    minmax(180px, 1fr)
+    minmax(220px, 1.25fr)
+    auto;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-4) 0;
+  border-bottom: 1px solid var(--color-divider);
+}
+
+.student-details-page__assignment:last-child {
+  border-bottom: 0;
+}
+
+.student-details-page__assignment > div {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-1);
+}
+
+.student-details-page__assignment strong {
+  overflow-wrap: anywhere;
+}
+
+.student-details-page__badge--completed {
+  background: var(--color-surface-muted);
+  color: var(--color-text-secondary);
+}
+
 @media (max-width: 900px) {
   .student-details-page__grid {
     grid-template-columns: 1fr;
+  }
+
+  .student-details-page__assignment {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -536,6 +676,10 @@ onBeforeUnmount(() => {
 
   .student-details-page__full-row {
     grid-column: auto;
+  }
+
+  .student-details-page__assignment {
+    grid-template-columns: 1fr;
   }
 }
 </style>

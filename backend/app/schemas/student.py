@@ -7,6 +7,11 @@ from datetime import date, datetime
 from pydantic import Field, model_validator
 
 from app.models.enums import InvitationStatus, StudentStatus
+from app.schemas.allocation import (
+    StudentSeatAllocationChange,
+    StudentSeatAllocationCreate,
+    StudentSeatAssignmentResponse,
+)
 from app.schemas.common import APIModel
 
 
@@ -26,6 +31,13 @@ class StudentCreate(APIModel):
     status: StudentStatus = StudentStatus.ACTIVE
     notes: str | None = Field(default=None, max_length=4000)
     send_invitation: bool = True
+    seat_allocation: StudentSeatAllocationCreate | None = None
+
+    @model_validator(mode="after")
+    def validate_optional_seat_allocation(self):
+        if self.seat_allocation is not None and self.status != StudentStatus.ACTIVE:
+            raise ValueError("Only active students can receive a seat allocation.")
+        return self
 
 
 class StudentUpdate(APIModel):
@@ -46,6 +58,7 @@ class StudentUpdate(APIModel):
     fee_amount: float | None = Field(default=None, ge=0)
     status: StudentStatus | None = None
     notes: str | None = Field(default=None, max_length=4000)
+    seat_allocation_change: StudentSeatAllocationChange | None = None
 
     @model_validator(mode="after")
     def reject_null_required_fields(self):
@@ -99,6 +112,13 @@ class StudentResponse(APIModel):
     invitation_setup_url: str | None = None
     seat_number: str | None = None
     active_shifts: list[str] = Field(default_factory=list)
+    active_shift_names: list[str] = Field(default_factory=list)
+    seat_assignments: list[StudentSeatAssignmentResponse] = Field(
+        default_factory=list
+    )
+    allocation_history: list[StudentSeatAssignmentResponse] = Field(
+        default_factory=list
+    )
     fee_status: str | None = None
     fee_due_date: date | None = None
     created_at: datetime
