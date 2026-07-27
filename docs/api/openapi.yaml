@@ -2995,6 +2995,323 @@ paths:
               $ref: '#/components/headers/XRequestId'
       x-user-stories:
       - SEAT-ALLOCATION-CLOSE
+  /api/v1/payments:
+    get:
+      tags:
+      - Payments
+      summary: List monthly fee records
+      description: Returns tenant-scoped monthly fee records with server-calculated payment totals, balances,
+        statuses, and transactions.
+      operationId: listPayments
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: month
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            pattern: ^\d{4}-(0[1-9]|1[0-2])$
+          - type: 'null'
+          title: Month
+      - name: status
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/FeeStatus'
+          - type: 'null'
+          title: Status
+      - name: studentId
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Studentid
+      - name: dueDateFrom
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date
+          - type: 'null'
+          title: Duedatefrom
+      - name: dueDateTo
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date
+          - type: 'null'
+          title: Duedateto
+      - name: hasTransactions
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Hastransactions
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+          title: Page
+      - name: pageSize
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+          default: 20
+          title: Pagesize
+      - name: search
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            maxLength: 200
+          - type: 'null'
+          title: Search
+      - name: sortBy
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 80
+          default: createdAt
+          title: Sortby
+      - name: sortOrder
+        in: query
+        required: false
+        schema:
+          type: string
+          pattern: ^(asc|desc)$
+          default: desc
+          title: Sortorder
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentListResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Request validation or a business rule failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      x-user-stories:
+      - PAYMENT-LIST
+      - PAYMENT-HISTORY
+  /api/v1/payments/monthly-generation:
+    post:
+      tags:
+      - Payments
+      summary: Generate monthly fee records
+      description: Idempotently creates one fee record for each eligible active student. Student eligibility,
+        fee amounts, due dates, and initial status are derived by the server.
+      operationId: generateMonthlyFees
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MonthlyFeeGenerationRequest'
+        required: true
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse_MonthlyFeeGenerationResponse_'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '409':
+          description: The request conflicts with existing data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Request validation or a business rule failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      security:
+      - BearerAuth: []
+      x-user-stories:
+      - MONTHLY-FEE-GENERATION
+  /api/v1/payments/{fee_record_id}/transactions:
+    post:
+      tags:
+      - Payments
+      summary: Record a payment transaction
+      description: Records an immutable payment transaction and recalculates the fee record's paid amount,
+        balance, and status on the server.
+      operationId: recordPaymentTransaction
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: fee_record_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Fee Record Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentTransactionCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse_PaymentTransactionRecordedResponse_'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '404':
+          description: The requested resource was not found in the current scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '409':
+          description: The request conflicts with existing data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Request validation or a business rule failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      x-user-stories:
+      - PAYMENT-RECORD
   /api/v1/settings/library:
     get:
       tags:
@@ -3459,6 +3776,98 @@ components:
           details: {}
           message: The request conflicts with existing data.
         requestId: frontend-request-123
+    FeeRecordResponse:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        student:
+          $ref: '#/components/schemas/PaymentStudentSummary'
+        month:
+          type: string
+          pattern: ^\d{4}-(0[1-9]|1[0-2])$
+          title: Month
+        dueDate:
+          type: string
+          format: date
+          title: Duedate
+        baseAmount:
+          type: string
+          pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Baseamount
+        discountAmount:
+          type: string
+          pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Discountamount
+        lateFeeAmount:
+          type: string
+          pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Latefeeamount
+        totalAmount:
+          type: string
+          pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Totalamount
+        paidAmount:
+          type: string
+          pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Paidamount
+        balanceAmount:
+          type: string
+          pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Balanceamount
+        status:
+          $ref: '#/components/schemas/FeeStatus'
+        notes:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Notes
+        latestTransaction:
+          anyOf:
+          - $ref: '#/components/schemas/PaymentTransactionResponse'
+          - type: 'null'
+        transactions:
+          items:
+            $ref: '#/components/schemas/PaymentTransactionResponse'
+          type: array
+          title: Transactions
+        createdAt:
+          type: string
+          format: date-time
+          title: Createdat
+        updatedAt:
+          type: string
+          format: date-time
+          title: Updatedat
+      type: object
+      required:
+      - id
+      - student
+      - month
+      - dueDate
+      - baseAmount
+      - discountAmount
+      - lateFeeAmount
+      - totalAmount
+      - paidAmount
+      - balanceAmount
+      - status
+      - notes
+      - latestTransaction
+      - transactions
+      - createdAt
+      - updatedAt
+      title: FeeRecordResponse
+    FeeStatus:
+      type: string
+      enum:
+      - unpaid
+      - partially_paid
+      - paid
+      - waived
+      - cancelled
+      title: FeeStatus
     FloorCreate:
       properties:
         name:
@@ -3866,6 +4275,87 @@ components:
       title: MessageResponse
       examples:
       - message: Operation completed successfully.
+    MonthlyFeeGenerationRequest:
+      properties:
+        month:
+          type: string
+          pattern: ^\d{4}-(0[1-9]|1[0-2])$
+          title: Month
+      type: object
+      required:
+      - month
+      title: MonthlyFeeGenerationRequest
+      examples:
+      - month: 2026-07
+    MonthlyFeeGenerationResponse:
+      properties:
+        month:
+          type: string
+          pattern: ^\d{4}-(0[1-9]|1[0-2])$
+          title: Month
+        activeStudentCount:
+          type: integer
+          minimum: 0.0
+          title: Activestudentcount
+        eligibleStudentCount:
+          type: integer
+          minimum: 0.0
+          title: Eligiblestudentcount
+        createdCount:
+          type: integer
+          minimum: 0.0
+          title: Createdcount
+        existingCount:
+          type: integer
+          minimum: 0.0
+          title: Existingcount
+        skippedCount:
+          type: integer
+          minimum: 0.0
+          title: Skippedcount
+        createdPayments:
+          items:
+            $ref: '#/components/schemas/FeeRecordResponse'
+          type: array
+          title: Createdpayments
+        skippedStudents:
+          items:
+            $ref: '#/components/schemas/MonthlyFeeGenerationSkip'
+          type: array
+          title: Skippedstudents
+      type: object
+      required:
+      - month
+      - activeStudentCount
+      - eligibleStudentCount
+      - createdCount
+      - existingCount
+      - skippedCount
+      - createdPayments
+      - skippedStudents
+      title: MonthlyFeeGenerationResponse
+    MonthlyFeeGenerationSkip:
+      properties:
+        studentId:
+          type: string
+          format: uuid
+          title: Studentid
+        studentName:
+          type: string
+          title: Studentname
+        reason:
+          type: string
+          title: Reason
+        message:
+          type: string
+          title: Message
+      type: object
+      required:
+      - studentId
+      - studentName
+      - reason
+      - message
+      title: MonthlyFeeGenerationSkip
     PaginatedResponse_SeatAllocationResponse_:
       properties:
         message:
@@ -3933,6 +4423,223 @@ components:
         pageSize: 20
         totalItems: 42
         totalPages: 3
+    PaymentActorSummary:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        name:
+          type: string
+          title: Name
+      type: object
+      required:
+      - id
+      - name
+      title: PaymentActorSummary
+    PaymentListResponse:
+      properties:
+        message:
+          type: string
+          title: Message
+        data:
+          items:
+            $ref: '#/components/schemas/FeeRecordResponse'
+          type: array
+          title: Data
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+        summary:
+          $ref: '#/components/schemas/PaymentSummary'
+      type: object
+      required:
+      - message
+      - data
+      - meta
+      - summary
+      title: PaymentListResponse
+    PaymentMethod:
+      type: string
+      enum:
+      - cash
+      - upi
+      - bank_transfer
+      - card
+      - other
+      title: PaymentMethod
+    PaymentStudentSummary:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        enrollmentNumber:
+          type: string
+          title: Enrollmentnumber
+        name:
+          type: string
+          title: Name
+        email:
+          type: string
+          title: Email
+        phone:
+          type: string
+          title: Phone
+      type: object
+      required:
+      - id
+      - enrollmentNumber
+      - name
+      - email
+      - phone
+      title: PaymentStudentSummary
+    PaymentSummary:
+      properties:
+        totalRecords:
+          type: integer
+          minimum: 0.0
+          title: Totalrecords
+        unpaidCount:
+          type: integer
+          minimum: 0.0
+          title: Unpaidcount
+        partiallyPaidCount:
+          type: integer
+          minimum: 0.0
+          title: Partiallypaidcount
+        paidCount:
+          type: integer
+          minimum: 0.0
+          title: Paidcount
+        totalBilledAmount:
+          type: string
+          pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Totalbilledamount
+        totalCollectedAmount:
+          type: string
+          pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Totalcollectedamount
+        totalPendingAmount:
+          type: string
+          pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Totalpendingamount
+      type: object
+      required:
+      - totalRecords
+      - unpaidCount
+      - partiallyPaidCount
+      - paidCount
+      - totalBilledAmount
+      - totalCollectedAmount
+      - totalPendingAmount
+      title: PaymentSummary
+    PaymentTransactionCreate:
+      properties:
+        amount:
+          anyOf:
+          - type: number
+            exclusiveMinimum: 0.0
+          - type: string
+            pattern: ^(?!^[-+.]*$)[+-]?0*(?:\d{0,10}|(?=[\d.]{1,13}0*$)\d{0,10}\.\d{0,2}0*$)
+          title: Amount
+        method:
+          $ref: '#/components/schemas/PaymentMethod'
+        paidAt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Paidat
+        referenceNumber:
+          anyOf:
+          - type: string
+            maxLength: 120
+          - type: 'null'
+          title: Referencenumber
+        notes:
+          anyOf:
+          - type: string
+            maxLength: 2000
+          - type: 'null'
+          title: Notes
+      type: object
+      required:
+      - amount
+      - method
+      title: PaymentTransactionCreate
+      examples:
+      - amount: '500.00'
+        method: upi
+        notes: First instalment.
+        paidAt: '2026-07-27T10:30:00+05:30'
+        referenceNumber: UPI-20260727-001
+    PaymentTransactionRecordedResponse:
+      properties:
+        payment:
+          $ref: '#/components/schemas/FeeRecordResponse'
+        transaction:
+          $ref: '#/components/schemas/PaymentTransactionResponse'
+      type: object
+      required:
+      - payment
+      - transaction
+      title: PaymentTransactionRecordedResponse
+    PaymentTransactionResponse:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        amount:
+          type: string
+          pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Amount
+        method:
+          $ref: '#/components/schemas/PaymentMethod'
+        status:
+          $ref: '#/components/schemas/PaymentTransactionStatus'
+        referenceNumber:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Referencenumber
+        paidAt:
+          type: string
+          format: date-time
+          title: Paidat
+        notes:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Notes
+        recordedBy:
+          anyOf:
+          - $ref: '#/components/schemas/PaymentActorSummary'
+          - type: 'null'
+        createdAt:
+          type: string
+          format: date-time
+          title: Createdat
+      type: object
+      required:
+      - id
+      - amount
+      - method
+      - status
+      - referenceNumber
+      - paidAt
+      - notes
+      - recordedBy
+      - createdAt
+      title: PaymentTransactionResponse
+    PaymentTransactionStatus:
+      type: string
+      enum:
+      - pending
+      - completed
+      - failed
+      - refunded
+      title: PaymentTransactionStatus
     RefreshRequest:
       properties:
         refreshToken:
@@ -5272,6 +5979,42 @@ components:
       - message
       - data
       title: SuccessResponse[LibrarySettingsResponse]
+    SuccessResponse_MonthlyFeeGenerationResponse_:
+      properties:
+        message:
+          type: string
+          title: Message
+        data:
+          $ref: '#/components/schemas/MonthlyFeeGenerationResponse'
+        meta:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Meta
+      type: object
+      required:
+      - message
+      - data
+      title: SuccessResponse[MonthlyFeeGenerationResponse]
+    SuccessResponse_PaymentTransactionRecordedResponse_:
+      properties:
+        message:
+          type: string
+          title: Message
+        data:
+          $ref: '#/components/schemas/PaymentTransactionRecordedResponse'
+        meta:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Meta
+      type: object
+      required:
+      - message
+      - data
+      title: SuccessResponse[PaymentTransactionRecordedResponse]
     SuccessResponse_SeatAllocationCreateResponse_:
       properties:
         message:

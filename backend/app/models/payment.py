@@ -145,6 +145,10 @@ class PaymentTransaction(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     notes: Mapped[str | None] = mapped_column(Text)
 
     fee_record: Mapped[FeeRecord] = relationship(back_populates="transactions")
+    recorded_by: Mapped[object | None] = relationship(
+        "User",
+        foreign_keys=[recorded_by_user_id],
+    )
     receipt: Mapped[Receipt | None] = relationship(
         back_populates="transaction",
         cascade="all, delete-orphan",
