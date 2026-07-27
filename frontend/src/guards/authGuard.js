@@ -39,8 +39,7 @@ async function ensureAuthState(authStore, to) {
   await authStore.checkSession()
 }
 
-// src/guards: Authentication and guest-only route checks.
-// TODO: Replace mock session checks with backend-issued JWT validation when FastAPI auth is ready.
+// src/guards: Backend-authenticated session and guest-only route checks.
 export default async function authGuard(to) {
   const authStore = useAuthStore()
 

@@ -1,47 +1,18 @@
+import apiClient from '../api/axios'
 import {
-  AUTH_NETWORK_DELAY_MS,
-  AUTH_STORAGE_KEYS,
-  AUTH_ROLES,
-  mockUsers,
-  toPublicUser,
-} from '../mocks/authMock'
-import { initializeLibrarySeats } from './seatService'
+  clearAuthState,
+  getAccessToken,
+  persistAuthSession,
+  readAuthSession,
+  setAccessToken,
+} from '../api/authSession.js'
 
-// src/services: Mock auth service. Replace this file with FastAPI-backed requests later.
-// TODO: Replace localStorage fake JWT handling with secure backend-issued JWT/session handling.
+// src/services: Auth service integrated with FastAPI-backed JWT and session handling.
 
-let memorySession = null
-
-function delay(ms = AUTH_NETWORK_DELAY_MS) {
+function delay(ms = 500) {
   return new Promise((resolve) => {
     window.setTimeout(resolve, ms)
   })
-}
-
-function getBrowserStorage() {
-  if (typeof window === 'undefined' || !window.localStorage) return null
-  return window.localStorage
-}
-
-function encodeTokenPayload(payload) {
-  const serializedPayload = JSON.stringify(payload)
-
-  if (typeof window !== 'undefined' && window.btoa) {
-    return window.btoa(serializedPayload)
-  }
-
-  return encodeURIComponent(serializedPayload)
-}
-
-function createFakeJwt(user) {
-  const payload = {
-    sub: user.id,
-    role: user.role,
-    email: user.email,
-    iat: Date.now(),
-  }
-
-  return `mock-jwt.${encodeTokenPayload(payload)}.signature`
 }
 
 function createSuccessResponse(message, data = {}) {
@@ -50,7 +21,7 @@ function createSuccessResponse(message, data = {}) {
     message,
     data,
     meta: {
-      source: 'mock-auth-service',
+      source: 'backend-auth-service',
       timestamp: new Date().toISOString(),
     },
   }
@@ -58,7 +29,6 @@ function createSuccessResponse(message, data = {}) {
 
 function createAuthError(message, status = 400, code = 'AUTH_ERROR') {
   const error = new Error(message)
-
   error.response = {
     status,
     data: {
@@ -67,12 +37,11 @@ function createAuthError(message, status = 400, code = 'AUTH_ERROR') {
       error: { code },
     },
   }
-
   return error
 }
 
-function findUserByEmail(email) {
-  return mockUsers.find((user) => user.email.toLowerCase() === String(email).toLowerCase())
+function getApiErrorMessage(error, fallbackMessage) {
+  return error.response?.data?.error?.message || error.response?.data?.detail || fallbackMessage
 }
 
 function normalizeIndianPhone(value) {
@@ -80,115 +49,62 @@ function normalizeIndianPhone(value) {
   return digits.length === 12 && digits.startsWith('91') ? digits.slice(2) : digits
 }
 
-function getAuthenticatedOwner() {
-  const session = readSession()
-
-  if (!session?.isAuthenticated || !session.user?.id) {
-    throw createAuthError(
-      'Your session has expired. Please sign in again.',
-      401,
-      'SESSION_REQUIRED',
-    )
-  }
-
-  const user = mockUsers.find((candidate) => candidate.id === session.user.id)
-
-  if (!user) {
-    throw createAuthError('The signed-in account could not be found.', 404, 'ACCOUNT_NOT_FOUND')
-  }
-
-  if (user.role !== AUTH_ROLES.LIBRARY_OWNER) {
-    throw createAuthError(
-      'Only library owner accounts can update this profile.',
-      403,
-      'OWNER_ACCOUNT_REQUIRED',
-    )
-  }
-
-  return { session, user }
-}
-
-function createUpdatedSession(session, user) {
+function mapBackendUserToFrontend(user, accessToken, rememberMe = false) {
   return {
-    ...session,
-    user: toPublicUser(user),
-    role: user.role,
-    token: createFakeJwt(user),
-    isAuthenticated: true,
+    success: true,
+    message: 'Operation successful.',
+    data: {
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role, // 'admin', 'student', or 'superadmin'
+        libraryId: user.libraryId,
+        libraryName: user.libraryName,
+      },
+      role: user.role,
+      token: accessToken,
+      rememberMe: rememberMe,
+      isAuthenticated: true,
+    },
   }
-}
-
-function persistSession(session) {
-  memorySession = session
-
-  const storage = getBrowserStorage()
-  if (!storage) return
-
-  storage.setItem(AUTH_STORAGE_KEYS.TOKEN, session.token)
-  storage.setItem(AUTH_STORAGE_KEYS.SESSION, JSON.stringify(session))
-}
-
-function readSession() {
-  const storage = getBrowserStorage()
-  if (!storage) return memorySession
-
-  const token = storage.getItem(AUTH_STORAGE_KEYS.TOKEN)
-  const session = storage.getItem(AUTH_STORAGE_KEYS.SESSION)
-
-  if (!token || !session) return null
-
-  try {
-    const parsedSession = JSON.parse(session)
-    return parsedSession.token === token ? parsedSession : null
-  } catch {
-    return null
-  }
-}
-
-function clearSession() {
-  memorySession = null
-
-  const storage = getBrowserStorage()
-  if (!storage) return
-
-  storage.removeItem(AUTH_STORAGE_KEYS.TOKEN)
-  storage.removeItem(AUTH_STORAGE_KEYS.SESSION)
 }
 
 export async function login(credentials = {}) {
-  await delay()
-
   const { email, password, rememberMe = false } = credentials
 
   if (!email || !password) {
     throw createAuthError('Email and password are required.', 422, 'VALIDATION_ERROR')
   }
 
-  const user = findUserByEmail(email)
+  try {
+    const response = await apiClient.post('/auth/session/login', {
+      email,
+      password,
+      rememberMe,
+    })
+    const { accessToken, user } = response.data
+    setAccessToken(accessToken)
 
-  if (!user || user.password !== password) {
-    throw createAuthError('Invalid email or password.', 401, 'INVALID_CREDENTIALS')
+    const frontendSession = mapBackendUserToFrontend(user, accessToken, rememberMe)
+    persistAuthSession(frontendSession.data)
+
+    return frontendSession
+  } catch (err) {
+    const message = getApiErrorMessage(err, 'Invalid email or password.')
+    throw createAuthError(message, err.response?.status || 401, 'INVALID_CREDENTIALS')
   }
-
-  const publicUser = toPublicUser(user)
-  const token = createFakeJwt(user)
-  const session = {
-    user: publicUser,
-    role: user.role,
-    token,
-    rememberMe,
-    isAuthenticated: true,
-    issuedAt: new Date().toISOString(),
-  }
-
-  persistSession(session)
-
-  return createSuccessResponse('Login successful.', session)
 }
 
 export async function logout() {
-  await delay()
-  clearSession()
+  try {
+    await apiClient.post('/auth/session/logout')
+  } catch (err) {
+    console.error('Logout API call failed:', err)
+  }
+
+  clearAuthState()
 
   return createSuccessResponse('Logout successful.', {
     user: null,
@@ -200,8 +116,6 @@ export async function logout() {
 }
 
 export async function register(registrationData = {}) {
-  await delay()
-
   const libraryName = String(registrationData.libraryName || '').trim()
   const ownerName = String(registrationData.ownerName || '').trim()
   const email = String(registrationData.email || '')
@@ -227,60 +141,68 @@ export async function register(registrationData = {}) {
     )
   }
 
-  if (findUserByEmail(email)) {
-    throw createAuthError(
-      'An account already exists for this email address.',
-      409,
-      'ACCOUNT_ALREADY_EXISTS',
-    )
-  }
-
-  const now = Date.now()
-  const libraryId = `library-${now}`
-
-  const user = {
-    id: `owner-${now}`,
-    name: ownerName,
+  const payload = {
+    libraryName,
+    ownerName,
     email,
-    phone,
     password,
-    role: AUTH_ROLES.LIBRARY_OWNER,
-    roleLabel: 'Library Owner',
-    libraryId,
-    libraryName,
-    createdAt: new Date(now).toISOString(),
+    phone: phone || null,
+    address: registrationData.address || null,
+    seatCount,
   }
 
-  const seatResponse = await initializeLibrarySeats({
-    seatCount,
-    libraryId,
-    libraryName,
-  })
-  mockUsers.push(user)
+  try {
+    const response = await apiClient.post('/auth/session/register-library', payload)
+    const { accessToken, user } = response.data
+    setAccessToken(accessToken)
 
-  const publicUser = toPublicUser(user)
-  const token = createFakeJwt(user)
-  const session = {
-    user: publicUser,
-    role: publicUser.role,
-    token,
-    rememberMe: false,
-    isAuthenticated: true,
-    issuedAt: new Date().toISOString(),
+    const frontendSession = mapBackendUserToFrontend(user, accessToken, false)
+    frontendSession.data.registrationStatus = 'created'
+    frontendSession.data.seatCount = seatCount
+    frontendSession.data.seatsCreated = seatCount
+
+    persistAuthSession(frontendSession.data)
+
+    return frontendSession
+  } catch (err) {
+    const message = getApiErrorMessage(err, 'Registration failed.')
+    throw createAuthError(message, err.response?.status || 400, 'REGISTRATION_ERROR')
   }
-
-  persistSession(session)
-
-  return createSuccessResponse('Library registration successful.', {
-    ...session,
-    registrationStatus: 'created',
-    seatCount,
-    seatsCreated: seatResponse.data.createdSeatCount,
-  })
 }
 
 export async function registerLibrary(registrationData = {}) {
   return register(registrationData)
+}
+
+export async function validateStudentInvitation(token) {
+  try {
+    const response = await apiClient.get('/auth/invitations/validate', {
+      params: { token },
+    })
+    return response.data
+  } catch (err) {
+    throw createAuthError(
+      getApiErrorMessage(err, 'This invitation is invalid or has expired.'),
+      err.response?.status || 422,
+      'INVITATION_INVALID',
+    )
+  }
+}
+
+export async function acceptStudentInvitation(token, password) {
+  try {
+    const response = await apiClient.post('/auth/invitations/accept', {
+      token,
+      password,
+    })
+    return response.data
+  } catch (err) {
+    throw createAuthError(
+      getApiErrorMessage(err, 'Unable to create the student password.'),
+      err.response?.status || 422,
+      'INVITATION_ACCEPT_FAILED',
+    )
+  }
 }
 
 export async function forgotPassword(payload = {}) {
@@ -294,11 +216,24 @@ export async function forgotPassword(payload = {}) {
 }
 
 export async function checkSession() {
-  await delay()
+  const persistedSession = readAuthSession()
 
-  let session = readSession()
+  try {
+    const response = await apiClient.get('/auth/me')
+    const user = response.data
+    const accessToken = getAccessToken()
 
-  if (!session) {
+    const frontendSession = mapBackendUserToFrontend(
+      user,
+      accessToken,
+      persistedSession?.rememberMe,
+    )
+    persistAuthSession(frontendSession.data)
+
+    return frontendSession
+  } catch (err) {
+    console.error('Session validation failed:', err)
+    clearAuthState()
     return createSuccessResponse('No active session.', {
       user: null,
       role: null,
@@ -307,19 +242,6 @@ export async function checkSession() {
       isAuthenticated: false,
     })
   }
-
-  const currentUser = mockUsers.find((user) => user.id === session.user?.id)
-
-  if (currentUser) {
-    session = {
-      ...session,
-      user: toPublicUser(currentUser),
-      role: currentUser.role,
-    }
-    persistSession(session)
-  }
-
-  return createSuccessResponse('Active session found.', session)
 }
 
 export async function getCurrentUser() {
@@ -327,9 +249,6 @@ export async function getCurrentUser() {
 }
 
 export async function updateOwnerProfile(payload = {}) {
-  await delay()
-
-  const { session, user } = getAuthenticatedOwner()
   const name = String(payload.name || '').trim()
   const email = String(payload.email || '')
     .trim()
@@ -356,27 +275,27 @@ export async function updateOwnerProfile(payload = {}) {
     )
   }
 
-  const existingUser = findUserByEmail(email)
-  if (existingUser && existingUser.id !== user.id) {
-    throw createAuthError(
-      'Another account already uses this email address.',
-      409,
-      'ACCOUNT_EMAIL_EXISTS',
+  try {
+    const response = await apiClient.patch('/auth/profile', {
+      name,
+      email,
+      phone,
+    })
+    const session = readAuthSession()
+    const frontendSession = mapBackendUserToFrontend(
+      response.data,
+      getAccessToken(),
+      session?.rememberMe,
     )
+    persistAuthSession(frontendSession.data)
+    return createSuccessResponse('Owner profile updated successfully.', frontendSession.data)
+  } catch (err) {
+    const message = getApiErrorMessage(err, 'Profile update failed.')
+    throw createAuthError(message, err.response?.status || 400, 'PROFILE_UPDATE_ERROR')
   }
-
-  Object.assign(user, { name, email, phone })
-
-  const updatedSession = createUpdatedSession(session, user)
-  persistSession(updatedSession)
-
-  return createSuccessResponse('Owner profile updated successfully.', updatedSession)
 }
 
 export async function changeOwnerPassword(payload = {}) {
-  await delay()
-
-  const { session, user } = getAuthenticatedOwner()
   const currentPassword = String(payload.currentPassword || '')
   const newPassword = String(payload.newPassword || '')
 
@@ -386,10 +305,6 @@ export async function changeOwnerPassword(payload = {}) {
       422,
       'PASSWORD_FIELDS_REQUIRED',
     )
-  }
-
-  if (user.password !== currentPassword) {
-    throw createAuthError('The current password is incorrect.', 422, 'CURRENT_PASSWORD_INVALID')
   }
 
   if (newPassword.length < 8) {
@@ -408,10 +323,14 @@ export async function changeOwnerPassword(payload = {}) {
     )
   }
 
-  user.password = newPassword
-
-  const updatedSession = createUpdatedSession(session, user)
-  persistSession(updatedSession)
-
-  return createSuccessResponse('Password changed successfully.', updatedSession)
+  try {
+    await apiClient.post('/auth/change-password', {
+      currentPassword,
+      newPassword,
+    })
+    return createSuccessResponse('Password changed successfully.', readAuthSession())
+  } catch (err) {
+    const message = getApiErrorMessage(err, 'Password change failed.')
+    throw createAuthError(message, err.response?.status || 400, 'PASSWORD_CHANGE_ERROR')
+  }
 }

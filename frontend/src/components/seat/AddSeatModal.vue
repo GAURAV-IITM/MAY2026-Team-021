@@ -20,17 +20,20 @@
       </div>
 
       <div class="seat-form-modal__grid">
-        <div class="form-field" :class="{ 'form-field--error': errors.floor }">
+        <div class="form-field" :class="{ 'form-field--error': errors.floorId }">
           <label class="form-label" for="add-seat-floor">Floor</label>
-          <input
+          <select
             id="add-seat-floor"
-            v-model.number="form.floor"
-            class="form-control"
-            type="number"
-            min="1"
-            :aria-invalid="Boolean(errors.floor)"
-          />
-          <p v-if="errors.floor" class="form-help">{{ errors.floor }}</p>
+            v-model="form.floorId"
+            class="form-select"
+            :aria-invalid="Boolean(errors.floorId)"
+          >
+            <option value="">Select a floor</option>
+            <option v-for="floor in activeFloors" :key="floor.id" :value="floor.id">
+              {{ floor.name }} ({{ floor.code }})
+            </option>
+          </select>
+          <p v-if="errors.floorId" class="form-help">{{ errors.floorId }}</p>
         </div>
 
         <div class="form-field" :class="{ 'form-field--error': errors.seatType }">
@@ -41,10 +44,10 @@
             class="form-select"
             :aria-invalid="Boolean(errors.seatType)"
           >
-            <option value="Standard">Standard</option>
-            <option value="Window">Window</option>
-            <option value="Premium">Premium</option>
-            <option value="Laptop">Laptop</option>
+            <option value="standard">Standard</option>
+            <option value="premium">Premium</option>
+            <option value="cabin">Cabin</option>
+            <option value="accessible">Accessible</option>
           </select>
           <p v-if="errors.seatType" class="form-help">{{ errors.seatType }}</p>
         </div>
@@ -94,7 +97,7 @@
 </template>
 
 <script setup>
-import { reactive, watch } from 'vue'
+import { computed, reactive, watch } from 'vue'
 
 import Modal from '../common/Modal.vue'
 
@@ -104,6 +107,10 @@ const props = defineProps({
     default: false,
   },
   seats: {
+    type: Array,
+    default: () => [],
+  },
+  floors: {
     type: Array,
     default: () => [],
   },
@@ -117,12 +124,13 @@ const emit = defineEmits(['close', 'create'])
 
 const form = reactive({
   seatNumber: '',
-  floor: 1,
-  seatType: 'Standard',
+  floorId: '',
+  seatType: 'standard',
   status: 'available',
   notes: '',
 })
 const errors = reactive({})
+const activeFloors = computed(() => props.floors.filter((floor) => floor.isActive))
 
 watch(
   () => props.isOpen,
@@ -133,8 +141,8 @@ watch(
 
 function resetForm() {
   form.seatNumber = ''
-  form.floor = 1
-  form.seatType = 'Standard'
+  form.floorId = activeFloors.value[0]?.id || ''
+  form.seatType = 'standard'
   form.status = 'available'
   form.notes = ''
   clearErrors()
@@ -155,8 +163,8 @@ function validateForm() {
     errors.seatNumber = 'Seat number must be unique.'
   }
 
-  if (!Number.isFinite(Number(form.floor)) || Number(form.floor) < 1) {
-    errors.floor = 'Floor must be a positive number.'
+  if (!form.floorId) {
+    errors.floorId = 'Select an active floor.'
   }
 
   if (!form.seatType.trim()) {
@@ -179,7 +187,7 @@ function handleSubmit() {
 
   emit('create', {
     seatNumber: form.seatNumber.trim(),
-    floor: Number(form.floor),
+    floorId: form.floorId,
     seatType: form.seatType.trim(),
     status: form.status,
     notes: form.notes.trim(),

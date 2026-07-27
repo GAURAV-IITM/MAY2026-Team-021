@@ -5,6 +5,7 @@ import LandingPage from '../pages/public/LandingPage.vue'
 import Login from '../pages/auth/Login.vue'
 import RegisterLibrary from '../pages/auth/RegisterLibrary.vue'
 import ForgotPassword from '../pages/auth/ForgotPassword.vue'
+import AcceptInvitation from '../pages/auth/AcceptInvitation.vue'
 
 // Auth & Public route module.
 // Public pages are accessible without authentication.
@@ -48,6 +49,12 @@ const authRoutes = [
         name: 'forgotPassword',
         component: ForgotPassword,
         meta: { title: 'Forgot Password', requiresAuth: false, guestOnly: true, },
+      },
+      {
+        path: 'accept-invitation',
+        name: 'acceptStudentInvitation',
+        component: AcceptInvitation,
+        meta: { title: 'Create Student Password', requiresAuth: false },
       },
     ],
   },

@@ -21,6 +21,7 @@ export const useStudentStore = defineStore('student', () => {
 
   function getErrorMessage(requestError) {
     return (
+      requestError?.response?.data?.error?.message ||
       requestError?.response?.data?.message ||
       requestError?.message ||
       'An unexpected student service error occurred.'
@@ -113,6 +114,10 @@ export const useStudentStore = defineStore('student', () => {
     return response
   }
 
+  async function inviteStudent(studentId) {
+    return runStudentServiceRequest(() => studentService.inviteStudent(studentId))
+  }
+
   function clearSelectedStudent() {
     selectedStudent.value = null
   }
@@ -138,6 +143,7 @@ export const useStudentStore = defineStore('student', () => {
     createStudent,
     updateStudent,
     deactivateStudent,
+    inviteStudent,
     clearSelectedStudent,
     clearError,
   }
