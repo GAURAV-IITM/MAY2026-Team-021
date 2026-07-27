@@ -37,6 +37,7 @@ from app.schemas.payment import (
     PaymentTransactionResponse,
 )
 from app.services.audit import AuditContext, write_audit_log
+from app.services import receipt as receipt_service
 
 
 ZERO = Decimal("0.00")
@@ -70,12 +71,12 @@ def _due_date(month: date, due_day: int) -> date:
     )
 
 
-def _money(value: Decimal | int | str) -> Decimal:
+def money(value: Decimal | int | str) -> Decimal:
     return Decimal(value).quantize(Decimal("0.01"))
 
 
-def _completed_paid_amount(fee: FeeRecord) -> Decimal:
-    return _money(
+def completed_paid_amount(fee: FeeRecord) -> Decimal:
+    return money(
         sum(
             (
                 transaction.amount
@@ -116,8 +117,8 @@ def _transaction_response(
 
 
 def _fee_response(fee: FeeRecord) -> FeeRecordResponse:
-    paid_amount = _completed_paid_amount(fee)
-    balance = max(_money(fee.total_amount) - paid_amount, ZERO)
+    paid_amount = completed_paid_amount(fee)
+    balance = max(money(fee.total_amount) - paid_amount, ZERO)
     transactions = sorted(
         fee.transactions,
         key=lambda transaction: (
@@ -273,9 +274,9 @@ def generate_monthly_fees(
                 existing_count += 1
                 continue
 
-            configured_fee = _money(student.monthly_fee)
+            configured_fee = money(student.monthly_fee)
             if configured_fee <= ZERO:
-                configured_fee = _money(settings.default_monthly_fee)
+                configured_fee = money(settings.default_monthly_fee)
             if configured_fee <= ZERO:
                 skipped.append(
                     MonthlyFeeGenerationSkip(
@@ -402,10 +403,10 @@ def record_payment(
                 code="PAYMENT_REFERENCE_EXISTS",
             )
 
-        paid_before = _completed_paid_amount(fee)
-        balance_before = _money(fee.total_amount) - paid_before
+        paid_before = completed_paid_amount(fee)
+        balance_before = money(fee.total_amount) - paid_before
         status_before = fee.status
-        amount = _money(payload.amount)
+        amount = money(payload.amount)
         if amount > balance_before:
             raise BusinessRuleError(
                 "Payment amount cannot be greater than the remaining balance.",
@@ -434,10 +435,20 @@ def record_payment(
         paid_after = paid_before + amount
         fee.status = (
             FeeStatus.PAID
-            if paid_after == _money(fee.total_amount)
+            if paid_after == money(fee.total_amount)
             else FeeStatus.PARTIALLY_PAID
         )
         db.flush()
+        receipt = receipt_service.issue_receipt(
+            db,
+            library_id=library_id,
+            fee=fee,
+            transaction=transaction,
+            paid_before=paid_before,
+            paid_after=paid_after,
+            actor_user_id=actor_user_id,
+            audit_context=audit_context,
+        )
         write_audit_log(
             db,
             library_id=library_id,
@@ -459,7 +470,7 @@ def record_payment(
                 "referenceNumber": payload.reference_number,
                 "paidAmount": str(paid_after),
                 "balanceAmount": str(
-                    _money(fee.total_amount) - paid_after
+                    money(fee.total_amount) - paid_after
                 ),
                 "feeStatus": fee.status.value,
             },
@@ -469,6 +480,7 @@ def record_payment(
         return PaymentTransactionRecordedResponse(
             payment=_fee_response(fee),
             transaction=_transaction_response(transaction),
+            receipt=receipt_service.receipt_list_item(receipt),
         )
     except Exception:
         db.rollback()

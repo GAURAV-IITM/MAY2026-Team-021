@@ -5,9 +5,14 @@ import { AxiosError } from 'axios'
 
 import apiClient from '../src/api/axios.js'
 import {
+  buildReceiptParams,
   buildPaymentParams,
+  createWhatsAppReminder,
+  downloadReceipt,
   generateMonthlyPayments,
   getPayments,
+  getReceipt,
+  getReceipts,
   recordPayment,
 } from '../src/services/paymentService.js'
 
@@ -54,6 +59,30 @@ function apiPayment(overrides = {}) {
     transactions: [],
     createdAt: '2026-07-01T00:00:00Z',
     updatedAt: '2026-07-27T10:00:00Z',
+    ...overrides,
+  }
+}
+
+function apiReceipt(overrides = {}) {
+  return {
+    id: 'receipt-id',
+    receiptNumber: 'REC-2026-ABC',
+    student: {
+      id: 'student-id',
+      name: 'Aarav Sharma',
+      enrollmentNumber: 'STU-00001',
+    },
+    feeRecordId: 'fee-id',
+    paymentTransactionId: 'transaction-id',
+    billingMonth: '2026-07',
+    amount: '400.00',
+    paymentMethod: 'upi',
+    paymentReference: 'UPI-001',
+    paidAt: '2026-07-27T10:00:00Z',
+    issuedAt: '2026-07-27T10:00:01Z',
+    status: 'issued',
+    currency: 'INR',
+    downloadAvailable: true,
     ...overrides,
   }
 }
@@ -147,6 +176,7 @@ test('record payment sends transaction facts and preserves backend errors', asyn
         data: {
           payment: apiPayment({ paidAmount: '1200.00', balanceAmount: '0.00' }),
           transaction: apiPayment().latestTransaction,
+          receipt: apiReceipt(),
         },
       },
       201,
@@ -205,4 +235,139 @@ test('record payment sends transaction facts and preserves backend errors', asyn
       return true
     },
   )
+})
+
+test('maps receipt filters, list items, and snapshot detail requests', async () => {
+  assert.deepEqual(
+    buildReceiptParams({
+      search: 'Aarav',
+      billingMonth: '2026-07',
+      paymentMethod: 'upi',
+      status: 'issued',
+      page: 2,
+      pageSize: 10,
+    }),
+    {
+      page: 2,
+      pageSize: 10,
+      search: 'Aarav',
+      sortBy: 'issuedAt',
+      sortOrder: 'desc',
+      billingMonth: '2026-07',
+      paymentMethod: 'upi',
+      studentId: undefined,
+      status: 'issued',
+      dateFrom: undefined,
+      dateTo: undefined,
+    },
+  )
+
+  const requests = []
+  apiClient.defaults.adapter = async (config) => {
+    requests.push(config)
+    if (config.url.endsWith('/receipt-id')) {
+      return response(config, {
+        message: 'Receipt fetched.',
+        data: {
+          ...apiReceipt(),
+          library: {
+            id: 'library-id',
+            name: 'Central Library',
+            address: 'Reading Lane',
+            phone: null,
+            email: 'library@example.com',
+          },
+          fee: {
+            id: 'fee-id',
+            billingMonth: '2026-07',
+            dueDate: '2026-07-10',
+            totalAmount: '1000.00',
+            previouslyPaidAmount: '0.00',
+            paymentAmount: '400.00',
+            remainingBalance: '600.00',
+            paymentStatus: 'partially_paid',
+          },
+          payment: {
+            id: 'transaction-id',
+            amount: '400.00',
+            method: 'upi',
+            referenceNumber: 'UPI-001',
+            paidAt: '2026-07-27T10:00:00Z',
+            recordedBy: { id: 'owner-id', name: 'Owner' },
+            notes: null,
+          },
+        },
+      })
+    }
+    return response(config, {
+      message: 'Receipts fetched.',
+      data: [apiReceipt()],
+      meta: { page: 2, pageSize: 10, totalItems: 1, totalPages: 1 },
+    })
+  }
+
+  const listed = await getReceipts({
+    billingMonth: '2026-07',
+    page: 2,
+    pageSize: 10,
+  })
+  assert.equal(requests[0].url, '/payments/receipts')
+  assert.equal(requests[0].params.billingMonth, '2026-07')
+  assert.equal(listed.data.receipts[0].studentName, 'Aarav Sharma')
+  assert.equal(listed.data.receipts[0].amount, 400)
+
+  const detail = await getReceipt('receipt-id')
+  assert.equal(requests[1].url, '/payments/receipts/receipt-id')
+  assert.equal(detail.data.remainingBalance, 600)
+  assert.equal(detail.data.paymentReference, 'UPI-001')
+})
+
+test('requests an authenticated receipt blob and maps reminder payload', async () => {
+  const requests = []
+  const pdf = new Blob(['receipt'], { type: 'application/pdf' })
+  apiClient.defaults.adapter = async (config) => {
+    requests.push(config)
+    if (config.url.endsWith('/download')) {
+      return {
+        ...response(config, pdf),
+        headers: {
+          'content-disposition': 'attachment; filename="receipt-REC-1.pdf"',
+        },
+      }
+    }
+    return response(
+      config,
+      {
+        message: 'Reminder attempt recorded.',
+        data: {
+          reminder: {
+            id: 'reminder-id',
+            outcome: 'link_generated',
+          },
+          whatsappUrl: 'https://wa.me/919999999999?text=Hello',
+        },
+      },
+      201,
+    )
+  }
+
+  const downloaded = await downloadReceipt('receipt-id')
+  assert.equal(requests[0].responseType, 'blob')
+  assert.equal(
+    requests[0].url,
+    '/payments/receipts/receipt-id/download',
+  )
+  assert.equal(downloaded.filename, 'receipt-REC-1.pdf')
+  assert.equal(downloaded.blob, pdf)
+
+  const reminder = await createWhatsAppReminder('fee-id', {
+    message: 'Please review your balance.',
+  })
+  assert.equal(requests[1].url, '/payments/fee-id/reminders')
+  assert.deepEqual(JSON.parse(requests[1].data), {
+    channel: 'whatsapp',
+    message: 'Please review your balance.',
+  })
+  assert.equal(reminder.data.reminder.outcome, 'link_generated')
+  assert.equal('delivered' in reminder.data.reminder, false)
 })

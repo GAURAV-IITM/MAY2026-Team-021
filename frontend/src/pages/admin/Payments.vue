@@ -240,6 +240,15 @@
                 Record Payment
               </button>
               <button
+                v-if="row.balanceAmount > 0"
+                class="btn btn--secondary btn--sm"
+                type="button"
+                @click="openReminderDialog(row)"
+              >
+                <MessageCircle :size="15" aria-hidden="true" />
+                Remind
+              </button>
+              <button
                 v-if="row.transactions.length"
                 class="btn btn--secondary btn--sm"
                 type="button"
@@ -285,6 +294,15 @@
               Record Payment
             </button>
             <button
+              v-if="payment.balanceAmount > 0"
+              class="btn btn--secondary"
+              type="button"
+              @click="openReminderDialog(payment)"
+            >
+              <MessageCircle :size="16" aria-hidden="true" />
+              WhatsApp Reminder
+            </button>
+            <button
               v-if="payment.transactions.length"
               class="btn btn--secondary"
               type="button"
@@ -323,6 +341,25 @@
       :payment="historyPayment"
       @close="closeHistoryDialog"
     />
+    <WhatsAppReminderDialog
+      :is-open="isReminderDialogOpen"
+      :payment="reminderPayment"
+      :is-submitting="isReminderSubmitting"
+      :submission-error="reminderSubmissionError"
+      @close="closeReminderDialog"
+      @submit="handleReminder"
+    />
+    <ReceiptPreviewDialog
+      :is-open="isReceiptPreviewOpen"
+      :receipt="selectedReceipt"
+      :is-loading="isReceiptPreviewLoading"
+      :is-downloading="isReceiptDownloading"
+      :error-message="isReceiptPreviewOpen ? receiptErrorMessage : ''"
+      :request-id="receiptRequestId"
+      @close="closeReceiptPreview"
+      @retry="loadRecordedReceipt"
+      @download="downloadRecordedReceipt"
+    />
   </section>
 </template>
 
@@ -335,6 +372,7 @@ import {
   CreditCard,
   FilePlus2,
   History,
+  MessageCircle,
   ReceiptIndianRupee,
   WalletCards,
 } from '@lucide/vue'
@@ -348,18 +386,27 @@ import Pagination from '../../components/common/Pagination.vue'
 import Toast from '../../components/common/Toast.vue'
 import PaymentFilters from '../../components/payment/PaymentFilters.vue'
 import PaymentHistoryDialog from '../../components/payment/PaymentHistoryDialog.vue'
+import ReceiptPreviewDialog from '../../components/payment/ReceiptPreviewDialog.vue'
 import RecordPaymentDialog from '../../components/payment/RecordPaymentDialog.vue'
+import WhatsAppReminderDialog from '../../components/payment/WhatsAppReminderDialog.vue'
 import { usePaymentStore } from '../../stores/paymentStore'
 
 const paymentStore = usePaymentStore()
 const {
   payments,
   selectedPayment,
+  selectedReceipt,
   pagination,
   paymentFilters,
   isLoading,
   error,
   errorMessage,
+  isReminderSubmitting,
+  reminderError,
+  isReceiptPreviewLoading,
+  isReceiptDownloading,
+  receiptError,
+  receiptErrorMessage,
   paymentCount,
   paidPaymentCount,
   unpaidPaymentCount,
@@ -376,6 +423,10 @@ const isRecordDialogOpen = ref(false)
 const isRecording = ref(false)
 const isHistoryDialogOpen = ref(false)
 const historyPayment = ref(null)
+const isReminderDialogOpen = ref(false)
+const reminderPayment = ref(null)
+const isReceiptPreviewOpen = ref(false)
+const recordedReceiptId = ref(null)
 const successMessage = ref('')
 let filterTimer = null
 let toastTimer = null
@@ -444,6 +495,20 @@ const paymentSubmissionError = computed(() => {
     remainingBalance: response?.error?.details?.remainingBalance,
   }
 })
+const reminderSubmissionError = computed(() => {
+  if (!isReminderDialogOpen.value || !reminderError.value) return null
+  const response = reminderError.value.response?.data
+  return {
+    message:
+      response?.error?.message ||
+      reminderError.value.message ||
+      'Unable to create the WhatsApp reminder link.',
+    requestId: response?.requestId,
+  }
+})
+const receiptRequestId = computed(
+  () => receiptError.value?.response?.data?.requestId || '',
+)
 
 watch(
   () => [
@@ -552,6 +617,19 @@ function closeHistoryDialog() {
   historyPayment.value = null
 }
 
+function openReminderDialog(payment) {
+  paymentStore.clearSelectedReminder()
+  reminderPayment.value = payment
+  isReminderDialogOpen.value = true
+}
+
+function closeReminderDialog() {
+  if (isReminderSubmitting.value) return
+  isReminderDialogOpen.value = false
+  reminderPayment.value = null
+  paymentStore.clearSelectedReminder()
+}
+
 async function handleRecordPayment(payload) {
   if (!selectedPayment.value || isRecording.value) return
   isRecording.value = true
@@ -563,12 +641,79 @@ async function handleRecordPayment(payload) {
     isRecordDialogOpen.value = false
     paymentStore.clearSelectedPayment()
     showSuccess(
-      `${formatCurrency(response.data.transaction.amount)} recorded successfully.`,
+      `${formatCurrency(response.data.transaction.amount)} recorded. Receipt ` +
+        `${response.data.receipt.receiptNumber} is ready.`,
     )
+    recordedReceiptId.value = response.data.receipt.id
+    isReceiptPreviewOpen.value = true
+    await loadRecordedReceipt()
   } catch {
     // The dialog remains open so the administrator can correct the input.
   } finally {
     isRecording.value = false
+  }
+}
+
+async function loadRecordedReceipt() {
+  if (!recordedReceiptId.value) return
+  try {
+    await paymentStore.fetchReceiptDetail(recordedReceiptId.value)
+  } catch {
+    // Receipt dialog renders the structured API error and retry action.
+  }
+}
+
+function closeReceiptPreview() {
+  isReceiptPreviewOpen.value = false
+  recordedReceiptId.value = null
+  paymentStore.clearSelectedReceipt()
+}
+
+async function downloadRecordedReceipt() {
+  if (!recordedReceiptId.value || isReceiptDownloading.value) return
+  try {
+    const { blob, filename } = await paymentStore.downloadReceipt(
+      recordedReceiptId.value,
+    )
+    const objectUrl = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = objectUrl
+    link.download = filename
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    URL.revokeObjectURL(objectUrl)
+    showSuccess('Receipt PDF downloaded.')
+  } catch {
+    // Receipt dialog displays the download error and request ID.
+  }
+}
+
+async function handleReminder(payload) {
+  if (!reminderPayment.value || isReminderSubmitting.value) return
+  const pendingTab = window.open('about:blank', '_blank')
+  if (pendingTab) {
+    pendingTab.opener = null
+  }
+  try {
+    const response = await paymentStore.createWhatsAppReminder(
+      reminderPayment.value.id,
+      payload,
+    )
+    const whatsappUrl = response.data.whatsappUrl
+    if (pendingTab) {
+      pendingTab.location.replace(whatsappUrl)
+      showSuccess('Reminder attempt recorded and WhatsApp link opened.')
+    } else {
+      showSuccess(
+        'Reminder attempt recorded. Allow popups to open the WhatsApp link.',
+      )
+    }
+    isReminderDialogOpen.value = false
+    reminderPayment.value = null
+  } catch {
+    pendingTab?.close()
+    // The dialog stays open with the server's actionable error.
   }
 }
 

@@ -9,6 +9,7 @@ from pydantic import Field, field_validator
 
 from app.models.enums import FeeStatus, PaymentMethod, PaymentTransactionStatus
 from app.schemas.common import APIModel, PaginationMeta
+from app.schemas.receipt import ReceiptListItem
 
 
 MONEY_MAX_DIGITS = 12
@@ -142,3 +143,4 @@ class MonthlyFeeGenerationResponse(APIModel):
 class PaymentTransactionRecordedResponse(APIModel):
     payment: FeeRecordResponse
     transaction: PaymentTransactionResponse
+    receipt: ReceiptListItem

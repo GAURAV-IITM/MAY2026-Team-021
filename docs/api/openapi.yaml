@@ -3222,6 +3222,401 @@ paths:
       - BearerAuth: []
       x-user-stories:
       - MONTHLY-FEE-GENERATION
+  /api/v1/payments/receipts:
+    get:
+      tags:
+      - Payments
+      summary: List payment receipts
+      description: Returns paginated immutable payment receipts belonging to the current library. Search
+        and filters are applied by the server.
+      operationId: listPaymentReceipts
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: billingMonth
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            pattern: ^\d{4}-(0[1-9]|1[0-2])$
+          - type: 'null'
+          title: Billingmonth
+      - name: paymentMethod
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/PaymentMethod'
+          - type: 'null'
+          title: Paymentmethod
+      - name: studentId
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Studentid
+      - name: status
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/ReceiptStatus'
+          - type: 'null'
+          title: Status
+      - name: dateFrom
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date
+          - type: 'null'
+          title: Datefrom
+      - name: dateTo
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date
+          - type: 'null'
+          title: Dateto
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+          title: Page
+      - name: pageSize
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+          default: 20
+          title: Pagesize
+      - name: search
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            maxLength: 200
+          - type: 'null'
+          title: Search
+      - name: sortBy
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 80
+          default: createdAt
+          title: Sortby
+      - name: sortOrder
+        in: query
+        required: false
+        schema:
+          type: string
+          pattern: ^(asc|desc)$
+          default: desc
+          title: Sortorder
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReceiptListResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Request validation or a business rule failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      x-user-stories:
+      - RECEIPT-LIST
+  /api/v1/payments/receipts/{receipt_id}:
+    get:
+      tags:
+      - Payments
+      summary: Get a payment receipt
+      description: Returns the immutable snapshot used for receipt preview. Receipts outside the current
+        library are hidden as not found.
+      operationId: getPaymentReceipt
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: receipt_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Receipt Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse_ReceiptDetail_'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '404':
+          description: The requested resource was not found in the current scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      x-user-stories:
+      - RECEIPT-PREVIEW
+  /api/v1/payments/receipts/{receipt_id}/download:
+    get:
+      tags:
+      - Payments
+      summary: Download a payment receipt
+      description: Returns an authenticated PDF generated from the same immutable snapshot used by receipt
+        preview.
+      operationId: downloadPaymentReceipt
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: receipt_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Receipt Id
+      responses:
+        '200':
+          description: Receipt PDF.
+          content:
+            application/pdf: {}
+          headers:
+            Content-Disposition:
+              description: Suggested receipt filename.
+              schema:
+                type: string
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '404':
+          description: The requested resource was not found in the current scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      x-user-stories:
+      - RECEIPT-DOWNLOAD
+  /api/v1/payments/{fee_record_id}/reminders:
+    post:
+      tags:
+      - Payments
+      summary: Create a WhatsApp payment reminder
+      description: Validates the current outstanding balance and student phone, records an auditable link-generation
+        attempt, then returns a wa.me URL. This does not claim the message was sent or delivered.
+      operationId: createPaymentReminder
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: fee_record_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Fee Record Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReminderCreateRequest'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse_WhatsAppReminderResponse_'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '404':
+          description: The requested resource was not found in the current scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '409':
+          description: The request conflicts with existing data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Request validation or a business rule failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      x-user-stories:
+      - PAYMENT-WHATSAPP-REMINDER
   /api/v1/payments/{fee_record_id}/transactions:
     post:
       tags:
@@ -4579,10 +4974,13 @@ components:
           $ref: '#/components/schemas/FeeRecordResponse'
         transaction:
           $ref: '#/components/schemas/PaymentTransactionResponse'
+        receipt:
+          $ref: '#/components/schemas/ReceiptListItem'
       type: object
       required:
       - payment
       - transaction
+      - receipt
       title: PaymentTransactionRecordedResponse
     PaymentTransactionResponse:
       properties:
@@ -4640,6 +5038,280 @@ components:
       - failed
       - refunded
       title: PaymentTransactionStatus
+    ReceiptActorSummary:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        name:
+          type: string
+          title: Name
+      type: object
+      required:
+      - id
+      - name
+      title: ReceiptActorSummary
+    ReceiptDetail:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        receiptNumber:
+          type: string
+          title: Receiptnumber
+        status:
+          $ref: '#/components/schemas/ReceiptStatus'
+        issuedAt:
+          type: string
+          format: date-time
+          title: Issuedat
+        currency:
+          type: string
+          title: Currency
+          default: INR
+        library:
+          $ref: '#/components/schemas/ReceiptLibrarySummary'
+        student:
+          $ref: '#/components/schemas/ReceiptStudentSummary'
+        fee:
+          $ref: '#/components/schemas/ReceiptFeeSummary'
+        payment:
+          $ref: '#/components/schemas/ReceiptPaymentSummary'
+      type: object
+      required:
+      - id
+      - receiptNumber
+      - status
+      - issuedAt
+      - library
+      - student
+      - fee
+      - payment
+      title: ReceiptDetail
+    ReceiptFeeSummary:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        billingMonth:
+          type: string
+          pattern: ^\d{4}-(0[1-9]|1[0-2])$
+          title: Billingmonth
+        dueDate:
+          type: string
+          format: date
+          title: Duedate
+        totalAmount:
+          type: string
+          pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Totalamount
+        previouslyPaidAmount:
+          type: string
+          pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Previouslypaidamount
+        paymentAmount:
+          type: string
+          pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Paymentamount
+        remainingBalance:
+          type: string
+          pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Remainingbalance
+        paymentStatus:
+          $ref: '#/components/schemas/FeeStatus'
+      type: object
+      required:
+      - id
+      - billingMonth
+      - dueDate
+      - totalAmount
+      - previouslyPaidAmount
+      - paymentAmount
+      - remainingBalance
+      - paymentStatus
+      title: ReceiptFeeSummary
+    ReceiptLibrarySummary:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        name:
+          type: string
+          title: Name
+        address:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Address
+        phone:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Phone
+        email:
+          type: string
+          title: Email
+      type: object
+      required:
+      - id
+      - name
+      - address
+      - phone
+      - email
+      title: ReceiptLibrarySummary
+    ReceiptListItem:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        receiptNumber:
+          type: string
+          title: Receiptnumber
+        student:
+          $ref: '#/components/schemas/ReceiptStudentSummary'
+        feeRecordId:
+          type: string
+          format: uuid
+          title: Feerecordid
+        paymentTransactionId:
+          type: string
+          format: uuid
+          title: Paymenttransactionid
+        billingMonth:
+          type: string
+          pattern: ^\d{4}-(0[1-9]|1[0-2])$
+          title: Billingmonth
+        amount:
+          type: string
+          pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Amount
+        paymentMethod:
+          $ref: '#/components/schemas/PaymentMethod'
+        paymentReference:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Paymentreference
+        paidAt:
+          type: string
+          format: date-time
+          title: Paidat
+        issuedAt:
+          type: string
+          format: date-time
+          title: Issuedat
+        status:
+          $ref: '#/components/schemas/ReceiptStatus'
+        currency:
+          type: string
+          title: Currency
+          default: INR
+        downloadAvailable:
+          type: boolean
+          title: Downloadavailable
+          default: true
+      type: object
+      required:
+      - id
+      - receiptNumber
+      - student
+      - feeRecordId
+      - paymentTransactionId
+      - billingMonth
+      - amount
+      - paymentMethod
+      - paymentReference
+      - paidAt
+      - issuedAt
+      - status
+      title: ReceiptListItem
+    ReceiptListResponse:
+      properties:
+        message:
+          type: string
+          title: Message
+        data:
+          items:
+            $ref: '#/components/schemas/ReceiptListItem'
+          type: array
+          title: Data
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+      type: object
+      required:
+      - message
+      - data
+      - meta
+      title: ReceiptListResponse
+    ReceiptPaymentSummary:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        amount:
+          type: string
+          pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Amount
+        method:
+          $ref: '#/components/schemas/PaymentMethod'
+        referenceNumber:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Referencenumber
+        paidAt:
+          type: string
+          format: date-time
+          title: Paidat
+        recordedBy:
+          anyOf:
+          - $ref: '#/components/schemas/ReceiptActorSummary'
+          - type: 'null'
+        notes:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Notes
+      type: object
+      required:
+      - id
+      - amount
+      - method
+      - referenceNumber
+      - paidAt
+      - recordedBy
+      - notes
+      title: ReceiptPaymentSummary
+    ReceiptStatus:
+      type: string
+      enum:
+      - issued
+      - voided
+      title: ReceiptStatus
+    ReceiptStudentSummary:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        name:
+          type: string
+          title: Name
+        enrollmentNumber:
+          type: string
+          title: Enrollmentnumber
+      type: object
+      required:
+      - id
+      - name
+      - enrollmentNumber
+      title: ReceiptStudentSummary
     RefreshRequest:
       properties:
         refreshToken:
@@ -4706,6 +5378,80 @@ components:
         password: SecurePass123
         phone: '9876543210'
         seatCount: 25
+    ReminderAttemptResponse:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        feeRecordId:
+          type: string
+          format: uuid
+          title: Feerecordid
+        studentId:
+          type: string
+          format: uuid
+          title: Studentid
+        channel:
+          $ref: '#/components/schemas/ReminderChannel'
+        outcome:
+          $ref: '#/components/schemas/ReminderOutcome'
+        attemptedAt:
+          type: string
+          format: date-time
+          title: Attemptedat
+        initiatedBy:
+          anyOf:
+          - $ref: '#/components/schemas/ReceiptActorSummary'
+          - type: 'null'
+        maskedPhone:
+          type: string
+          title: Maskedphone
+        message:
+          type: string
+          title: Message
+      type: object
+      required:
+      - id
+      - feeRecordId
+      - studentId
+      - channel
+      - outcome
+      - attemptedAt
+      - initiatedBy
+      - maskedPhone
+      - message
+      title: ReminderAttemptResponse
+    ReminderChannel:
+      type: string
+      enum:
+      - whatsapp
+      - sms
+      - email
+      title: ReminderChannel
+    ReminderCreateRequest:
+      properties:
+        channel:
+          type: string
+          const: whatsapp
+          title: Channel
+          default: whatsapp
+        message:
+          anyOf:
+          - type: string
+            maxLength: 2000
+          - type: 'null'
+          title: Message
+      type: object
+      title: ReminderCreateRequest
+      examples:
+      - channel: whatsapp
+    ReminderOutcome:
+      type: string
+      enum:
+      - link_generated
+      - failed
+      title: ReminderOutcome
     SeatAllocationCreate:
       properties:
         seatId:
@@ -6015,6 +6761,24 @@ components:
       - message
       - data
       title: SuccessResponse[PaymentTransactionRecordedResponse]
+    SuccessResponse_ReceiptDetail_:
+      properties:
+        message:
+          type: string
+          title: Message
+        data:
+          $ref: '#/components/schemas/ReceiptDetail'
+        meta:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Meta
+      type: object
+      required:
+      - message
+      - data
+      title: SuccessResponse[ReceiptDetail]
     SuccessResponse_SeatAllocationCreateResponse_:
       properties:
         message:
@@ -6177,6 +6941,24 @@ components:
       - message
       - data
       title: SuccessResponse[StudentResponse]
+    SuccessResponse_WhatsAppReminderResponse_:
+      properties:
+        message:
+          type: string
+          title: Message
+        data:
+          $ref: '#/components/schemas/WhatsAppReminderResponse'
+        meta:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Meta
+      type: object
+      required:
+      - message
+      - data
+      title: SuccessResponse[WhatsAppReminderResponse]
     SuccessResponse_list_FloorResponse__:
       properties:
         message:
@@ -6344,6 +7126,18 @@ components:
       - msg
       - type
       title: ValidationError
+    WhatsAppReminderResponse:
+      properties:
+        reminder:
+          $ref: '#/components/schemas/ReminderAttemptResponse'
+        whatsappUrl:
+          type: string
+          title: Whatsappurl
+      type: object
+      required:
+      - reminder
+      - whatsappUrl
+      title: WhatsAppReminderResponse
     PaginationParams:
       examples:
       - page: 1

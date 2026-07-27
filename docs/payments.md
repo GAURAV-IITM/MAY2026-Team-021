@@ -3,9 +3,10 @@
 ## Scope
 
 Phase 3 implements owner/staff monthly fee generation, tenant-scoped payment
-lists, and append-only full or partial payment transactions. Receipts,
-reminders, refunds, scheduled generation, and student self-service payment APIs
-remain outside this phase.
+lists, and append-only full or partial payment transactions. Phase 4 adds
+automatic receipts, tenant-scoped receipt preview/download, and auditable
+WhatsApp reminder-link generation. Refunds, scheduled generation, provider
+delivery tracking, and student self-service receipt APIs remain outside scope.
 
 ## Monthly Fee Generation
 
@@ -47,8 +48,70 @@ remain outside this phase.
   visible after the final payment.
 - A reference number cannot be reused on the same fee record.
 - Payment recording writes the transaction, updates the cached fee status,
-  writes the audit event, and commits once. This boundary leaves receipt
-  creation available for a later phase without changing payment semantics.
+  issues its receipt, writes payment and receipt audit events, and commits
+  once. A receipt failure rolls back the transaction, fee status, receipt, and
+  both success audit events.
+
+## Automatic Receipts
+
+- Every completed payment transaction receives exactly one receipt. The
+  database enforces this with the unique `receipts.transaction_id` column.
+- An idempotent receipt issue call first looks up the tenant-owned transaction
+  receipt and reuses it when present.
+- Receipt numbers use
+  `{library receipt prefix}-{paid year}-{receipt UUID hex}`. This is
+  human-readable, does not depend on an unsafe row count, and is protected by
+  `uq_receipt_library_number`.
+- Each receipt stores an immutable JSON snapshot of the library identity and
+  contact details, student name and enrollment number, fee totals, billing
+  month, payment facts, remaining balance, actor, notes, and `INR` currency.
+  Later edits to a student or library do not rewrite receipt history.
+- Receipt list, preview, and PDF all read from the stored snapshot. The PDF
+  renderer does not recalculate financial values and does not mutate state.
+- ReportLab renders a server-generated PDF. Downloads require the same
+  authenticated tenant lookup as preview; there is no public URL or token in a
+  query string.
+
+### Receipt Ownership
+
+| Actor | Current-library receipt | Other-library receipt |
+| --- | --- | --- |
+| Library owner | List, preview, download | Hidden as `404` |
+| Active staff | List, preview, download | Hidden as `404` |
+| Student | Deferred to Student Portal API | Not allowed |
+| Unauthenticated user | `401` | `401` |
+
+Receipt queries constrain receipt, transaction, fee record, and student by the
+authenticated membership's `library_id` before serialisation. Future student
+routes can derive the student through the authenticated `Student.user_id`
+relationship; client-supplied student IDs must never authorise access.
+
+## WhatsApp Payment Reminders
+
+- `POST /payments/{feeRecordId}/reminders` supports only `whatsapp`.
+- The server locks and rechecks the tenant-owned fee. Only unpaid or partially
+  paid records with a positive current balance are eligible.
+- Library settings must have `whatsapp_reminders_enabled=true`.
+- Phone normalisation removes spaces, hyphens, parentheses, and one leading
+  `+`. The result must contain 8-15 digits. India (`91`) is the application
+  default country code, so a ten-digit local number such as `9876543210`
+  becomes `919876543210`. An eleven-digit Indian number beginning with the
+  domestic `0` prefix is normalised the same way. Numbers that already contain
+  an international country code remain unchanged.
+- The default message contains the student, library, billing month, current
+  balance, due date, and contact guidance. “Overdue” wording is used only when
+  the due date has passed.
+- Links use `https://wa.me/{digits}?text={encodedMessage}`.
+- A `PaymentReminder` row and audit event are committed before the URL is
+  returned. The existing database `queued` state means that link generation
+  was recorded but provider delivery is unknown. The API exposes the clearer
+  outcome `link_generated`.
+- A link being generated or opened does not prove WhatsApp opened, the
+  administrator pressed Send, or the message was delivered/read. Neither API
+  nor UI claims those outcomes.
+- Validation failures do not create a failed attempt because no usable URL was
+  generated. Legitimate repeated reminders remain separate history rows, while
+  the frontend disables duplicate in-flight submission.
 
 ## API Mapping
 
@@ -58,12 +121,17 @@ remain outside this phase.
 | Load payment history | `GET /api/v1/payments` |
 | Generate selected month | `POST /api/v1/payments/monthly-generation` |
 | Record full or partial payment | `POST /api/v1/payments/{feeRecordId}/transactions` |
+| Search/filter/page receipts | `GET /api/v1/payments/receipts` |
+| Preview immutable receipt | `GET /api/v1/payments/receipts/{receiptId}` |
+| Download authenticated PDF | `GET /api/v1/payments/receipts/{receiptId}/download` |
+| Record and create WhatsApp link | `POST /api/v1/payments/{feeRecordId}/reminders` |
 
 The Vue page calls the Pinia payment store, which calls
 `frontend/src/services/paymentService.js`, which uses the shared Axios client.
-The page never calculates authoritative payment status and has no mock fallback.
-The unfinished receipt mock is isolated in `receiptMockService.js` and is not
-used by the monthly-fee workflow.
+The page never calculates authoritative payment status and has no mock
+fallback. The admin receipt page and reminder dialog use the real API through
+the same service/store boundary. Student Portal payment mocks remain separate
+until student-facing APIs are implemented.
 
 ## Domain Error Codes
 
@@ -78,6 +146,15 @@ used by the monthly-fee workflow.
 | `PAYMENT_REFERENCE_EXISTS` | The same reference already exists on the fee. |
 | `PAYMENT_DATE_IN_FUTURE` | The payment timestamp is in the future. |
 | `PAYMENT_DUE_DATE_RANGE_INVALID` | The list due-date range is reversed. |
+| `RECEIPT_NOT_FOUND` | The receipt is missing or belongs to another library. |
+| `RECEIPT_DATE_RANGE_INVALID` | The receipt issue-date range is reversed. |
+| `RECEIPT_TRANSACTION_NOT_COMPLETED` | A non-completed transaction cannot receive a receipt. |
+| `REMINDER_PAYMENT_CLOSED` | The fee is paid, waived, or cancelled. |
+| `REMINDER_PAYMENT_ALREADY_PAID` | The recalculated balance is zero. |
+| `WHATSAPP_REMINDERS_DISABLED` | The library disabled WhatsApp reminders. |
+| `REMINDER_PHONE_MISSING` | The student has no phone number. |
+| `REMINDER_PHONE_INVALID` | The stored phone cannot form an international `wa.me` number. |
+| `REMINDER_COUNTRY_CODE_REQUIRED` | The stored number is too short for the India-default normalisation rule. |
 
 Validation errors, including invalid months, zero/negative amounts, excessive
 decimal precision, and unsupported payment methods, use `VALIDATION_ERROR`.
@@ -89,12 +166,17 @@ From the repository root:
 
 ```bash
 backend/venv/bin/pytest backend/tests/test_payment_api.py -q
+backend/venv/bin/pytest backend/tests/test_receipt_reminder_api.py -q
+backend/venv/bin/pytest backend/tests/test_receipt_reminder_rules.py -q
 backend/venv/bin/pytest backend/tests/test_payment_concurrency_postgres.py -q
 backend/venv/bin/python backend/scripts/export_openapi.py --check
 backend/venv/bin/pytest backend/tests/test_openapi_contract.py -q
 ```
 
-The PostgreSQL lock test requires `TEST_POSTGRES_DATABASE_URL`.
+The PostgreSQL lock test requires `TEST_POSTGRES_DATABASE_URL`. It verifies
+that concurrent payment attempts preserve one successful financial update,
+that each committed transaction has exactly one receipt, and that receipt
+numbers remain unique.
 
 From `frontend/`:
 

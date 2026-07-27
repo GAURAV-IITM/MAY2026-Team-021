@@ -5,7 +5,7 @@ import uuid
 from datetime import date
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, Request, status
+from fastapi import APIRouter, Depends, Query, Request, Response, status
 
 from app.api.deps import (
     CurrentTenant,
@@ -13,7 +13,7 @@ from app.api.deps import (
     Pagination,
     require_library_staff,
 )
-from app.models.enums import FeeStatus
+from app.models.enums import FeeStatus, PaymentMethod
 from app.schemas.common import PaginationMeta, SuccessResponse, error_responses
 from app.schemas.payment import (
     MonthlyFeeGenerationRequest,
@@ -22,7 +22,17 @@ from app.schemas.payment import (
     PaymentTransactionCreate,
     PaymentTransactionRecordedResponse,
 )
+from app.schemas.receipt import (
+    ReceiptDetail,
+    ReceiptListResponse,
+    ReceiptStatus,
+    ReminderCreateRequest,
+    WhatsAppReminderResponse,
+)
 from app.services import payment as payment_service
+from app.services import receipt as receipt_service
+from app.services import reminder as reminder_service
+from app.services.receipt_document import render_receipt_pdf
 from app.services.audit import AuditContext
 
 
@@ -138,6 +148,185 @@ def generate_monthly_fees(
     )
     return SuccessResponse(
         message="Monthly fee generation completed.",
+        data=result,
+    )
+
+
+@router.get(
+    "/receipts",
+    response_model=ReceiptListResponse,
+    operation_id="listPaymentReceipts",
+    summary="List payment receipts",
+    description=(
+        "Returns paginated immutable payment receipts belonging to the current "
+        "library. Search and filters are applied by the server."
+    ),
+    responses=error_responses(422),
+    openapi_extra={"x-user-stories": ["RECEIPT-LIST"]},
+)
+def list_receipts(
+    db: DatabaseSession,
+    tenant: CurrentTenant,
+    pagination: Pagination,
+    billing_month: Annotated[
+        str | None,
+        Query(
+            alias="billingMonth",
+            pattern=r"^\d{4}-(0[1-9]|1[0-2])$",
+        ),
+    ] = None,
+    payment_method: Annotated[
+        PaymentMethod | None,
+        Query(alias="paymentMethod"),
+    ] = None,
+    student_id: Annotated[
+        uuid.UUID | None,
+        Query(alias="studentId"),
+    ] = None,
+    receipt_status: Annotated[
+        ReceiptStatus | None,
+        Query(alias="status"),
+    ] = None,
+    date_from: Annotated[
+        date | None,
+        Query(alias="dateFrom"),
+    ] = None,
+    date_to: Annotated[
+        date | None,
+        Query(alias="dateTo"),
+    ] = None,
+) -> ReceiptListResponse:
+    result = receipt_service.list_receipts(
+        db,
+        tenant.library_id,
+        pagination,
+        billing_month=billing_month,
+        payment_method=payment_method,
+        student_id=student_id,
+        status=receipt_status,
+        date_from=date_from,
+        date_to=date_to,
+    )
+    return ReceiptListResponse(
+        message="Receipts fetched successfully.",
+        data=result.receipts,
+        meta=PaginationMeta(
+            page=pagination.page,
+            pageSize=pagination.page_size,
+            totalItems=result.total,
+            totalPages=(
+                math.ceil(result.total / pagination.page_size)
+                if result.total
+                else 0
+            ),
+        ),
+    )
+
+
+@router.get(
+    "/receipts/{receipt_id}",
+    response_model=SuccessResponse[ReceiptDetail],
+    operation_id="getPaymentReceipt",
+    summary="Get a payment receipt",
+    description=(
+        "Returns the immutable snapshot used for receipt preview. Receipts "
+        "outside the current library are hidden as not found."
+    ),
+    responses=error_responses(404),
+    openapi_extra={"x-user-stories": ["RECEIPT-PREVIEW"]},
+)
+def get_receipt(
+    receipt_id: uuid.UUID,
+    db: DatabaseSession,
+    tenant: CurrentTenant,
+) -> SuccessResponse[ReceiptDetail]:
+    return SuccessResponse(
+        message="Receipt fetched successfully.",
+        data=receipt_service.get_receipt(
+            db,
+            tenant.library_id,
+            receipt_id,
+        ),
+    )
+
+
+@router.get(
+    "/receipts/{receipt_id}/download",
+    response_class=Response,
+    operation_id="downloadPaymentReceipt",
+    summary="Download a payment receipt",
+    description=(
+        "Returns an authenticated PDF generated from the same immutable "
+        "snapshot used by receipt preview."
+    ),
+    responses={
+        200: {
+            "description": "Receipt PDF.",
+            "content": {"application/pdf": {}},
+            "headers": {
+                "Content-Disposition": {
+                    "description": "Suggested receipt filename.",
+                    "schema": {"type": "string"},
+                }
+            },
+        },
+        **error_responses(404, 500),
+    },
+    openapi_extra={"x-user-stories": ["RECEIPT-DOWNLOAD"]},
+)
+def download_receipt(
+    receipt_id: uuid.UUID,
+    db: DatabaseSession,
+    tenant: CurrentTenant,
+) -> Response:
+    receipt = receipt_service.get_receipt(
+        db,
+        tenant.library_id,
+        receipt_id,
+    )
+    document = render_receipt_pdf(receipt)
+    return Response(
+        content=document,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": (
+                f'attachment; filename="receipt-{receipt.receipt_number}.pdf"'
+            )
+        },
+    )
+
+
+@router.post(
+    "/{fee_record_id}/reminders",
+    response_model=SuccessResponse[WhatsAppReminderResponse],
+    status_code=status.HTTP_201_CREATED,
+    operation_id="createPaymentReminder",
+    summary="Create a WhatsApp payment reminder",
+    description=(
+        "Validates the current outstanding balance and student phone, records "
+        "an auditable link-generation attempt, then returns a wa.me URL. This "
+        "does not claim the message was sent or delivered."
+    ),
+    responses=error_responses(404, 409, 422),
+    openapi_extra={"x-user-stories": ["PAYMENT-WHATSAPP-REMINDER"]},
+)
+def create_payment_reminder(
+    fee_record_id: uuid.UUID,
+    payload: ReminderCreateRequest,
+    request: Request,
+    db: DatabaseSession,
+    tenant: CurrentTenant,
+) -> SuccessResponse[WhatsAppReminderResponse]:
+    result = reminder_service.create_whatsapp_reminder(
+        db,
+        tenant.library_id,
+        fee_record_id,
+        payload,
+        tenant.user.id,
+        audit_context=_audit_context(request),
+    )
+    return SuccessResponse(
+        message="Reminder attempt recorded and WhatsApp link generated.",
         data=result,
     )
 

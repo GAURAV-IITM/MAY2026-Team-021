@@ -1,4 +1,4 @@
-"""PostgreSQL evidence for monthly generation and payment row locks."""
+"""PostgreSQL evidence for payment locks and atomic receipt issuance."""
 from __future__ import annotations
 
 import os
@@ -18,7 +18,7 @@ from app.db.base import Base
 from app.models.enums import LibraryStatus, StudentStatus
 from app.models.identity import User
 from app.models.library import Library, LibrarySettings
-from app.models.payment import FeeRecord, PaymentTransaction
+from app.models.payment import FeeRecord, PaymentTransaction, Receipt
 from app.models.student import Student
 from app.schemas.payment import (
     MonthlyFeeGenerationRequest,
@@ -180,6 +180,16 @@ def test_postgres_locks_generation_and_payment_transactions() -> None:
             assert db.scalar(
                 select(func.count(PaymentTransaction.id))
             ) == 2
+            assert db.scalar(select(func.count(Receipt.id))) == 2
+            receipt_numbers = list(db.scalars(select(Receipt.receipt_number)))
+            assert len(receipt_numbers) == len(set(receipt_numbers))
+            transaction_ids = set(
+                db.scalars(select(PaymentTransaction.id))
+            )
+            receipt_transaction_ids = set(
+                db.scalars(select(Receipt.transaction_id))
+            )
+            assert receipt_transaction_ids == transaction_ids
     finally:
         engine.dispose()
         with admin_engine.connect() as connection:
