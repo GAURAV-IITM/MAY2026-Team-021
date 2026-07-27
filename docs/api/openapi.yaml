@@ -2593,10 +2593,12 @@ paths:
           title: Startdate
       - name: endDate
         in: query
-        required: true
+        required: false
         schema:
-          type: string
-          format: date
+          anyOf:
+          - type: string
+            format: date
+          - type: 'null'
           title: Enddate
       - name: floorId
         in: query
@@ -2674,6 +2676,325 @@ paths:
       x-user-stories:
       - STUDENT-REGISTER-SEAT
       - SEAT-AVAILABILITY
+  /api/v1/seat-allocations:
+    get:
+      tags:
+      - Seat allocations
+      summary: List Seat Allocations
+      operationId: listSeatAllocations
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: studentId
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Studentid
+      - name: seatId
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Seatid
+      - name: shiftId
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Shiftid
+      - name: status
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/AllocationStatus'
+          - type: 'null'
+          title: Status
+      - name: startDate
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date
+          - type: 'null'
+          title: Startdate
+      - name: endDate
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date
+          - type: 'null'
+          title: Enddate
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+          title: Page
+      - name: pageSize
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+          default: 20
+          title: Pagesize
+      - name: search
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            maxLength: 200
+          - type: 'null'
+          title: Search
+      - name: sortBy
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 80
+          default: createdAt
+          title: Sortby
+      - name: sortOrder
+        in: query
+        required: false
+        schema:
+          type: string
+          pattern: ^(asc|desc)$
+          default: desc
+          title: Sortorder
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedResponse_SeatAllocationResponse_'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Request validation or a business rule failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      x-user-stories:
+      - SEAT-ALLOCATION-LIST
+    post:
+      tags:
+      - Seat allocations
+      summary: Create Seat Allocation
+      operationId: createSeatAllocation
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SeatAllocationCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse_SeatAllocationCreateResponse_'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '404':
+          description: The requested resource was not found in the current scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '409':
+          description: The request conflicts with existing data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Request validation or a business rule failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      x-user-stories:
+      - SEAT-ALLOCATION-CREATE
+  /api/v1/seat-allocations/{allocation_id}/status:
+    patch:
+      tags:
+      - Seat allocations
+      summary: Close Seat Allocation
+      operationId: closeSeatAllocation
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: allocation_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Allocation Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SeatAllocationStatusUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse_SeatAllocationResponse_'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '404':
+          description: The requested resource was not found in the current scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '409':
+          description: The request conflicts with existing data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Request validation or a business rule failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      x-user-stories:
+      - SEAT-ALLOCATION-CLOSE
   /api/v1/settings/library:
     get:
       tags:
@@ -2870,6 +3191,69 @@ components:
       - message
       - email
       title: AcceptInvitationResponse
+    AllocationActorSummary:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        name:
+          type: string
+          title: Name
+      type: object
+      required:
+      - id
+      - name
+      title: AllocationActorSummary
+    AllocationSeatSummary:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        seatNumber:
+          type: string
+          title: Seatnumber
+        floorId:
+          type: string
+          format: uuid
+          title: Floorid
+        floorName:
+          type: string
+          title: Floorname
+      type: object
+      required:
+      - id
+      - seatNumber
+      - floorId
+      - floorName
+      title: AllocationSeatSummary
+    AllocationShiftSummary:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        name:
+          type: string
+          title: Name
+        startTime:
+          type: string
+          title: Starttime
+        endTime:
+          type: string
+          title: Endtime
+        crossesMidnight:
+          type: boolean
+          title: Crossesmidnight
+      type: object
+      required:
+      - id
+      - name
+      - startTime
+      - endTime
+      - crossesMidnight
+      title: AllocationShiftSummary
     AllocationStatus:
       type: string
       enum:
@@ -2877,6 +3261,28 @@ components:
       - completed
       - cancelled
       title: AllocationStatus
+    AllocationStudentSummary:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        enrollmentNumber:
+          type: string
+          title: Enrollmentnumber
+        name:
+          type: string
+          title: Name
+        status:
+          type: string
+          title: Status
+      type: object
+      required:
+      - id
+      - enrollmentNumber
+      - name
+      - status
+      title: AllocationStudentSummary
     AuthResponse:
       properties:
         accessToken:
@@ -3460,6 +3866,24 @@ components:
       title: MessageResponse
       examples:
       - message: Operation completed successfully.
+    PaginatedResponse_SeatAllocationResponse_:
+      properties:
+        message:
+          type: string
+          title: Message
+        data:
+          items:
+            $ref: '#/components/schemas/SeatAllocationResponse'
+          type: array
+          title: Data
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+      type: object
+      required:
+      - message
+      - data
+      - meta
+      title: PaginatedResponse[SeatAllocationResponse]
     PaginatedResponse_StudentResponse_:
       properties:
         message:
@@ -3575,6 +3999,166 @@ components:
         password: SecurePass123
         phone: '9876543210'
         seatCount: 25
+    SeatAllocationCreate:
+      properties:
+        seatId:
+          type: string
+          format: uuid
+          title: Seatid
+        shiftIds:
+          items:
+            type: string
+            format: uuid
+          type: array
+          maxItems: 24
+          minItems: 1
+          title: Shiftids
+        startDate:
+          type: string
+          format: date
+          title: Startdate
+        endDate:
+          type: string
+          format: date
+          title: Enddate
+        notes:
+          anyOf:
+          - type: string
+            maxLength: 2000
+          - type: 'null'
+          title: Notes
+        studentId:
+          type: string
+          format: uuid
+          title: Studentid
+      type: object
+      required:
+      - seatId
+      - shiftIds
+      - startDate
+      - endDate
+      - studentId
+      title: SeatAllocationCreate
+    SeatAllocationCreateResponse:
+      properties:
+        allocationCount:
+          type: integer
+          title: Allocationcount
+        allocations:
+          items:
+            $ref: '#/components/schemas/SeatAllocationResponse'
+          type: array
+          title: Allocations
+      type: object
+      required:
+      - allocationCount
+      - allocations
+      title: SeatAllocationCreateResponse
+    SeatAllocationResponse:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        libraryId:
+          type: string
+          format: uuid
+          title: Libraryid
+        student:
+          $ref: '#/components/schemas/AllocationStudentSummary'
+        seat:
+          $ref: '#/components/schemas/AllocationSeatSummary'
+        shift:
+          $ref: '#/components/schemas/AllocationShiftSummary'
+        startDate:
+          type: string
+          format: date
+          title: Startdate
+        endDate:
+          type: string
+          format: date
+          title: Enddate
+        status:
+          $ref: '#/components/schemas/AllocationStatus'
+        notes:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Notes
+        closeReason:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Closereason
+        allocatedAt:
+          type: string
+          format: date-time
+          title: Allocatedat
+        closedAt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Closedat
+        allocatedBy:
+          anyOf:
+          - $ref: '#/components/schemas/AllocationActorSummary'
+          - type: 'null'
+        closedBy:
+          anyOf:
+          - $ref: '#/components/schemas/AllocationActorSummary'
+          - type: 'null'
+        previousAllocationId:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Previousallocationid
+        transferGroupId:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Transfergroupid
+      type: object
+      required:
+      - id
+      - libraryId
+      - student
+      - seat
+      - shift
+      - startDate
+      - endDate
+      - status
+      - notes
+      - closeReason
+      - allocatedAt
+      - closedAt
+      title: SeatAllocationResponse
+    SeatAllocationStatusUpdate:
+      properties:
+        status:
+          type: string
+          enum:
+          - completed
+          - cancelled
+          title: Status
+        effectiveEndDate:
+          anyOf:
+          - type: string
+            format: date
+          - type: 'null'
+          title: Effectiveenddate
+        closeReason:
+          type: string
+          maxLength: 2000
+          minLength: 1
+          title: Closereason
+      type: object
+      required:
+      - status
+      - closeReason
+      title: SeatAllocationStatusUpdate
     SeatAvailabilityBlockerResponse:
       properties:
         allocationId:
@@ -3643,6 +4227,8 @@ components:
         availableSeatCount:
           type: integer
           title: Availableseatcount
+        summary:
+          $ref: '#/components/schemas/SeatAvailabilitySummaryResponse'
         seats:
           items:
             $ref: '#/components/schemas/SeatAvailabilitySeatResponse'
@@ -3655,6 +4241,7 @@ components:
       - endDate
       - totalSeats
       - availableSeatCount
+      - summary
       - seats
       title: SeatAvailabilityResponse
     SeatAvailabilitySeatResponse:
@@ -3678,6 +4265,10 @@ components:
           - type: integer
           - type: 'null'
           title: Floor
+        seatType:
+          $ref: '#/components/schemas/SeatType'
+        physicalStatus:
+          $ref: '#/components/schemas/SeatOperationalStatus'
         status:
           type: string
           enum:
@@ -3686,6 +4277,7 @@ components:
           - reserved
           - blocked
           - maintenance
+          - physically_blocked
           title: Status
         isAvailable:
           type: boolean
@@ -3707,9 +4299,39 @@ components:
       - floorId
       - floorName
       - floor
+      - seatType
+      - physicalStatus
       - status
       - isAvailable
       title: SeatAvailabilitySeatResponse
+    SeatAvailabilitySummaryResponse:
+      properties:
+        available:
+          type: integer
+          title: Available
+          default: 0
+        allotted:
+          type: integer
+          title: Allotted
+          default: 0
+        reserved:
+          type: integer
+          title: Reserved
+          default: 0
+        blocked:
+          type: integer
+          title: Blocked
+          default: 0
+        maintenance:
+          type: integer
+          title: Maintenance
+          default: 0
+        physicallyBlocked:
+          type: integer
+          title: Physicallyblocked
+          default: 0
+      type: object
+      title: SeatAvailabilitySummaryResponse
     SeatCreate:
       properties:
         seatNumber:
@@ -4650,6 +5272,42 @@ components:
       - message
       - data
       title: SuccessResponse[LibrarySettingsResponse]
+    SuccessResponse_SeatAllocationCreateResponse_:
+      properties:
+        message:
+          type: string
+          title: Message
+        data:
+          $ref: '#/components/schemas/SeatAllocationCreateResponse'
+        meta:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Meta
+      type: object
+      required:
+      - message
+      - data
+      title: SuccessResponse[SeatAllocationCreateResponse]
+    SuccessResponse_SeatAllocationResponse_:
+      properties:
+        message:
+          type: string
+          title: Message
+        data:
+          $ref: '#/components/schemas/SeatAllocationResponse'
+        meta:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Meta
+      type: object
+      required:
+      - message
+      - data
+      title: SuccessResponse[SeatAllocationResponse]
     SuccessResponse_SeatAvailabilityResponse_:
       properties:
         message:

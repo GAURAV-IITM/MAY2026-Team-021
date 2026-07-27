@@ -14,13 +14,24 @@ from app.models.student import Student
 from app.repositories import allocation as repository
 from app.repositories import seat as seat_repository
 from app.schemas.allocation import (
+    AllocationActorSummary,
+    AllocationSeatSummary,
+    AllocationShiftSummary,
+    AllocationStudentSummary,
+    SeatAllocationCreate,
+    SeatAllocationCreateResponse,
+    SeatAllocationResponse,
+    SeatAllocationStatusUpdate,
     SeatAvailabilityBlockerResponse,
     SeatAvailabilityResponse,
     SeatAvailabilitySeatResponse,
+    SeatAvailabilitySummaryResponse,
     StudentSeatAllocationChange,
     StudentSeatAllocationCreate,
     StudentSeatAssignmentResponse,
 )
+from app.schemas.common import PaginationParams
+from app.services import audit as audit_service
 
 
 def _minute(value: time) -> int:
@@ -59,13 +70,19 @@ def _require_active_shifts(
     db: Session,
     library_id: uuid.UUID,
     shift_ids: list[uuid.UUID],
+    *,
+    lock: bool = False,
 ) -> list[Shift]:
     if not shift_ids:
         raise BusinessRuleError(
             "Select at least one shift.",
             code="ALLOCATION_SHIFT_REQUIRED",
         )
-    shifts = repository.list_active_shifts_by_ids(db, library_id, shift_ids)
+    shifts = (
+        repository.lock_active_shifts_by_ids(db, library_id, shift_ids)
+        if lock
+        else repository.list_active_shifts_by_ids(db, library_id, shift_ids)
+    )
     shifts_by_id = {shift.id: shift for shift in shifts}
     if len(shifts_by_id) != len(shift_ids):
         raise BusinessRuleError(
@@ -101,6 +118,15 @@ def _ensure_valid_range(start_date: date, end_date: date) -> None:
             "Allocation end date cannot be earlier than start date.",
             code="ALLOCATION_DATE_RANGE_INVALID",
         )
+
+
+def date_ranges_overlap(
+    first_start: date,
+    first_end: date,
+    second_start: date,
+    second_end: date,
+) -> bool:
+    return first_start <= second_end and first_end >= second_start
 
 
 def _allocation_overlaps_shifts(
@@ -190,10 +216,14 @@ def get_seat_availability(
             for allocation in allocations_by_seat[seat.id]
             if _allocation_overlaps_shifts(allocation, shifts)
         ]
-        if not seat.is_active or seat.operational_status == SeatOperationalStatus.BLOCKED:
-            availability_status = "blocked"
-        elif seat.operational_status == SeatOperationalStatus.MAINTENANCE:
+        if seat.operational_status == SeatOperationalStatus.MAINTENANCE:
             availability_status = "maintenance"
+        elif (
+            not seat.is_active
+            or not seat.floor.is_active
+            or seat.operational_status == SeatOperationalStatus.BLOCKED
+        ):
+            availability_status = "physically_blocked"
         elif blockers:
             exact_shift_blockers = [
                 allocation
@@ -220,18 +250,32 @@ def get_seat_availability(
                 floor_id=seat.floor_id,
                 floor_name=seat.floor.name,
                 floor=seat.floor.level_number,
+                seat_type=seat.seat_type,
+                physical_status=seat.operational_status,
                 status=availability_status,
                 is_available=availability_status == "available",
                 status_note=seat.status_note,
                 blockers=[_blocker_response(allocation) for allocation in blockers],
             )
         )
+    summary_counts = {
+        status: sum(seat.status == status for seat in seat_results)
+        for status in (
+            "available",
+            "allotted",
+            "reserved",
+            "blocked",
+            "maintenance",
+            "physically_blocked",
+        )
+    }
     return SeatAvailabilityResponse(
         shift_ids=[shift.id for shift in shifts],
         start_date=start_date,
         end_date=end_date,
         total_seats=len(seat_results),
         available_seat_count=sum(seat.is_available for seat in seat_results),
+        summary=SeatAvailabilitySummaryResponse(**summary_counts),
         seats=seat_results,
     )
 
@@ -252,12 +296,15 @@ def _seat_conflict_error(
         f"{allocation.end_date.isoformat()} during {allocation.shift_name}.",
         code="SEAT_ALLOCATION_CONFLICT",
         details={
+            "allocationId": str(allocation.id),
             "seatId": str(seat.id),
             "seatNumber": seat.seat_number,
             "studentId": str(allocation.student_id),
             "studentName": student_name,
             "shiftId": str(allocation.shift_id),
             "shiftName": allocation.shift_name,
+            "shiftStartTime": allocation.shift_start_time.strftime("%H:%M"),
+            "shiftEndTime": allocation.shift_end_time.strftime("%H:%M"),
             "startDate": allocation.start_date.isoformat(),
             "endDate": allocation.end_date.isoformat(),
         },
@@ -273,30 +320,31 @@ def create_student_allocations(
     *,
     previous_allocation_id: uuid.UUID | None = None,
     transfer_group_id: uuid.UUID | None = None,
+    audit_context: audit_service.AuditContext | None = None,
 ) -> list[SeatAllocation]:
     _ensure_valid_range(payload.start_date, payload.end_date)
-    if student.status != StudentStatus.ACTIVE:
-        raise BusinessRuleError(
-            "Only active students can be assigned a seat.",
-            code="STUDENT_NOT_ACTIVE",
-        )
-    if payload.start_date < student.joined_on:
-        raise BusinessRuleError(
-            "Seat allocation cannot start before the student's joining date.",
-            code="ALLOCATION_BEFORE_JOINING_DATE",
-        )
     if payload.end_date < date.today():
         raise BusinessRuleError(
             "A new active seat allocation cannot end in the past.",
             code="ALLOCATION_END_DATE_IN_PAST",
         )
 
-    locked_student = repository.lock_student(db, library_id, student.id)
-    if locked_student is None:
-        raise ResourceNotFoundError("Student not found.", code="STUDENT_NOT_FOUND")
     seat = repository.lock_seat(db, library_id, payload.seat_id)
     if seat is None:
         raise ResourceNotFoundError("Seat not found.", code="SEAT_NOT_FOUND")
+    locked_student = repository.lock_student(db, library_id, student.id)
+    if locked_student is None:
+        raise ResourceNotFoundError("Student not found.", code="STUDENT_NOT_FOUND")
+    if locked_student.status != StudentStatus.ACTIVE:
+        raise BusinessRuleError(
+            "Only active students can be assigned a seat.",
+            code="STUDENT_NOT_ACTIVE",
+        )
+    if payload.start_date < locked_student.joined_on:
+        raise BusinessRuleError(
+            "Seat allocation cannot start before the student's joining date.",
+            code="ALLOCATION_BEFORE_JOINING_DATE",
+        )
     if not seat.is_active or not seat.floor.is_active:
         raise BusinessRuleError(
             "The selected seat and floor must be active.",
@@ -314,7 +362,12 @@ def create_student_allocations(
             },
         )
 
-    shifts = _require_active_shifts(db, library_id, payload.shift_ids)
+    shifts = _require_active_shifts(
+        db,
+        library_id,
+        payload.shift_ids,
+        lock=True,
+    )
     seat_conflicts = repository.lock_seat_conflicts(
         db,
         library_id,
@@ -351,6 +404,7 @@ def create_student_allocations(
                 },
             )
 
+    allocation_group_id = transfer_group_id or uuid.uuid4()
     allocations = [
         SeatAllocation(
             library_id=library_id,
@@ -364,15 +418,36 @@ def create_student_allocations(
             shift_start_time=shift.start_time,
             shift_end_time=shift.end_time,
             shift_crosses_midnight=shift.crosses_midnight,
+            seat_number_snapshot=seat.seat_number,
+            floor_id_snapshot=seat.floor_id,
+            floor_name_snapshot=seat.floor.name,
             notes=payload.notes.strip() if payload.notes else None,
             allocated_by_user_id=allocated_by_user_id,
             previous_allocation_id=previous_allocation_id,
-            transfer_group_id=transfer_group_id,
+            transfer_group_id=allocation_group_id,
         )
         for shift in shifts
     ]
     db.add_all(allocations)
     db.flush()
+    audit_service.write_audit_log(
+        db,
+        library_id=library_id,
+        actor_user_id=allocated_by_user_id,
+        action="seat_allocation.created",
+        entity_type="seat_allocation_group",
+        entity_id=str(allocation_group_id),
+        new_values={
+            "allocationIds": [str(allocation.id) for allocation in allocations],
+            "studentId": str(locked_student.id),
+            "seatId": str(seat.id),
+            "shiftIds": [str(shift.id) for shift in shifts],
+            "startDate": payload.start_date.isoformat(),
+            "endDate": payload.end_date.isoformat(),
+        },
+        context={"notes": payload.notes},
+        request_context=audit_context,
+    )
     return allocations
 
 
@@ -384,6 +459,7 @@ def close_student_allocations(
     *,
     effective_date: date | None = None,
     reason: str | None = None,
+    audit_context: audit_service.AuditContext | None = None,
 ) -> list[SeatAllocation]:
     transition_date = effective_date or date.today()
     allocations = repository.lock_active_student_allocations(
@@ -396,6 +472,11 @@ def close_student_allocations(
         if allocation.end_date < transition_date:
             continue
 
+        old_values = {
+            "status": allocation.status.value,
+            "endDate": allocation.end_date.isoformat(),
+            "closeReason": allocation.close_reason,
+        }
         if allocation.start_date >= transition_date:
             allocation.status = AllocationStatus.CANCELLED
             allocation.closed_at = datetime.now(timezone.utc)
@@ -412,6 +493,25 @@ def close_student_allocations(
         )
         allocation.closed_by_user_id = closed_by_user_id
         changed.append(allocation)
+        audit_service.write_audit_log(
+            db,
+            library_id=library_id,
+            actor_user_id=closed_by_user_id,
+            action=(
+                f"seat_allocation.{allocation.status.value}"
+                if allocation.status != AllocationStatus.ACTIVE
+                else "seat_allocation.scheduled_close"
+            ),
+            entity_type="seat_allocation",
+            entity_id=str(allocation.id),
+            old_values=old_values,
+            new_values={
+                "status": allocation.status.value,
+                "endDate": allocation.end_date.isoformat(),
+                "closeReason": allocation.close_reason,
+            },
+            request_context=audit_context,
+        )
     db.flush()
     return changed
 
@@ -422,6 +522,7 @@ def apply_student_allocation_change(
     student: Student,
     change: StudentSeatAllocationChange,
     changed_by_user_id: uuid.UUID,
+    audit_context: audit_service.AuditContext | None = None,
 ) -> list[SeatAllocation]:
     reason = change.reason or (
         "Seat allocation removed during student update."
@@ -435,6 +536,7 @@ def apply_student_allocation_change(
             student.id,
             changed_by_user_id,
             reason=reason,
+            audit_context=audit_context,
         )
         return []
 
@@ -451,6 +553,7 @@ def apply_student_allocation_change(
         changed_by_user_id,
         effective_date=replacement.start_date,
         reason=reason,
+        audit_context=audit_context,
     )
     transfer_group_id = uuid.uuid4()
     return create_student_allocations(
@@ -465,7 +568,208 @@ def apply_student_allocation_change(
             else None
         ),
         transfer_group_id=transfer_group_id,
+        audit_context=audit_context,
     )
+
+
+def _actor_summary(actor) -> AllocationActorSummary | None:
+    if actor is None:
+        return None
+    return AllocationActorSummary(id=actor.id, name=actor.full_name)
+
+
+def allocation_response(
+    allocation: SeatAllocation,
+) -> SeatAllocationResponse:
+    student_name = " ".join(
+        (allocation.student.first_name, allocation.student.last_name)
+    ).strip()
+    return SeatAllocationResponse(
+        id=allocation.id,
+        library_id=allocation.library_id,
+        student=AllocationStudentSummary(
+            id=allocation.student_id,
+            enrollment_number=allocation.student.enrollment_number,
+            name=student_name,
+            status=allocation.student.status.value,
+        ),
+        seat=AllocationSeatSummary(
+            id=allocation.seat_id,
+            seat_number=(
+                allocation.seat_number_snapshot
+                or allocation.seat.seat_number
+            ),
+            floor_id=(
+                allocation.floor_id_snapshot
+                or allocation.seat.floor_id
+            ),
+            floor_name=(
+                allocation.floor_name_snapshot
+                or allocation.seat.floor.name
+            ),
+        ),
+        shift=AllocationShiftSummary(
+            id=allocation.shift_id,
+            name=allocation.shift_name,
+            start_time=allocation.shift_start_time.strftime("%H:%M"),
+            end_time=allocation.shift_end_time.strftime("%H:%M"),
+            crosses_midnight=allocation.shift_crosses_midnight,
+        ),
+        start_date=allocation.start_date,
+        end_date=allocation.end_date,
+        status=allocation.status,
+        notes=allocation.notes,
+        close_reason=allocation.close_reason,
+        allocated_at=allocation.allocated_at,
+        closed_at=allocation.closed_at,
+        allocated_by=_actor_summary(allocation.allocated_by),
+        closed_by=_actor_summary(allocation.closed_by),
+        previous_allocation_id=allocation.previous_allocation_id,
+        transfer_group_id=allocation.transfer_group_id,
+    )
+
+
+def list_allocations(
+    db: Session,
+    library_id: uuid.UUID,
+    pagination: PaginationParams,
+    *,
+    student_id: uuid.UUID | None = None,
+    seat_id: uuid.UUID | None = None,
+    shift_id: uuid.UUID | None = None,
+    status: AllocationStatus | None = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
+) -> tuple[list[SeatAllocationResponse], int]:
+    if start_date is not None and end_date is not None:
+        _ensure_valid_range(start_date, end_date)
+    allocations, total = repository.list_allocations(
+        db,
+        library_id,
+        pagination,
+        student_id=student_id,
+        seat_id=seat_id,
+        shift_id=shift_id,
+        status=status,
+        start_date=start_date,
+        end_date=end_date,
+    )
+    return [allocation_response(item) for item in allocations], total
+
+
+def create_allocations(
+    db: Session,
+    library_id: uuid.UUID,
+    payload: SeatAllocationCreate,
+    allocated_by_user_id: uuid.UUID,
+    *,
+    audit_context: audit_service.AuditContext | None = None,
+) -> SeatAllocationCreateResponse:
+    student = repository.get_student(db, library_id, payload.student_id)
+    if student is None:
+        raise ResourceNotFoundError("Student not found.", code="STUDENT_NOT_FOUND")
+    allocation_payload = StudentSeatAllocationCreate(
+        seat_id=payload.seat_id,
+        shift_ids=payload.shift_ids,
+        start_date=payload.start_date,
+        end_date=payload.end_date,
+        notes=payload.notes,
+    )
+    try:
+        allocations = create_student_allocations(
+            db,
+            library_id,
+            student,
+            allocation_payload,
+            allocated_by_user_id,
+            audit_context=audit_context,
+        )
+        db.commit()
+        return SeatAllocationCreateResponse(
+            allocation_count=len(allocations),
+            allocations=[allocation_response(item) for item in allocations],
+        )
+    except Exception:
+        db.rollback()
+        raise
+
+
+def close_allocation(
+    db: Session,
+    library_id: uuid.UUID,
+    allocation_id: uuid.UUID,
+    payload: SeatAllocationStatusUpdate,
+    closed_by_user_id: uuid.UUID,
+    *,
+    audit_context: audit_service.AuditContext | None = None,
+) -> SeatAllocationResponse:
+    allocation = repository.lock_allocation(db, library_id, allocation_id)
+    if allocation is None:
+        raise ResourceNotFoundError(
+            "Seat allocation not found.",
+            code="SEAT_ALLOCATION_NOT_FOUND",
+        )
+    if allocation.status != AllocationStatus.ACTIVE:
+        raise ConflictError(
+            "Only an active allocation can be completed or cancelled.",
+            code="ALLOCATION_ALREADY_CLOSED",
+            details={
+                "allocationId": str(allocation.id),
+                "currentStatus": allocation.status.value,
+            },
+        )
+
+    effective_end_date = payload.effective_end_date or date.today()
+    if effective_end_date > allocation.end_date:
+        raise BusinessRuleError(
+            "Effective end date cannot be after the allocation end date.",
+            code="ALLOCATION_EFFECTIVE_END_INVALID",
+        )
+    if (
+        payload.status == AllocationStatus.COMPLETED
+        and (
+            effective_end_date < allocation.start_date
+            or effective_end_date > date.today()
+        )
+    ):
+        raise BusinessRuleError(
+            "A completed allocation must end between its start date and today.",
+            code="ALLOCATION_EFFECTIVE_END_INVALID",
+        )
+
+    old_values = {
+        "status": allocation.status.value,
+        "endDate": allocation.end_date.isoformat(),
+        "closeReason": allocation.close_reason,
+    }
+    if effective_end_date >= allocation.start_date:
+        allocation.end_date = effective_end_date
+    allocation.status = payload.status
+    allocation.close_reason = payload.close_reason.strip()
+    allocation.closed_by_user_id = closed_by_user_id
+    allocation.closed_at = datetime.now(timezone.utc)
+    audit_service.write_audit_log(
+        db,
+        library_id=library_id,
+        actor_user_id=closed_by_user_id,
+        action=f"seat_allocation.{payload.status.value}",
+        entity_type="seat_allocation",
+        entity_id=str(allocation.id),
+        old_values=old_values,
+        new_values={
+            "status": allocation.status.value,
+            "endDate": allocation.end_date.isoformat(),
+            "closeReason": allocation.close_reason,
+        },
+        request_context=audit_context,
+    )
+    try:
+        db.commit()
+        db.refresh(allocation)
+        return allocation_response(allocation)
+    except Exception:
+        db.rollback()
+        raise
 
 
 def student_seat_assignments(

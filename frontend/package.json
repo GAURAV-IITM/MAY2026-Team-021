@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node --test tests/*.test.js",
+    "test": "npm run test:services && npm run test:components",
+    "test:services": "node --test tests/*.test.js",
+    "test:components": "vitest run",
     "lint": "eslint .",
     "format": "prettier --write ."
   },
@@ -24,11 +26,14 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@vitejs/plugin-vue": "^6.0.6",
+    "@vue/test-utils": "^2.4.11",
     "eslint": "^10.6.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-vue": "^10.9.2",
     "globals": "^17.7.0",
+    "jsdom": "^29.1.1",
     "prettier": "^3.9.4",
-    "vite": "^8.0.12"
+    "vite": "^8.0.12",
+    "vitest": "^4.1.10"
   }
 }
