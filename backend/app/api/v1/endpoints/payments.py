@@ -7,13 +7,17 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, Request, Response, status
 
+from sqlalchemy import select
+from decimal import Decimal
+
 from app.api.deps import (
     CurrentTenant,
     DatabaseSession,
     Pagination,
     require_library_staff,
+    CurrentStudent,
 )
-from app.models.enums import FeeStatus, PaymentMethod
+from app.models.enums import FeeStatus, PaymentMethod, RoleName, PaymentTransactionStatus
 from app.schemas.common import PaginationMeta, SuccessResponse, error_responses
 from app.schemas.payment import (
     MonthlyFeeGenerationRequest,
@@ -29,6 +33,12 @@ from app.schemas.receipt import (
     ReminderCreateRequest,
     WhatsAppReminderResponse,
 )
+from app.schemas.student_portal import (
+    StudentFeesResponse,
+    StudentFeeSummary,
+    StudentFeeItem,
+    StudentTransactionItem,
+)
 from app.services import payment as payment_service
 from app.services import receipt as receipt_service
 from app.services import reminder as reminder_service
@@ -37,7 +47,6 @@ from app.services.audit import AuditContext
 
 
 router = APIRouter(
-    dependencies=[Depends(require_library_staff)],
     responses=error_responses(401, 403, 500),
 )
 
@@ -51,9 +60,137 @@ def _audit_context(request: Request) -> AuditContext:
 
 
 @router.get(
+    "/me",
+    response_model=SuccessResponse[StudentFeesResponse],
+    operation_id="getStudentFees",
+    summary="Get own fee summary",
+    description="Returns the authenticated student's own monthly fees and payment history.",
+    responses=error_responses(404),
+    openapi_extra={"x-user-stories": ["STUDENT-PORTAL-FEES-VIEW"]},
+)
+def get_own_fees(
+    db: DatabaseSession,
+    student_ctx: CurrentStudent,
+) -> SuccessResponse[StudentFeesResponse]:
+    from app.models.payment import FeeRecord
+    
+    fee_records = db.scalars(
+        select(FeeRecord)
+        .where(
+            FeeRecord.student_id == student_ctx.student_id,
+            FeeRecord.library_id == student_ctx.library_id,
+        )
+        .order_by(FeeRecord.billing_month.desc())
+    ).all()
+    
+    payments = []
+    total_paid = Decimal("0.00")
+    total_outstanding = Decimal("0.00")
+    paid_count = 0
+    unpaid_count = 0
+    
+    for fee in fee_records:
+        completed_txs = [tx for tx in fee.transactions if tx.status == PaymentTransactionStatus.COMPLETED]
+        completed_txs.sort(key=lambda x: x.paid_at, reverse=True)
+        latest_tx = completed_txs[0] if completed_txs else None
+        
+        paid_amount = sum(tx.amount for tx in completed_txs)
+        remaining_balance = max(fee.total_amount - paid_amount, Decimal("0.00"))
+        
+        txs_items = [
+            StudentTransactionItem(
+                id=tx.id,
+                amount=tx.amount,
+                method=tx.method,
+                paid_at=tx.paid_at,
+            )
+            for tx in completed_txs
+        ]
+        
+        item = StudentFeeItem(
+            id=fee.id,
+            billing_month=fee.billing_month.strftime("%Y-%m"),
+            due_date=fee.due_date,
+            total_amount=fee.total_amount,
+            paid_amount=paid_amount,
+            remaining_balance=remaining_balance,
+            status=fee.status,
+            transactions=txs_items,
+        )
+        payments.append(item)
+        
+        total_paid += paid_amount
+        if fee.status in (FeeStatus.UNPAID, FeeStatus.PARTIALLY_PAID):
+            total_outstanding += remaining_balance
+            unpaid_count += 1
+        elif fee.status == FeeStatus.PAID:
+            paid_count += 1
+            
+    current_payment = payments[0] if payments else None
+    next_due_date = fee_records[0].due_date if fee_records else None
+    
+    summary = StudentFeeSummary(
+        current_payment=current_payment,
+        payments=payments,
+        total_paid=total_paid,
+        total_outstanding=total_outstanding,
+        paid_count=paid_count,
+        unpaid_count=unpaid_count,
+        next_due_date=next_due_date,
+    )
+    
+    return SuccessResponse(
+        message="Fees fetched successfully.",
+        data=StudentFeesResponse(fee_summary=summary),
+    )
+
+
+@router.get(
+    "/receipts/me",
+    response_model=ReceiptListResponse,
+    operation_id="listStudentReceipts",
+    summary="List student's own receipts",
+    description="Returns paginated payment receipts belonging to the authenticated student.",
+    responses=error_responses(422),
+    openapi_extra={"x-user-stories": ["STUDENT-PORTAL-RECEIPTS-LIST"]},
+)
+def list_student_receipts(
+    db: DatabaseSession,
+    student_ctx: CurrentStudent,
+    pagination: Pagination,
+    billing_month: Annotated[
+        str | None,
+        Query(alias="billingMonth", pattern="^\\d{4}-\\d{2}$"),
+    ] = None,
+) -> ReceiptListResponse:
+    result = receipt_service.list_receipts(
+        db,
+        student_ctx.library_id,
+        pagination,
+        billing_month=billing_month,
+        student_id=student_ctx.student_id,
+    )
+    return ReceiptListResponse(
+        message="Receipts fetched successfully.",
+        data=result.receipts,
+        meta=PaginationMeta(
+            page=pagination.page,
+            pageSize=pagination.page_size,
+            totalItems=result.total,
+            totalPages=(
+                math.ceil(result.total / pagination.page_size)
+                if result.total
+                else 0
+            ),
+        ),
+    )
+
+
+@router.get(
     "",
     response_model=PaymentListResponse,
     operation_id="listPayments",
+    dependencies=[Depends(require_library_staff)],
     summary="List monthly fee records",
     description=(
         "Returns tenant-scoped monthly fee records with server-calculated "
@@ -68,7 +205,10 @@ def list_payments(
     pagination: Pagination,
     month: Annotated[
         str | None,
-        Query(pattern=r"^\d{4}-(0[1-9]|1[0-2])$"),
+        Query(
+            alias="billingMonth",
+            pattern=r"^\d{4}-(0[1-9]|1[0-2])$",
+        ),
     ] = None,
     payment_status: Annotated[
         FeeStatus | None,
@@ -78,32 +218,17 @@ def list_payments(
         uuid.UUID | None,
         Query(alias="studentId"),
     ] = None,
-    due_date_from: Annotated[
-        date | None,
-        Query(alias="dueDateFrom"),
-    ] = None,
-    due_date_to: Annotated[
-        date | None,
-        Query(alias="dueDateTo"),
-    ] = None,
-    has_transactions: Annotated[
-        bool | None,
-        Query(alias="hasTransactions"),
-    ] = None,
 ) -> PaymentListResponse:
     result = payment_service.list_payments(
         db,
         tenant.library_id,
         pagination,
-        month=month,
+        billing_month=month,
         status=payment_status,
         student_id=student_id,
-        due_date_from=due_date_from,
-        due_date_to=due_date_to,
-        has_transactions=has_transactions,
     )
     return PaymentListResponse(
-        message="Payments fetched successfully.",
+        message="Monthly fee records fetched successfully.",
         data=result.payments,
         meta=PaginationMeta(
             page=pagination.page,
@@ -124,6 +249,7 @@ def list_payments(
     response_model=SuccessResponse[MonthlyFeeGenerationResponse],
     status_code=status.HTTP_201_CREATED,
     operation_id="generateMonthlyFees",
+    dependencies=[Depends(require_library_staff)],
     summary="Generate monthly fee records",
     description=(
         "Idempotently creates one fee record for each eligible active student. "
@@ -156,6 +282,7 @@ def generate_monthly_fees(
     "/receipts",
     response_model=ReceiptListResponse,
     operation_id="listPaymentReceipts",
+    dependencies=[Depends(require_library_staff)],
     summary="List payment receipts",
     description=(
         "Returns paginated immutable payment receipts belonging to the current "
@@ -240,13 +367,28 @@ def get_receipt(
     db: DatabaseSession,
     tenant: CurrentTenant,
 ) -> SuccessResponse[ReceiptDetail]:
+    receipt = receipt_service.get_receipt(
+        db,
+        tenant.library_id,
+        receipt_id,
+    )
+    if tenant.role == RoleName.STUDENT:
+        from app.models.student import Student
+        student = db.scalar(
+            select(Student).where(
+                Student.user_id == tenant.user.id,
+                Student.library_id == tenant.library_id,
+                Student.deleted_at.is_(None),
+            )
+        )
+        if student is None or receipt.student.id != student.id:
+            raise ResourceNotFoundError(
+                "Receipt not found.",
+                code="RECEIPT_NOT_FOUND",
+            )
     return SuccessResponse(
         message="Receipt fetched successfully.",
-        data=receipt_service.get_receipt(
-            db,
-            tenant.library_id,
-            receipt_id,
-        ),
+        data=receipt,
     )
 
 
@@ -284,6 +426,20 @@ def download_receipt(
         tenant.library_id,
         receipt_id,
     )
+    if tenant.role == RoleName.STUDENT:
+        from app.models.student import Student
+        student = db.scalar(
+            select(Student).where(
+                Student.user_id == tenant.user.id,
+                Student.library_id == tenant.library_id,
+                Student.deleted_at.is_(None),
+            )
+        )
+        if student is None or receipt.student.id != student.id:
+            raise ResourceNotFoundError(
+                "Receipt not found.",
+                code="RECEIPT_NOT_FOUND",
+            )
     document = render_receipt_pdf(receipt)
     return Response(
         content=document,
@@ -301,6 +457,7 @@ def download_receipt(
     response_model=SuccessResponse[WhatsAppReminderResponse],
     status_code=status.HTTP_201_CREATED,
     operation_id="createPaymentReminder",
+    dependencies=[Depends(require_library_staff)],
     summary="Create a WhatsApp payment reminder",
     description=(
         "Validates the current outstanding balance and student phone, records "
@@ -336,6 +493,7 @@ def create_payment_reminder(
     response_model=SuccessResponse[PaymentTransactionRecordedResponse],
     status_code=status.HTTP_201_CREATED,
     operation_id="recordPaymentTransaction",
+    dependencies=[Depends(require_library_staff)],
     summary="Record a payment transaction",
     description=(
         "Records an immutable payment transaction and recalculates the fee "

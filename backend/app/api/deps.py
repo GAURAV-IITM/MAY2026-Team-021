@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Annotated
 
-from fastapi import Depends, Query
+from fastapi import Depends, Query, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
@@ -11,9 +13,10 @@ from sqlalchemy.orm import Session, selectinload
 from app.core.exceptions import AuthenticationError, PermissionDeniedError
 from app.core.security import decode_access_token, is_expired
 from app.db.session import get_db
-from app.models.enums import RoleName
+from app.models.enums import RoleName, StudentStatus
 from app.models.identity import User, UserRole, UserSession
 from app.models.library import Library, LibraryMembership
+from app.models.student import Student
 from app.schemas.common import PaginationParams
 from app.services import auth as auth_service
 
@@ -155,6 +158,72 @@ def get_tenant_context(
 
 
 CurrentTenant = Annotated[TenantContext, Depends(get_tenant_context)]
+
+
+@dataclass(frozen=True, slots=True)
+class StudentContext:
+    user: User
+    membership: LibraryMembership
+    library: Library
+    student: Student
+
+    @property
+    def library_id(self) -> uuid.UUID:
+        return self.membership.library_id
+
+    @property
+    def student_id(self) -> uuid.UUID:
+        return self.student.id
+
+
+def get_current_student(
+    request: Request,
+    db: DatabaseSession,
+    current_user: CurrentUser,
+    membership: CurrentMembership,
+) -> StudentContext:
+    current_roles = {link.role.name for link in current_user.role_links}
+    if RoleName.STUDENT not in current_roles or membership.role != RoleName.STUDENT:
+        raise PermissionDeniedError(
+            "Insufficient permissions.",
+            details={"requiredRoles": [RoleName.STUDENT.value]},
+        )
+
+    student = db.scalar(
+        select(Student).where(
+            Student.user_id == current_user.id,
+            Student.library_id == membership.library_id,
+            Student.deleted_at.is_(None),
+        )
+    )
+    if student is None:
+        raise PermissionDeniedError(
+            "No student record is linked to this user.",
+            code="STUDENT_RECORD_NOT_FOUND",
+        )
+
+    if student.status == StudentStatus.SUSPENDED:
+        raise PermissionDeniedError(
+            "Student membership is suspended.",
+            code="STUDENT_SUSPENDED",
+        )
+
+    if request.method in ("POST", "PATCH", "PUT", "DELETE"):
+        if student.status in (StudentStatus.INACTIVE, StudentStatus.LEFT):
+            raise PermissionDeniedError(
+                "Access denied for inactive student.",
+                code="INACTIVE_STUDENT_ACCESS_DENIED",
+            )
+
+    return StudentContext(
+        user=current_user,
+        membership=membership,
+        library=membership.library,
+        student=student,
+    )
+
+
+CurrentStudent = Annotated[StudentContext, Depends(get_current_student)]
 
 
 def require_roles(*roles: RoleName) -> Callable[..., User]:

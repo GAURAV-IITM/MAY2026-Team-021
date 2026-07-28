@@ -1,388 +1,148 @@
-import {
-  STUDENT_PORTAL_NETWORK_DELAY_MS,
-  seatRequestMock,
-  studentAnnouncementMock,
-  studentPaymentMock,
-  studentProfileMock,
-  studentSeatMock,
-} from '../mocks/studentPortalMock.js'
-import { shiftMock } from '../mocks/seatMock.js'
-import { getCurrentLibrarySettings } from './librarySettingsService.js'
+import apiClient from '../api/axios.js'
 
-let profile = clone(studentProfileMock)
-let requests = clone(seatRequestMock)
-let studentAnnouncements = clone(studentAnnouncementMock)
-
-function clone(value) {
-  return structuredClone(value)
-}
-
-function delay(ms = STUDENT_PORTAL_NETWORK_DELAY_MS) {
-  return new Promise((resolve) => {
-    globalThis.setTimeout(resolve, ms)
-  })
-}
-
-function createSuccessResponse(message, data, meta = {}) {
+export async function getDashboard() {
+  const results = await Promise.allSettled([
+    getProfile(),
+    getSeat(),
+    getFees(),
+    getRequests(),
+    getAnnouncements()
+  ])
+  
+  const profileRes = results[0]
+  const seatRes = results[1]
+  const feesRes = results[2]
+  const requestsRes = results[3]
+  const announcementsRes = results[4]
+  
+  if (profileRes.status === 'rejected') {
+    throw profileRes.reason
+  }
+  
+  const profile = profileRes.value.data.profile
+  const seat = seatRes.status === 'fulfilled' ? seatRes.value.data.seat : null
+  const allocations = seatRes.status === 'fulfilled' ? seatRes.value.data.allocations : []
+  const feeSummary = feesRes.status === 'fulfilled' ? feesRes.value.data.feeSummary : null
+  const requestsList = requestsRes.status === 'fulfilled' ? requestsRes.value.data.requests : []
+  const announcementsList = announcementsRes.status === 'fulfilled' ? announcementsRes.value.data.announcements : []
+  
+  const activeRequest = requestsList.find(req => req.status === 'pending') || null
+  const recentAnnouncements = announcementsList.slice(0, 3)
+  const unreadAnnouncementCount = announcementsList.filter(item => !item.isRead).length
+  
   return {
     success: true,
-    message,
-    data: clone(data),
-    meta: {
-      source: 'mock-student-portal-service',
-      timestamp: new Date().toISOString(),
-      ...meta,
-    },
-  }
-}
-
-function createPortalError(message, status = 400, code = 'STUDENT_PORTAL_ERROR') {
-  const error = new Error(message)
-
-  error.response = {
-    status,
+    message: 'Student dashboard fetched successfully.',
     data: {
-      success: false,
-      message,
-      error: { code },
-    },
+      profile,
+      seat,
+      allocations,
+      feeSummary,
+      recentAnnouncements,
+      unreadAnnouncementCount,
+      activeRequest,
+      lastUpdated: new Date().toISOString()
+    }
   }
-
-  return error
 }
 
-function ensureStudentAccess(studentId) {
-  const normalizedStudentId = String(studentId || '').trim()
-
-  if (!normalizedStudentId) {
-    throw createPortalError(
-      'A logged-in student is required.',
-      401,
-      'STUDENT_AUTH_REQUIRED',
-    )
-  }
-
-  if (normalizedStudentId !== profile.id) {
-    throw createPortalError(
-      'Student portal data is not available for this account.',
-      403,
-      'STUDENT_ACCESS_DENIED',
-    )
-  }
-
-  return normalizedStudentId
+export async function getSeat() {
+  const response = await apiClient.get('/seat-allocations/me')
+  return response.data
 }
 
-function getStudentPayments(studentId) {
-  return studentPaymentMock
-    .filter((payment) => payment.studentId === studentId)
-    .sort((first, second) => second.month.localeCompare(first.month))
+export async function getFees() {
+  const response = await apiClient.get('/payments/me')
+  return response.data
 }
 
-function buildReceipt(payment) {
+export async function getReceipts() {
+  const response = await apiClient.get('/payments/receipts/me')
   return {
-    id: `receipt-${payment.id}`,
-    receiptNumber: payment.receiptNumber,
-    paymentId: payment.id,
-    studentId: payment.studentId,
-    studentName: payment.studentName,
-    studentEmail: payment.studentEmail,
-    seatNumber: payment.seatNumber,
-    month: payment.month,
-    amount: payment.amount,
-    paidAt: payment.paidAt,
-    paymentMethod: payment.paymentMethod,
-    transactionId: payment.transactionId,
+    ...response.data,
+    data: {
+      receipts: response.data.data
+    }
   }
 }
 
-function getStudentReceipts(studentId) {
-  return getStudentPayments(studentId)
-    .filter((payment) => payment.status === 'paid')
-    .map((payment) => buildReceipt(payment))
-}
-
-function getStudentAnnouncements(studentId) {
-  const now = new Date()
-  return studentAnnouncements
-    .filter((announcement) => {
-      return (
-        (!announcement.publishedAt ||
-          new Date(announcement.publishedAt) <= now) &&
-        (!announcement.expiresAt || new Date(announcement.expiresAt) > now)
-      )
-    })
-    .sort((first, second) =>
-      second.publishedAt.localeCompare(first.publishedAt),
-    )
-    .map((announcement) => ({
-      ...announcement,
-      isRead: announcement.readBy.includes(studentId),
-    }))
-}
-
-function getStudentRequests(studentId) {
-  return requests
-    .filter((request) => request.studentId === studentId)
-    .sort((first, second) => second.submittedAt.localeCompare(first.submittedAt))
-}
-
-function getFeeSummary(studentId) {
-  const payments = getStudentPayments(studentId)
-  const currentPayment = payments[0] || null
-  const totalPaid = payments
-    .filter((payment) => payment.status === 'paid')
-    .reduce((total, payment) => total + payment.amount, 0)
-  const totalOutstanding = payments
-    .filter((payment) => payment.status === 'unpaid')
-    .reduce((total, payment) => total + payment.amount, 0)
-
-  return {
-    currentPayment,
-    payments,
-    totalPaid,
-    totalOutstanding,
-    paidCount: payments.filter((payment) => payment.status === 'paid').length,
-    unpaidCount: payments.filter((payment) => payment.status === 'unpaid').length,
-    nextDueDate: profile.feeDueDate,
-  }
-}
-
-export async function getDashboard(studentId) {
-  await delay()
-  const scopedStudentId = ensureStudentAccess(studentId)
-  const studentAnnouncements = getStudentAnnouncements(scopedStudentId)
-  const studentRequests = getStudentRequests(scopedStudentId)
-
-  return createSuccessResponse('Student dashboard fetched successfully.', {
-    profile,
-    seat: studentSeatMock.seat,
-    allocations: studentSeatMock.allocations,
-    feeSummary: getFeeSummary(scopedStudentId),
-    recentAnnouncements: studentAnnouncements.slice(0, 3),
-    unreadAnnouncementCount: studentAnnouncements.filter((item) => !item.isRead).length,
-    activeRequest: studentRequests.find((request) => request.status === 'pending') || null,
-    lastUpdated: new Date().toISOString(),
-  })
-}
-
-export async function getSeat(studentId) {
-  await delay()
-  ensureStudentAccess(studentId)
-
-  return createSuccessResponse('Seat allocation fetched successfully.', {
-    ...studentSeatMock,
-  })
-}
-
-export async function getFees(studentId) {
-  await delay()
-  const scopedStudentId = ensureStudentAccess(studentId)
-
-  return createSuccessResponse('Student fees fetched successfully.', {
-    feeSummary: getFeeSummary(scopedStudentId),
-  })
-}
-
-export async function getReceipts(studentId) {
-  await delay()
-  const scopedStudentId = ensureStudentAccess(studentId)
-
-  return createSuccessResponse('Student receipts fetched successfully.', {
-    receipts: getStudentReceipts(scopedStudentId),
-  })
-}
-
-export async function getRequests(studentId) {
-  await delay()
-  const scopedStudentId = ensureStudentAccess(studentId)
-
-  return createSuccessResponse('Seat change requests fetched successfully.', {
-    requests: getStudentRequests(scopedStudentId),
-    shifts: shiftMock.filter((shift) => shift.isEnabled !== false),
-  })
+export async function getRequests() {
+  const response = await apiClient.get('/seat-requests/me')
+  return response.data
 }
 
 export async function createSeatRequest(studentId, payload = {}) {
-  await delay()
-  const scopedStudentId = ensureStudentAccess(studentId)
-  const librarySettings = getCurrentLibrarySettings()
-  const preferredShiftId = String(payload.preferredShiftId || '').trim()
-  const reason = String(payload.reason || '').trim()
-  const preferredSeatNumber = String(payload.preferredSeatNumber || '').trim()
-  const preferredFloor = payload.preferredFloor ? Number(payload.preferredFloor) : null
-  const selectedShift = shiftMock.find((shift) => shift.id === preferredShiftId)
-
-  if (!librarySettings.allowSeatChangeRequests) {
-    throw createPortalError(
-      'Seat change requests are currently disabled by the library owner.',
-      403,
-      'SEAT_REQUESTS_DISABLED',
-    )
-  }
-
-  if (
-    !selectedShift ||
-    (librarySettings.requireSeatRequestReason && reason.length < 15)
-  ) {
-    throw createPortalError(
-      librarySettings.requireSeatRequestReason
-        ? 'Select a valid shift and provide a reason of at least 15 characters.'
-        : 'Select a valid shift.',
-      422,
-      'SEAT_REQUEST_VALIDATION_ERROR',
-    )
-  }
-
-  const hasPendingRequest = requests.some((request) => {
-    return request.studentId === scopedStudentId && request.status === 'pending'
+  const response = await apiClient.post('/seat-requests/me', {
+    preferredSeatId: payload.preferredSeatId || null,
+    preferredFloorId: payload.preferredFloorId || null,
+    preferredShiftId: payload.preferredShiftId,
+    reason: payload.reason
   })
-
-  if (hasPendingRequest) {
-    throw createPortalError(
-      'You already have a pending seat change request.',
-      409,
-      'SEAT_REQUEST_ALREADY_PENDING',
-    )
+  
+  const freshRequests = await getRequests()
+  return {
+    success: true,
+    message: 'Seat change request submitted successfully.',
+    data: {
+      request: response.data.data,
+      requests: freshRequests.data.requests
+    }
   }
-
-  const request = {
-    id: `seat-request-${Date.now()}`,
-    studentId: scopedStudentId,
-    studentName: profile.fullName,
-    studentEmail: profile.email,
-    libraryId: profile.libraryId,
-    libraryName: profile.libraryName,
-    currentSeatNumber: studentSeatMock.seat.seatNumber,
-    preferredSeatNumber,
-    preferredFloor,
-    preferredShiftId,
-    preferredShiftName: selectedShift.name,
-    reason,
-    status: 'pending',
-    adminNote: '',
-    submittedAt: new Date().toISOString(),
-    resolvedAt: null,
-    reviewedBy: null,
-  }
-
-  requests.push(request)
-
-  return createSuccessResponse('Seat change request submitted successfully.', {
-    request,
-    requests: getStudentRequests(scopedStudentId),
-  })
 }
 
 export async function cancelSeatRequest(studentId, requestId) {
-  await delay()
-  const scopedStudentId = ensureStudentAccess(studentId)
-  const request = requests.find((item) => {
-    return item.id === String(requestId) && item.studentId === scopedStudentId
-  })
-
-  if (!request) {
-    throw createPortalError('Seat request was not found.', 404, 'SEAT_REQUEST_NOT_FOUND')
+  const response = await apiClient.patch(`/seat-requests/me/${requestId}/cancel`)
+  const freshRequests = await getRequests()
+  return {
+    success: true,
+    message: 'Seat change request cancelled successfully.',
+    data: {
+      request: response.data.data,
+      requests: freshRequests.data.requests
+    }
   }
-
-  if (request.status !== 'pending') {
-    throw createPortalError(
-      'Only pending requests can be cancelled.',
-      409,
-      'SEAT_REQUEST_NOT_PENDING',
-    )
-  }
-
-  request.status = 'cancelled'
-  request.resolvedAt = new Date().toISOString()
-
-  return createSuccessResponse('Seat change request cancelled successfully.', {
-    request,
-    requests: getStudentRequests(scopedStudentId),
-  })
 }
 
-export async function getAnnouncements(studentId) {
-  await delay()
-  const scopedStudentId = ensureStudentAccess(studentId)
-
-  return createSuccessResponse('Announcements fetched successfully.', {
-    announcements: getStudentAnnouncements(scopedStudentId),
-  })
+export async function getAnnouncements() {
+  const response = await apiClient.get('/announcements/feed')
+  return response.data
 }
 
 export async function markAnnouncementRead(studentId, announcementId) {
-  await delay()
-  const scopedStudentId = ensureStudentAccess(studentId)
-  const index = studentAnnouncements.findIndex(
-    (item) => item.id === String(announcementId),
-  )
-  if (index === -1) {
-    throw createPortalError(
-      'Announcement was not found.',
-      404,
-      'ANNOUNCEMENT_NOT_FOUND',
-    )
-  }
-  const announcement = studentAnnouncements[index]
-  if (!announcement.readBy.includes(scopedStudentId)) {
-    studentAnnouncements[index] = {
-      ...announcement,
-      readBy: [...announcement.readBy, scopedStudentId],
+  const response = await apiClient.post(`/announcements/feed/${announcementId}/read`)
+  const freshAnnouncements = await getAnnouncements()
+  return {
+    success: true,
+    message: 'Announcement marked as read.',
+    data: {
+      announcement: response.data.data,
+      announcements: freshAnnouncements.data.announcements
     }
   }
-
-  return createSuccessResponse('Announcement marked as read.', {
-    announcement: {
-      ...studentAnnouncements[index],
-      isRead: true,
-    },
-    announcements: getStudentAnnouncements(scopedStudentId),
-  })
 }
 
-export async function getProfile(studentId) {
-  await delay()
-  ensureStudentAccess(studentId)
-
-  return createSuccessResponse('Student profile fetched successfully.', {
-    profile,
-  })
+export async function getProfile() {
+  const response = await apiClient.get('/students/me')
+  return {
+    ...response.data,
+    data: {
+      profile: response.data.data
+    }
+  }
 }
 
 export async function updateProfile(studentId, payload = {}) {
-  await delay()
-  ensureStudentAccess(studentId)
-
-  const phone = String(payload.phone ?? profile.phone ?? '').trim()
-  const address = String(payload.address ?? profile.address ?? '').trim()
-  const guardianName = String(payload.guardianName ?? profile.guardianName ?? '').trim()
-  const guardianPhone = String(
-    payload.guardianPhone ?? profile.guardianPhone ?? '',
-  ).trim()
-  const preferredLanguage = String(
-    payload.preferredLanguage ?? profile.preferredLanguage ?? 'English',
-  ).trim()
-
-  if (!phone || !address || !guardianName || !guardianPhone) {
-    throw createPortalError(
-      'Phone, address, guardian name, and guardian phone are required.',
-      422,
-      'PROFILE_VALIDATION_ERROR',
-    )
-  }
-
-  profile = {
-    ...profile,
-    phone,
-    address,
-    guardianName,
-    guardianPhone,
-    preferredLanguage,
-    updatedAt: new Date().toISOString(),
-  }
-
-  return createSuccessResponse('Profile updated successfully.', {
-    profile,
+  const response = await apiClient.patch('/students/me', {
+    phone: payload.phone || null,
+    address: payload.address || null,
+    guardianName: payload.guardianName || null,
+    guardianPhone: payload.guardianPhone || null,
+    preferredLanguage: payload.preferredLanguage || null
   })
+  return {
+    ...response.data,
+    data: {
+      profile: response.data.data
+    }
+  }
 }

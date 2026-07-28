@@ -6,12 +6,14 @@ from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, Request, status
+from sqlalchemy import select
 
 from app.api.deps import (
     CurrentTenant,
     DatabaseSession,
     Pagination,
     require_library_staff,
+    CurrentStudent,
 )
 from app.models.enums import AllocationStatus
 from app.schemas.allocation import (
@@ -27,12 +29,16 @@ from app.schemas.common import (
     SuccessResponse,
     error_responses,
 )
+from app.schemas.student_portal import (
+    StudentSeatAllocationsResponse,
+    StudentSeatSummary,
+    StudentAllocationItem,
+)
 from app.services import allocation as allocation_service
 from app.services.audit import AuditContext
 
 
 router = APIRouter(
-    dependencies=[Depends(require_library_staff)],
     responses=error_responses(401, 403, 500),
 )
 
@@ -46,9 +52,83 @@ def _audit_context(request: Request) -> AuditContext:
 
 
 @router.get(
+    "/me",
+    response_model=SuccessResponse[StudentSeatAllocationsResponse],
+    operation_id="getStudentSeatAllocations",
+    summary="Get own seat allocations",
+    description="Returns the authenticated student's active seat details and allocation history.",
+    responses=error_responses(404),
+    openapi_extra={"x-user-stories": ["STUDENT-PORTAL-SEAT-VIEW"]},
+)
+def get_own_seat_allocations(
+    db: DatabaseSession,
+    student_ctx: CurrentStudent,
+) -> SuccessResponse[StudentSeatAllocationsResponse]:
+    from app.models.seat import SeatAllocation, Seat
+    
+    # Query all allocations belonging to the student
+    all_allocs = db.scalars(
+        select(SeatAllocation)
+        .where(
+            SeatAllocation.student_id == student_ctx.student_id,
+            SeatAllocation.library_id == student_ctx.library_id,
+        )
+        .order_by(SeatAllocation.start_date.desc(), SeatAllocation.created_at.desc())
+    ).all()
+    
+    today = date.today()
+    active_items = []
+    history_items = []
+    
+    for alloc in all_allocs:
+        item = StudentAllocationItem(
+            id=alloc.id,
+            seat_id=alloc.seat_id,
+            seat_number=alloc.seat_number_snapshot or (alloc.seat.seat_number if alloc.seat else ""),
+            floor=alloc.floor_name_snapshot or (alloc.seat.floor.name if alloc.seat and alloc.seat.floor else ""),
+            shift_id=alloc.shift_id,
+            shift_name=alloc.shift_name,
+            start_time=alloc.shift_start_time.isoformat()[:5],
+            end_time=alloc.shift_end_time.isoformat()[:5],
+            start_date=alloc.start_date,
+            end_date=alloc.end_date,
+            status=alloc.status,
+            allocated_at=alloc.allocated_at,
+        )
+        if alloc.status == AllocationStatus.ACTIVE and alloc.end_date >= today:
+            active_items.append(item)
+        else:
+            history_items.append(item)
+            
+    seat_summary = None
+    if active_items:
+        # Get details from the physical seat if available
+        first_active_alloc = [a for a in all_allocs if a.status == AllocationStatus.ACTIVE and a.end_date >= today][0]
+        seat = db.get(Seat, first_active_alloc.seat_id)
+        if seat:
+            seat_summary = StudentSeatSummary(
+                id=seat.id,
+                seat_number=seat.seat_number,
+                floor=seat.floor.name if seat.floor else "",
+                seat_type=seat.seat_type,
+                notes=seat.notes,
+            )
+            
+    return SuccessResponse(
+        message="Seat allocations fetched successfully.",
+        data=StudentSeatAllocationsResponse(
+            seat=seat_summary,
+            allocations=active_items,
+            history=history_items,
+        )
+    )
+
+
+@router.get(
     "/availability",
     response_model=SuccessResponse[SeatAvailabilityResponse],
     operation_id="getSeatAllocationAvailability",
+    dependencies=[Depends(require_library_staff)],
     responses=error_responses(404, 422),
     openapi_extra={
         "x-user-stories": [
@@ -94,6 +174,7 @@ def get_seat_allocation_availability(
     "",
     response_model=PaginatedResponse[SeatAllocationResponse],
     operation_id="listSeatAllocations",
+    dependencies=[Depends(require_library_staff)],
     responses=error_responses(422),
     openapi_extra={"x-user-stories": ["SEAT-ALLOCATION-LIST"]},
 )
@@ -154,6 +235,7 @@ def list_seat_allocations(
     response_model=SuccessResponse[SeatAllocationCreateResponse],
     status_code=status.HTTP_201_CREATED,
     operation_id="createSeatAllocation",
+    dependencies=[Depends(require_library_staff)],
     responses=error_responses(404, 409, 422),
     openapi_extra={"x-user-stories": ["SEAT-ALLOCATION-CREATE"]},
 )
@@ -180,6 +262,7 @@ def create_seat_allocation(
     "/{allocation_id}/status",
     response_model=SuccessResponse[SeatAllocationResponse],
     operation_id="closeSeatAllocation",
+    dependencies=[Depends(require_library_staff)],
     responses=error_responses(404, 409, 422),
     openapi_extra={"x-user-stories": ["SEAT-ALLOCATION-CLOSE"]},
 )
