@@ -2995,6 +2995,232 @@ paths:
               $ref: '#/components/headers/XRequestId'
       x-user-stories:
       - SEAT-ALLOCATION-CLOSE
+  /api/v1/seat-requests:
+    get:
+      tags:
+      - Seat requests
+      summary: List seat-change requests
+      description: Returns tenant-scoped student seat-change request history for Library Owners and authorised
+        staff.
+      operationId: listOwnerSeatChangeRequests
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: status
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/SeatRequestStatus'
+          - type: 'null'
+          title: Status
+      - name: studentId
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Studentid
+      - name: preferredFloorId
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Preferredfloorid
+      - name: preferredShiftId
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Preferredshiftid
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+          title: Page
+      - name: pageSize
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+          default: 20
+          title: Pagesize
+      - name: search
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            maxLength: 200
+          - type: 'null'
+          title: Search
+      - name: sortBy
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 80
+          default: createdAt
+          title: Sortby
+      - name: sortOrder
+        in: query
+        required: false
+        schema:
+          type: string
+          pattern: ^(asc|desc)$
+          default: desc
+          title: Sortorder
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SeatRequestListResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Request validation or a business rule failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      x-user-stories:
+      - SEAT-REQUEST-LIST
+  /api/v1/seat-requests/{request_id}/review:
+    patch:
+      tags:
+      - Seat requests
+      summary: Review a seat-change request
+      description: Records one final approval or rejection. Approval does not create, cancel, reserve,
+        or transfer any seat allocation.
+      operationId: reviewOwnerSeatChangeRequest
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: request_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Request Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SeatRequestReview'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse_SeatChangeRequestResponse_'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '404':
+          description: The requested resource was not found in the current scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '409':
+          description: The request conflicts with existing data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Request validation or a business rule failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      x-user-stories:
+      - SEAT-REQUEST-REVIEW
   /api/v1/payments:
     get:
       tags:
@@ -6616,6 +6842,88 @@ components:
           default: 0
       type: object
       title: SeatAvailabilitySummaryResponse
+    SeatChangeRequestResponse:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        requestNumber:
+          type: string
+          title: Requestnumber
+        status:
+          $ref: '#/components/schemas/SeatRequestStatus'
+        student:
+          $ref: '#/components/schemas/SeatRequestStudentSummary'
+        currentAllocation:
+          anyOf:
+          - $ref: '#/components/schemas/SeatRequestAllocationSummary'
+          - type: 'null'
+        preferredSeat:
+          anyOf:
+          - $ref: '#/components/schemas/SeatRequestSeatSummary'
+          - type: 'null'
+        preferredFloor:
+          anyOf:
+          - $ref: '#/components/schemas/SeatRequestFloorSummary'
+          - type: 'null'
+        preferredShift:
+          $ref: '#/components/schemas/SeatRequestShiftSummary'
+        reason:
+          type: string
+          title: Reason
+        submittedAt:
+          type: string
+          format: date-time
+          title: Submittedat
+        reviewedBy:
+          anyOf:
+          - $ref: '#/components/schemas/SeatRequestReviewerSummary'
+          - type: 'null'
+        reviewedAt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Reviewedat
+        reviewNote:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Reviewnote
+        resultingAllocationId:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Resultingallocationid
+        createdAt:
+          type: string
+          format: date-time
+          title: Createdat
+        updatedAt:
+          type: string
+          format: date-time
+          title: Updatedat
+      type: object
+      required:
+      - id
+      - requestNumber
+      - status
+      - student
+      - currentAllocation
+      - preferredSeat
+      - preferredFloor
+      - preferredShift
+      - reason
+      - submittedAt
+      - reviewedBy
+      - reviewedAt
+      - reviewNote
+      - resultingAllocationId
+      - createdAt
+      - updatedAt
+      title: SeatChangeRequestResponse
     SeatCreate:
       properties:
         seatNumber:
@@ -6674,6 +6982,224 @@ components:
       - maintenance
       - blocked
       title: SeatOperationalStatus
+    SeatRequestAllocationSummary:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        seatId:
+          type: string
+          format: uuid
+          title: Seatid
+        seatNumber:
+          type: string
+          title: Seatnumber
+        floorId:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Floorid
+        floorName:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Floorname
+        shiftId:
+          type: string
+          format: uuid
+          title: Shiftid
+        shiftName:
+          type: string
+          title: Shiftname
+        startDate:
+          type: string
+          format: date
+          title: Startdate
+        endDate:
+          type: string
+          format: date
+          title: Enddate
+        status:
+          $ref: '#/components/schemas/AllocationStatus'
+      type: object
+      required:
+      - id
+      - seatId
+      - seatNumber
+      - floorId
+      - floorName
+      - shiftId
+      - shiftName
+      - startDate
+      - endDate
+      - status
+      title: SeatRequestAllocationSummary
+    SeatRequestFloorSummary:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        name:
+          type: string
+          title: Name
+        levelNumber:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Levelnumber
+      type: object
+      required:
+      - id
+      - name
+      title: SeatRequestFloorSummary
+    SeatRequestListResponse:
+      properties:
+        message:
+          type: string
+          title: Message
+        data:
+          items:
+            $ref: '#/components/schemas/SeatChangeRequestResponse'
+          type: array
+          title: Data
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+        summary:
+          $ref: '#/components/schemas/SeatRequestSummary'
+      type: object
+      required:
+      - message
+      - data
+      - meta
+      - summary
+      title: SeatRequestListResponse
+    SeatRequestReview:
+      properties:
+        decision:
+          type: string
+          enum:
+          - approved
+          - rejected
+          title: Decision
+        reviewNote:
+          anyOf:
+          - type: string
+            maxLength: 2000
+          - type: 'null'
+          title: Reviewnote
+      type: object
+      required:
+      - decision
+      title: SeatRequestReview
+    SeatRequestReviewerSummary:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        name:
+          type: string
+          title: Name
+      type: object
+      required:
+      - id
+      - name
+      title: SeatRequestReviewerSummary
+    SeatRequestSeatSummary:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        seatNumber:
+          type: string
+          title: Seatnumber
+      type: object
+      required:
+      - id
+      - seatNumber
+      title: SeatRequestSeatSummary
+    SeatRequestShiftSummary:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        name:
+          type: string
+          title: Name
+        startTime:
+          type: string
+          title: Starttime
+        endTime:
+          type: string
+          title: Endtime
+      type: object
+      required:
+      - id
+      - name
+      - startTime
+      - endTime
+      title: SeatRequestShiftSummary
+    SeatRequestStatus:
+      type: string
+      enum:
+      - pending
+      - approved
+      - rejected
+      - cancelled
+      title: SeatRequestStatus
+    SeatRequestStudentSummary:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        enrollmentNumber:
+          type: string
+          title: Enrollmentnumber
+        name:
+          type: string
+          title: Name
+      type: object
+      required:
+      - id
+      - enrollmentNumber
+      - name
+      title: SeatRequestStudentSummary
+    SeatRequestSummary:
+      properties:
+        total:
+          type: integer
+          minimum: 0.0
+          title: Total
+        pending:
+          type: integer
+          minimum: 0.0
+          title: Pending
+        approved:
+          type: integer
+          minimum: 0.0
+          title: Approved
+        rejected:
+          type: integer
+          minimum: 0.0
+          title: Rejected
+        cancelled:
+          type: integer
+          minimum: 0.0
+          title: Cancelled
+      type: object
+      required:
+      - total
+      - pending
+      - approved
+      - rejected
+      - cancelled
+      title: SeatRequestSummary
     SeatResponse:
       properties:
         id:
@@ -7682,6 +8208,24 @@ components:
       - message
       - data
       title: SuccessResponse[SeatAvailabilityResponse]
+    SuccessResponse_SeatChangeRequestResponse_:
+      properties:
+        message:
+          type: string
+          title: Message
+        data:
+          $ref: '#/components/schemas/SeatChangeRequestResponse'
+        meta:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Meta
+      type: object
+      required:
+      - message
+      - data
+      title: SuccessResponse[SeatChangeRequestResponse]
     SuccessResponse_SeatListResponse_:
       properties:
         message:
@@ -8098,6 +8642,8 @@ tags:
   description: Library profile and operating preferences.
 - name: Announcements
   description: Tenant-scoped owner announcement management and lifecycle commands.
+- name: Seat requests
+  description: Tenant-scoped owner review of student seat-change requests without allocation mutation.
 servers:
 - url: /
   description: Current host
