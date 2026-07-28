@@ -3707,6 +3707,544 @@ paths:
               $ref: '#/components/headers/XRequestId'
       x-user-stories:
       - PAYMENT-RECORD
+  /api/v1/announcements:
+    get:
+      tags:
+      - Announcements
+      summary: List owner announcements
+      description: Returns paginated announcements and filter-independent summary counts for the authenticated
+        user's library.
+      operationId: listOwnerAnnouncements
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: status
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/AnnouncementStatus'
+          - type: 'null'
+          title: Status
+      - name: category
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/AnnouncementCategory'
+          - type: 'null'
+          title: Category
+      - name: priority
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/AnnouncementPriority'
+          - type: 'null'
+          title: Priority
+      - name: audience
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/AnnouncementAudience'
+          - type: 'null'
+          title: Audience
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+          title: Page
+      - name: pageSize
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+          default: 20
+          title: Pagesize
+      - name: search
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            maxLength: 200
+          - type: 'null'
+          title: Search
+      - name: sortBy
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 80
+          default: createdAt
+          title: Sortby
+      - name: sortOrder
+        in: query
+        required: false
+        schema:
+          type: string
+          pattern: ^(asc|desc)$
+          default: desc
+          title: Sortorder
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnnouncementListResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Request validation or a business rule failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      x-user-stories:
+      - ANNOUNCEMENT-LIST
+    post:
+      tags:
+      - Announcements
+      summary: Create an announcement
+      description: Creates a draft or scheduled announcement in the current library. Library and author
+        fields are derived from authentication.
+      operationId: createOwnerAnnouncement
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnnouncementCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse_AnnouncementResponse_'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Request validation or a business rule failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      x-user-stories:
+      - ANNOUNCEMENT-CREATE
+  /api/v1/announcements/{announcement_id}:
+    patch:
+      tags:
+      - Announcements
+      summary: Update an announcement
+      description: Updates an eligible draft or scheduled announcement. Lifecycle commands must use the
+        publish and archive endpoints.
+      operationId: updateOwnerAnnouncement
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: announcement_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Announcement Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnnouncementUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse_AnnouncementResponse_'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '404':
+          description: The requested resource was not found in the current scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '409':
+          description: The request conflicts with existing data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Request validation or a business rule failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      x-user-stories:
+      - ANNOUNCEMENT-EDIT
+    delete:
+      tags:
+      - Announcements
+      summary: Delete an eligible announcement
+      description: Soft-deletes a draft or archived announcement. Published and scheduled announcements
+        must be archived first.
+      operationId: deleteOwnerAnnouncement
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: announcement_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Announcement Id
+      responses:
+        '204':
+          description: Successful Response
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '404':
+          description: The requested resource was not found in the current scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '409':
+          description: The request conflicts with existing data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      x-user-stories:
+      - ANNOUNCEMENT-DELETE
+  /api/v1/announcements/{announcement_id}/publish:
+    post:
+      tags:
+      - Announcements
+      summary: Publish an announcement
+      description: Publishes a draft or scheduled announcement immediately and records the authenticated
+        actor.
+      operationId: publishOwnerAnnouncement
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: announcement_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Announcement Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse_AnnouncementResponse_'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '404':
+          description: The requested resource was not found in the current scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '409':
+          description: The request conflicts with existing data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Request validation or a business rule failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      x-user-stories:
+      - ANNOUNCEMENT-PUBLISH
+  /api/v1/announcements/{announcement_id}/archive:
+    post:
+      tags:
+      - Announcements
+      summary: Archive an announcement
+      description: Archives an eligible announcement while preserving it for history.
+      operationId: archiveOwnerAnnouncement
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: announcement_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Announcement Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnnouncementArchiveRequest'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse_AnnouncementResponse_'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '404':
+          description: The requested resource was not found in the current scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '409':
+          description: The request conflicts with existing data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      x-user-stories:
+      - ANNOUNCEMENT-ARCHIVE
   /api/v1/settings/library:
     get:
       tags:
@@ -3995,6 +4533,299 @@ components:
       - name
       - status
       title: AllocationStudentSummary
+    AnnouncementActorSummary:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        name:
+          type: string
+          title: Name
+      type: object
+      required:
+      - id
+      - name
+      title: AnnouncementActorSummary
+    AnnouncementArchiveRequest:
+      properties:
+        reason:
+          anyOf:
+          - type: string
+            maxLength: 500
+          - type: 'null'
+          title: Reason
+      type: object
+      title: AnnouncementArchiveRequest
+    AnnouncementAudience:
+      type: string
+      enum:
+      - all_students
+      - active_students
+      - pending_fee_students
+      title: AnnouncementAudience
+    AnnouncementCategory:
+      type: string
+      enum:
+      - general
+      - schedule
+      - fees
+      - policy
+      - facility
+      title: AnnouncementCategory
+    AnnouncementCreate:
+      properties:
+        title:
+          type: string
+          maxLength: 120
+          minLength: 5
+          title: Title
+        body:
+          type: string
+          maxLength: 1000
+          minLength: 10
+          title: Body
+        category:
+          $ref: '#/components/schemas/AnnouncementCategory'
+          default: general
+        priority:
+          $ref: '#/components/schemas/AnnouncementPriority'
+          default: normal
+        audience:
+          $ref: '#/components/schemas/AnnouncementAudience'
+          default: all_students
+        status:
+          $ref: '#/components/schemas/AnnouncementStatus'
+          default: draft
+        scheduledAt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Scheduledat
+        expiresAt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Expiresat
+      type: object
+      required:
+      - title
+      - body
+      title: AnnouncementCreate
+      examples:
+      - audience: all_students
+        body: The library will remain closed this Sunday for maintenance.
+        category: general
+        priority: normal
+        status: draft
+        title: Library Closed on Sunday
+    AnnouncementListResponse:
+      properties:
+        message:
+          type: string
+          title: Message
+        data:
+          items:
+            $ref: '#/components/schemas/AnnouncementResponse'
+          type: array
+          title: Data
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+        summary:
+          $ref: '#/components/schemas/AnnouncementSummary'
+      type: object
+      required:
+      - message
+      - data
+      - meta
+      - summary
+      title: AnnouncementListResponse
+    AnnouncementPriority:
+      type: string
+      enum:
+      - normal
+      - important
+      title: AnnouncementPriority
+    AnnouncementResponse:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        title:
+          type: string
+          title: Title
+        body:
+          type: string
+          title: Body
+        category:
+          $ref: '#/components/schemas/AnnouncementCategory'
+        priority:
+          $ref: '#/components/schemas/AnnouncementPriority'
+        audience:
+          $ref: '#/components/schemas/AnnouncementAudience'
+        status:
+          $ref: '#/components/schemas/AnnouncementStatus'
+        scheduledAt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Scheduledat
+        publishedAt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Publishedat
+        expiresAt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Expiresat
+        archivedAt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Archivedat
+        isExpired:
+          type: boolean
+          title: Isexpired
+        createdAt:
+          type: string
+          format: date-time
+          title: Createdat
+        updatedAt:
+          type: string
+          format: date-time
+          title: Updatedat
+        createdBy:
+          anyOf:
+          - $ref: '#/components/schemas/AnnouncementActorSummary'
+          - type: 'null'
+      type: object
+      required:
+      - id
+      - title
+      - body
+      - category
+      - priority
+      - audience
+      - status
+      - scheduledAt
+      - publishedAt
+      - expiresAt
+      - archivedAt
+      - isExpired
+      - createdAt
+      - updatedAt
+      - createdBy
+      title: AnnouncementResponse
+    AnnouncementStatus:
+      type: string
+      enum:
+      - draft
+      - scheduled
+      - published
+      - expired
+      - archived
+      title: AnnouncementStatus
+    AnnouncementSummary:
+      properties:
+        total:
+          type: integer
+          minimum: 0.0
+          title: Total
+        drafts:
+          type: integer
+          minimum: 0.0
+          title: Drafts
+        scheduled:
+          type: integer
+          minimum: 0.0
+          title: Scheduled
+        published:
+          type: integer
+          minimum: 0.0
+          title: Published
+        archived:
+          type: integer
+          minimum: 0.0
+          title: Archived
+        expired:
+          type: integer
+          minimum: 0.0
+          title: Expired
+        important:
+          type: integer
+          minimum: 0.0
+          title: Important
+      type: object
+      required:
+      - total
+      - drafts
+      - scheduled
+      - published
+      - archived
+      - expired
+      - important
+      title: AnnouncementSummary
+    AnnouncementUpdate:
+      properties:
+        title:
+          anyOf:
+          - type: string
+            maxLength: 120
+            minLength: 5
+          - type: 'null'
+          title: Title
+        body:
+          anyOf:
+          - type: string
+            maxLength: 1000
+            minLength: 10
+          - type: 'null'
+          title: Body
+        category:
+          anyOf:
+          - $ref: '#/components/schemas/AnnouncementCategory'
+          - type: 'null'
+        priority:
+          anyOf:
+          - $ref: '#/components/schemas/AnnouncementPriority'
+          - type: 'null'
+        audience:
+          anyOf:
+          - $ref: '#/components/schemas/AnnouncementAudience'
+          - type: 'null'
+        status:
+          anyOf:
+          - $ref: '#/components/schemas/AnnouncementStatus'
+          - type: 'null'
+        scheduledAt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Scheduledat
+        expiresAt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Expiresat
+        expectedUpdatedAt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Expectedupdatedat
+      type: object
+      title: AnnouncementUpdate
     AuthResponse:
       properties:
         accessToken:
@@ -6671,6 +7502,24 @@ components:
           - type: 'null'
       type: object
       title: StudentUpdate
+    SuccessResponse_AnnouncementResponse_:
+      properties:
+        message:
+          type: string
+          title: Message
+        data:
+          $ref: '#/components/schemas/AnnouncementResponse'
+        meta:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Meta
+      type: object
+      required:
+      - message
+      - data
+      title: SuccessResponse[AnnouncementResponse]
     SuccessResponse_BulkSeatResult_:
       properties:
         message:
@@ -7247,6 +8096,8 @@ tags:
   description: Study shift definitions and overlap validation.
 - name: Settings
   description: Library profile and operating preferences.
+- name: Announcements
+  description: Tenant-scoped owner announcement management and lifecycle commands.
 servers:
 - url: /
   description: Current host

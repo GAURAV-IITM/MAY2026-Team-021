@@ -4,8 +4,8 @@
       <Ellipsis :size="18" aria-hidden="true" />
     </button>
     <div v-if="isMenuOpen" class="announcement-actions__menu" role="menu">
-      <button type="button" role="menuitem" @click="select('edit')"><Pencil :size="16" /> Edit</button>
-      <button v-if="announcement.status !== 'published'" type="button" role="menuitem" @click="select('publish')"><Send :size="16" /> Publish now</button>
+      <button v-if="['draft', 'scheduled'].includes(announcement.status)" type="button" role="menuitem" @click="select('edit')"><Pencil :size="16" /> Edit</button>
+      <button v-if="['draft', 'scheduled'].includes(announcement.status)" type="button" role="menuitem" @click="select('publish')"><Send :size="16" /> Publish now</button>
       <button v-if="['published', 'scheduled', 'expired'].includes(announcement.status)" type="button" role="menuitem" @click="select('archive')"><Archive :size="16" /> Archive</button>
       <button v-if="['draft', 'archived'].includes(announcement.status)" class="announcement-actions__danger" type="button" role="menuitem" @click="select('delete')"><Trash2 :size="16" /> Delete</button>
     </div>

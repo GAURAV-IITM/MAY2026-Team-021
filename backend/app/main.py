@@ -45,6 +45,13 @@ def create_app() -> FastAPI:
                 "name": "Settings",
                 "description": "Library profile and operating preferences.",
             },
+            {
+                "name": "Announcements",
+                "description": (
+                    "Tenant-scoped owner announcement management and "
+                    "lifecycle commands."
+                ),
+            },
         ],
     )
     application.add_middleware(
