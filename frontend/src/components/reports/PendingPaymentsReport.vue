@@ -64,7 +64,7 @@ const columns = [
 ]
 const ageingData = computed(() => ({
   labels: props.pending.ageing.map((item) => item.label),
-  datasets: [{ label: 'Payment records', data: props.pending.ageing.map((item) => item.count), backgroundColor: ['#f59e0b', '#f97316', '#dc2626'], borderRadius: 5, maxBarThickness: 54 }],
+  datasets: [{ label: 'Payment records', data: props.pending.ageing.map((item) => item.count), backgroundColor: ['#0284c7', '#f59e0b', '#f97316', '#dc2626', '#991b1b'], borderRadius: 5, maxBarThickness: 54 }],
 }))
 const ageingOptions = { plugins: { legend: { display: false } } }
 function formatCurrency(value) { return currencyFormatter.format(Number(value) || 0) }
@@ -105,4 +105,3 @@ function formatDate(value) { return value ? dateFormatter.format(new Date(`${Str
   .pending-report__mobile dd { margin: var(--space-1) 0 0; font-weight: var(--font-weight-medium); overflow-wrap: anywhere; }
 }
 </style>
-

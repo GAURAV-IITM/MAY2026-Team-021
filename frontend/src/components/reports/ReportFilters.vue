@@ -21,7 +21,7 @@
 
       <label class="form-field">
         <span class="form-label">Floor</span>
-        <select v-model="draft.floor" class="form-select" :disabled="loading">
+        <select v-model="draft.floorId" class="form-select" :disabled="loading">
           <option value="">All floors</option>
           <option v-for="floor in options.floors" :key="floor.value" :value="floor.value">
             {{ floor.label }}
@@ -40,8 +40,12 @@
       </label>
     </div>
 
+    <p v-if="validationMessage" class="report-filters__error" role="alert">
+      {{ validationMessage }}
+    </p>
+
     <div class="report-filters__actions">
-      <button class="btn btn--ghost" type="button" :disabled="loading" @click="$emit('reset')">
+      <button class="btn btn--ghost" type="button" :disabled="loading" @click="resetFilters">
         <RotateCcw :size="16" aria-hidden="true" />
         Reset
       </button>
@@ -55,7 +59,7 @@
 
 <script setup>
 import { RotateCcw, SlidersHorizontal } from '@lucide/vue'
-import { computed, reactive, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 
 const props = defineProps({
   modelValue: {
@@ -73,7 +77,8 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['apply', 'reset'])
-const draft = reactive({ startMonth: '', endMonth: '', floor: '', shiftId: '' })
+const draft = reactive({ startMonth: '', endMonth: '', floorId: '', shiftId: '' })
+const validationMessage = ref('')
 
 const hasChanges = computed(() => {
   return Object.keys(draft).some((key) => String(draft[key]) !== String(props.modelValue[key]))
@@ -88,7 +93,22 @@ watch(
 )
 
 function applyFilters() {
+  if (!draft.startMonth || !draft.endMonth) {
+    validationMessage.value = 'Select both a start month and an end month.'
+    return
+  }
+  if (draft.startMonth > draft.endMonth) {
+    validationMessage.value = 'The start month cannot be after the end month.'
+    return
+  }
+
+  validationMessage.value = ''
   emit('apply', { ...draft })
+}
+
+function resetFilters() {
+  validationMessage.value = ''
+  emit('reset')
 }
 </script>
 
@@ -98,6 +118,7 @@ function applyFilters() {
   top: calc(var(--layout-navbar-height) + var(--space-2));
   z-index: 12;
   display: flex;
+  flex-wrap: wrap;
   align-items: end;
   justify-content: space-between;
   gap: var(--space-4);
@@ -120,6 +141,14 @@ function applyFilters() {
   display: flex;
   gap: var(--space-2);
   flex: 0 0 auto;
+}
+
+.report-filters__error {
+  order: 3;
+  flex: 0 0 100%;
+  margin: 0;
+  color: var(--color-danger);
+  font-size: var(--font-size-sm);
 }
 
 @media (max-width: 1100px) {
@@ -162,4 +191,3 @@ function applyFilters() {
   }
 }
 </style>
-

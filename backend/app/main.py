@@ -59,6 +59,13 @@ def create_app() -> FastAPI:
                     "requests without allocation mutation."
                 ),
             },
+            {
+                "name": "Reports",
+                "description": (
+                    "Tenant-scoped Owner dashboard and operational reports "
+                    "computed from source domain records."
+                ),
+            },
         ],
     )
     application.add_middleware(

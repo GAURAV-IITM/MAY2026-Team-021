@@ -4471,6 +4471,240 @@ paths:
               $ref: '#/components/headers/XRequestId'
       x-user-stories:
       - ANNOUNCEMENT-ARCHIVE
+  /api/v1/reports/options:
+    get:
+      tags:
+      - Reports
+      summary: Get Owner report filter options
+      description: Returns tenant-scoped month, floor, and shift options. The library is derived from
+        the authenticated Owner or staff membership.
+      operationId: getOwnerReportOptions
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse_ReportOptionsData_'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      security:
+      - BearerAuth: []
+      x-user-stories:
+      - REPORT-FILTER-OPTIONS
+  /api/v1/reports:
+    get:
+      tags:
+      - Reports
+      summary: Get Owner reports
+      description: Builds tenant-scoped revenue, occupancy, student, and pending-fee reports from source
+        records. Financial values use completed payment transactions and occupancy uses active allocation
+        overlap rules.
+      operationId: getOwnerReports
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: startMonth
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            pattern: ^\d{4}-(0[1-9]|1[0-2])$
+          - type: 'null'
+          title: Startmonth
+      - name: endMonth
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            pattern: ^\d{4}-(0[1-9]|1[0-2])$
+          - type: 'null'
+          title: Endmonth
+      - name: floorId
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Floorid
+      - name: shiftId
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Shiftid
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse_OwnerReportsData_'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '404':
+          description: The requested resource was not found in the current scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Request validation or a business rule failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      x-user-stories:
+      - REPORT-REVENUE
+      - REPORT-OCCUPANCY
+      - REPORT-STUDENTS
+      - REPORT-PENDING-FEES
+  /api/v1/reports/dashboard:
+    get:
+      tags:
+      - Reports
+      summary: Get Owner operational dashboard
+      description: Returns tenant-scoped operational metrics. Occupancy defaults to the current library-local
+        date and finance defaults to that billing month.
+      operationId: getOwnerOperationalDashboard
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: date
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date
+          - type: 'null'
+          title: Date
+      - name: billingMonth
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            pattern: ^\d{4}-(0[1-9]|1[0-2])$
+          - type: 'null'
+          title: Billingmonth
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse_OwnerDashboardData_'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Request validation or a business rule failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      x-user-stories:
+      - OWNER-OPERATIONAL-DASHBOARD
   /api/v1/settings/library:
     get:
       tags:
@@ -4667,6 +4901,48 @@ components:
       - message
       - email
       title: AcceptInvitationResponse
+    ActivityActor:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        name:
+          type: string
+          title: Name
+      type: object
+      required:
+      - id
+      - name
+      title: ActivityActor
+    AgeingItem:
+      properties:
+        key:
+          type: string
+          title: Key
+        label:
+          type: string
+          title: Label
+        count:
+          type: integer
+          minimum: 0.0
+          title: Count
+        studentCount:
+          type: integer
+          minimum: 0.0
+          title: Studentcount
+        outstandingAmount:
+          type: string
+          pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Outstandingamount
+      type: object
+      required:
+      - key
+      - label
+      - count
+      - studentCount
+      - outstandingAmount
+      title: AgeingItem
     AllocationActorSummary:
       properties:
         id:
@@ -5052,6 +5328,51 @@ components:
           title: Expectedupdatedat
       type: object
       title: AnnouncementUpdate
+    AttentionStudentItem:
+      properties:
+        id:
+          type: string
+          title: Id
+        studentId:
+          type: string
+          format: uuid
+          title: Studentid
+        studentName:
+          type: string
+          title: Studentname
+        enrollmentNumber:
+          type: string
+          title: Enrollmentnumber
+        attentionType:
+          type: string
+          title: Attentiontype
+        severity:
+          type: string
+          title: Severity
+        message:
+          type: string
+          title: Message
+        relatedEntityId:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Relatedentityid
+        routeName:
+          type: string
+          title: Routename
+          default: adminStudentDetails
+      type: object
+      required:
+      - id
+      - studentId
+      - studentName
+      - enrollmentNumber
+      - attentionType
+      - severity
+      - message
+      - relatedEntityId
+      title: AttentionStudentItem
     AuthResponse:
       properties:
         accessToken:
@@ -5193,6 +5514,138 @@ components:
       examples:
       - currentPassword: SecurePass123
         newPassword: NewSecurePass456
+    DashboardMetrics:
+      properties:
+        totalStudents:
+          type: integer
+          minimum: 0.0
+          title: Totalstudents
+        activeStudents:
+          type: integer
+          minimum: 0.0
+          title: Activestudents
+        inactiveStudents:
+          type: integer
+          minimum: 0.0
+          title: Inactivestudents
+        totalSeats:
+          type: integer
+          minimum: 0.0
+          title: Totalseats
+        occupiedSeats:
+          type: integer
+          minimum: 0.0
+          title: Occupiedseats
+        availableSeats:
+          type: integer
+          minimum: 0.0
+          title: Availableseats
+        maintenanceSeats:
+          type: integer
+          minimum: 0.0
+          title: Maintenanceseats
+        blockedSeats:
+          type: integer
+          minimum: 0.0
+          title: Blockedseats
+        occupancyRate:
+          type: number
+          maximum: 100.0
+          minimum: 0.0
+          title: Occupancyrate
+        collectedAmount:
+          type: string
+          pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Collectedamount
+        expectedAmount:
+          type: string
+          pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Expectedamount
+        pendingAmount:
+          type: string
+          pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Pendingamount
+        overdueAmount:
+          type: string
+          pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Overdueamount
+        paidPaymentCount:
+          type: integer
+          minimum: 0.0
+          title: Paidpaymentcount
+        unpaidPaymentCount:
+          type: integer
+          minimum: 0.0
+          title: Unpaidpaymentcount
+        partiallyPaidCount:
+          type: integer
+          minimum: 0.0
+          title: Partiallypaidcount
+        pendingStudentCount:
+          type: integer
+          minimum: 0.0
+          title: Pendingstudentcount
+        collectionRate:
+          type: number
+          maximum: 100.0
+          minimum: 0.0
+          title: Collectionrate
+      type: object
+      required:
+      - totalStudents
+      - activeStudents
+      - inactiveStudents
+      - totalSeats
+      - occupiedSeats
+      - availableSeats
+      - maintenanceSeats
+      - blockedSeats
+      - occupancyRate
+      - collectedAmount
+      - expectedAmount
+      - pendingAmount
+      - overdueAmount
+      - paidPaymentCount
+      - unpaidPaymentCount
+      - partiallyPaidCount
+      - pendingStudentCount
+      - collectionRate
+      title: DashboardMetrics
+    DashboardShiftAvailability:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        name:
+          type: string
+          title: Name
+        timing:
+          type: string
+          title: Timing
+        totalSeats:
+          type: integer
+          minimum: 0.0
+          title: Totalseats
+        occupancyRate:
+          type: number
+          maximum: 100.0
+          minimum: 0.0
+          title: Occupancyrate
+        statuses:
+          items:
+            $ref: '#/components/schemas/ShiftStatusItem'
+          type: array
+          title: Statuses
+      type: object
+      required:
+      - id
+      - name
+      - timing
+      - totalSeats
+      - occupancyRate
+      - statuses
+      title: DashboardShiftAvailability
     ErrorDetail:
       properties:
         code:
@@ -5351,6 +5804,51 @@ components:
       - name
       - code
       title: FloorCreate
+    FloorOccupancyItem:
+      properties:
+        floor:
+          type: string
+          format: uuid
+          title: Floor
+        label:
+          type: string
+          title: Label
+        totalSeats:
+          type: integer
+          minimum: 0.0
+          title: Totalseats
+        occupied:
+          type: integer
+          minimum: 0.0
+          title: Occupied
+        available:
+          type: integer
+          minimum: 0.0
+          title: Available
+        blocked:
+          type: integer
+          minimum: 0.0
+          title: Blocked
+        maintenance:
+          type: integer
+          minimum: 0.0
+          title: Maintenance
+        occupancyRate:
+          type: number
+          maximum: 100.0
+          minimum: 0.0
+          title: Occupancyrate
+      type: object
+      required:
+      - floor
+      - label
+      - totalSeats
+      - occupied
+      - available
+      - blocked
+      - maintenance
+      - occupancyRate
+      title: FloorOccupancyItem
     FloorResponse:
       properties:
         id:
@@ -5727,6 +6225,37 @@ components:
       title: MessageResponse
       examples:
       - message: Operation completed successfully.
+    MonthlyCollectionItem:
+      properties:
+        month:
+          type: string
+          pattern: ^\d{4}-(0[1-9]|1[0-2])$
+          title: Month
+        collectedAmount:
+          type: string
+          pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Collectedamount
+        expectedAmount:
+          type: string
+          pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Expectedamount
+        pendingAmount:
+          type: string
+          pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Pendingamount
+        collectionRate:
+          type: number
+          maximum: 100.0
+          minimum: 0.0
+          title: Collectionrate
+      type: object
+      required:
+      - month
+      - collectedAmount
+      - expectedAmount
+      - pendingAmount
+      - collectionRate
+      title: MonthlyCollectionItem
     MonthlyFeeGenerationRequest:
       properties:
         month:
@@ -5808,6 +6337,154 @@ components:
       - reason
       - message
       title: MonthlyFeeGenerationSkip
+    OccupancyReport:
+      properties:
+        totals:
+          $ref: '#/components/schemas/OccupancyTotals'
+        byShift:
+          items:
+            $ref: '#/components/schemas/ShiftOccupancyItem'
+          type: array
+          title: Byshift
+        byFloor:
+          items:
+            $ref: '#/components/schemas/FloorOccupancyItem'
+          type: array
+          title: Byfloor
+      type: object
+      required:
+      - totals
+      - byShift
+      - byFloor
+      title: OccupancyReport
+    OccupancyTotals:
+      properties:
+        totalSeats:
+          type: integer
+          minimum: 0.0
+          title: Totalseats
+        allocatableSeats:
+          type: integer
+          minimum: 0.0
+          title: Allocatableseats
+        occupiedSeats:
+          type: integer
+          minimum: 0.0
+          title: Occupiedseats
+        availableSeats:
+          type: integer
+          minimum: 0.0
+          title: Availableseats
+        blockedSeats:
+          type: integer
+          minimum: 0.0
+          title: Blockedseats
+        maintenanceSeats:
+          type: integer
+          minimum: 0.0
+          title: Maintenanceseats
+        occupancyRate:
+          type: number
+          maximum: 100.0
+          minimum: 0.0
+          title: Occupancyrate
+      type: object
+      required:
+      - totalSeats
+      - allocatableSeats
+      - occupiedSeats
+      - availableSeats
+      - blockedSeats
+      - maintenanceSeats
+      - occupancyRate
+      title: OccupancyTotals
+    OwnerDashboardData:
+      properties:
+        currentMonth:
+          type: string
+          pattern: ^\d{4}-(0[1-9]|1[0-2])$
+          title: Currentmonth
+        reportDate:
+          type: string
+          format: date
+          title: Reportdate
+        metrics:
+          $ref: '#/components/schemas/DashboardMetrics'
+        seatStatus:
+          items:
+            $ref: '#/components/schemas/SeatStatusItem'
+          type: array
+          title: Seatstatus
+        monthlyCollection:
+          items:
+            $ref: '#/components/schemas/MonthlyCollectionItem'
+          type: array
+          title: Monthlycollection
+        shiftAvailability:
+          items:
+            $ref: '#/components/schemas/DashboardShiftAvailability'
+          type: array
+          title: Shiftavailability
+        studentsRequiringAttention:
+          items:
+            $ref: '#/components/schemas/AttentionStudentItem'
+          type: array
+          title: Studentsrequiringattention
+        recentActivity:
+          items:
+            $ref: '#/components/schemas/RecentActivityItem'
+          type: array
+          title: Recentactivity
+        lastUpdated:
+          type: string
+          format: date-time
+          title: Lastupdated
+      type: object
+      required:
+      - currentMonth
+      - reportDate
+      - metrics
+      - seatStatus
+      - monthlyCollection
+      - shiftAvailability
+      - studentsRequiringAttention
+      - recentActivity
+      - lastUpdated
+      title: OwnerDashboardData
+    OwnerReportsData:
+      properties:
+        generatedAt:
+          type: string
+          format: date-time
+          title: Generatedat
+        filters:
+          $ref: '#/components/schemas/ReportAppliedFilters'
+        metrics:
+          $ref: '#/components/schemas/ReportOverviewMetrics'
+        revenue:
+          $ref: '#/components/schemas/RevenueReport'
+        occupancy:
+          $ref: '#/components/schemas/OccupancyReport'
+        students:
+          $ref: '#/components/schemas/StudentReport'
+        pendingPayments:
+          $ref: '#/components/schemas/PendingPaymentsReport'
+        insights:
+          items:
+            $ref: '#/components/schemas/ReportInsight'
+          type: array
+          title: Insights
+      type: object
+      required:
+      - generatedAt
+      - filters
+      - metrics
+      - revenue
+      - occupancy
+      - students
+      - pendingPayments
+      - insights
+      title: OwnerReportsData
     PaginatedResponse_SeatAllocationResponse_:
       properties:
         message:
@@ -5919,6 +6596,35 @@ components:
       - card
       - other
       title: PaymentMethod
+    PaymentMethodItem:
+      properties:
+        method:
+          type: string
+          title: Method
+        label:
+          type: string
+          title: Label
+        count:
+          type: integer
+          minimum: 0.0
+          title: Count
+        amount:
+          type: string
+          pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Amount
+        share:
+          type: number
+          maximum: 100.0
+          minimum: 0.0
+          title: Share
+      type: object
+      required:
+      - method
+      - label
+      - count
+      - amount
+      - share
+      title: PaymentMethodItem
     PaymentStudentSummary:
       properties:
         id:
@@ -6095,6 +6801,139 @@ components:
       - failed
       - refunded
       title: PaymentTransactionStatus
+    PendingPaymentItem:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        studentId:
+          type: string
+          format: uuid
+          title: Studentid
+        studentName:
+          type: string
+          title: Studentname
+        enrollmentNumber:
+          type: string
+          title: Enrollmentnumber
+        phone:
+          type: string
+          title: Phone
+        seatNumber:
+          type: string
+          title: Seatnumber
+        month:
+          type: string
+          pattern: ^\d{4}-(0[1-9]|1[0-2])$
+          title: Month
+        monthLabel:
+          type: string
+          title: Monthlabel
+        totalAmount:
+          type: string
+          pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Totalamount
+        paidAmount:
+          type: string
+          pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Paidamount
+        amount:
+          type: string
+          pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Amount
+        dueDate:
+          type: string
+          format: date
+          title: Duedate
+        daysOverdue:
+          type: integer
+          minimum: 0.0
+          title: Daysoverdue
+        ageingBucket:
+          type: string
+          title: Ageingbucket
+        ageing:
+          type: string
+          title: Ageing
+      type: object
+      required:
+      - id
+      - studentId
+      - studentName
+      - enrollmentNumber
+      - phone
+      - seatNumber
+      - month
+      - monthLabel
+      - totalAmount
+      - paidAmount
+      - amount
+      - dueDate
+      - daysOverdue
+      - ageingBucket
+      - ageing
+      title: PendingPaymentItem
+    PendingPaymentsReport:
+      properties:
+        totals:
+          $ref: '#/components/schemas/PendingTotals'
+        records:
+          items:
+            $ref: '#/components/schemas/PendingPaymentItem'
+          type: array
+          title: Records
+        ageing:
+          items:
+            $ref: '#/components/schemas/AgeingItem'
+          type: array
+          title: Ageing
+      type: object
+      required:
+      - totals
+      - records
+      - ageing
+      title: PendingPaymentsReport
+    PendingTotals:
+      properties:
+        pendingAmount:
+          type: string
+          pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Pendingamount
+        overdueAmount:
+          type: string
+          pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Overdueamount
+        pendingCount:
+          type: integer
+          minimum: 0.0
+          title: Pendingcount
+        overdueCount:
+          type: integer
+          minimum: 0.0
+          title: Overduecount
+        affectedStudents:
+          type: integer
+          minimum: 0.0
+          title: Affectedstudents
+        unpaidCount:
+          type: integer
+          minimum: 0.0
+          title: Unpaidcount
+        partiallyPaidCount:
+          type: integer
+          minimum: 0.0
+          title: Partiallypaidcount
+      type: object
+      required:
+      - pendingAmount
+      - overdueAmount
+      - pendingCount
+      - overdueCount
+      - affectedStudents
+      - unpaidCount
+      - partiallyPaidCount
+      title: PendingTotals
     ReceiptActorSummary:
       properties:
         id:
@@ -6369,6 +7208,59 @@ components:
       - name
       - enrollmentNumber
       title: ReceiptStudentSummary
+    RecentActivityItem:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        type:
+          type: string
+          title: Type
+        action:
+          type: string
+          title: Action
+        entityType:
+          type: string
+          title: Entitytype
+        entityId:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Entityid
+        title:
+          type: string
+          title: Title
+        detail:
+          type: string
+          title: Detail
+        amount:
+          anyOf:
+          - type: string
+            pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          - type: 'null'
+          title: Amount
+        actor:
+          anyOf:
+          - $ref: '#/components/schemas/ActivityActor'
+          - type: 'null'
+        occurredAt:
+          type: string
+          format: date-time
+          title: Occurredat
+      type: object
+      required:
+      - id
+      - type
+      - action
+      - entityType
+      - entityId
+      - title
+      - detail
+      - amount
+      - actor
+      - occurredAt
+      title: RecentActivityItem
     RefreshRequest:
       properties:
         refreshToken:
@@ -6509,6 +7401,303 @@ components:
       - link_generated
       - failed
       title: ReminderOutcome
+    ReportAppliedFilters:
+      properties:
+        startMonth:
+          type: string
+          pattern: ^\d{4}-(0[1-9]|1[0-2])$
+          title: Startmonth
+        endMonth:
+          type: string
+          pattern: ^\d{4}-(0[1-9]|1[0-2])$
+          title: Endmonth
+        floorId:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Floorid
+        shiftId:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Shiftid
+        reportDate:
+          type: string
+          format: date
+          title: Reportdate
+      type: object
+      required:
+      - startMonth
+      - endMonth
+      - floorId
+      - shiftId
+      - reportDate
+      title: ReportAppliedFilters
+    ReportFloorOption:
+      properties:
+        value:
+          type: string
+          format: uuid
+          title: Value
+        label:
+          type: string
+          title: Label
+        code:
+          type: string
+          title: Code
+      type: object
+      required:
+      - value
+      - label
+      - code
+      title: ReportFloorOption
+    ReportInsight:
+      properties:
+        id:
+          type: string
+          title: Id
+        tone:
+          type: string
+          title: Tone
+        title:
+          type: string
+          title: Title
+        detail:
+          type: string
+          title: Detail
+      type: object
+      required:
+      - id
+      - tone
+      - title
+      - detail
+      title: ReportInsight
+    ReportMonthOption:
+      properties:
+        value:
+          type: string
+          pattern: ^\d{4}-(0[1-9]|1[0-2])$
+          title: Value
+        label:
+          type: string
+          title: Label
+      type: object
+      required:
+      - value
+      - label
+      title: ReportMonthOption
+    ReportOptionsData:
+      properties:
+        months:
+          items:
+            $ref: '#/components/schemas/ReportMonthOption'
+          type: array
+          title: Months
+        floors:
+          items:
+            $ref: '#/components/schemas/ReportFloorOption'
+          type: array
+          title: Floors
+        shifts:
+          items:
+            $ref: '#/components/schemas/ReportShiftOption'
+          type: array
+          title: Shifts
+      type: object
+      required:
+      - months
+      - floors
+      - shifts
+      title: ReportOptionsData
+    ReportOverviewMetrics:
+      properties:
+        collectedRevenue:
+          type: string
+          pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Collectedrevenue
+        pendingRevenue:
+          type: string
+          pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Pendingrevenue
+        collectionRate:
+          type: number
+          maximum: 100.0
+          minimum: 0.0
+          title: Collectionrate
+        activeStudents:
+          type: integer
+          minimum: 0.0
+          title: Activestudents
+        totalStudents:
+          type: integer
+          minimum: 0.0
+          title: Totalstudents
+        occupiedSeats:
+          type: integer
+          minimum: 0.0
+          title: Occupiedseats
+        totalSeats:
+          type: integer
+          minimum: 0.0
+          title: Totalseats
+        occupancyRate:
+          type: number
+          maximum: 100.0
+          minimum: 0.0
+          title: Occupancyrate
+      type: object
+      required:
+      - collectedRevenue
+      - pendingRevenue
+      - collectionRate
+      - activeStudents
+      - totalStudents
+      - occupiedSeats
+      - totalSeats
+      - occupancyRate
+      title: ReportOverviewMetrics
+    ReportShiftOption:
+      properties:
+        value:
+          type: string
+          format: uuid
+          title: Value
+        label:
+          type: string
+          title: Label
+        timing:
+          type: string
+          title: Timing
+        startTime:
+          type: string
+          title: Starttime
+        endTime:
+          type: string
+          title: Endtime
+        isActive:
+          type: boolean
+          title: Isactive
+      type: object
+      required:
+      - value
+      - label
+      - timing
+      - startTime
+      - endTime
+      - isActive
+      title: ReportShiftOption
+    RevenueReport:
+      properties:
+        totals:
+          $ref: '#/components/schemas/RevenueTotals'
+        series:
+          items:
+            $ref: '#/components/schemas/RevenueSeriesItem'
+          type: array
+          title: Series
+        paymentMethods:
+          items:
+            $ref: '#/components/schemas/PaymentMethodItem'
+          type: array
+          title: Paymentmethods
+      type: object
+      required:
+      - totals
+      - series
+      - paymentMethods
+      title: RevenueReport
+    RevenueSeriesItem:
+      properties:
+        month:
+          type: string
+          pattern: ^\d{4}-(0[1-9]|1[0-2])$
+          title: Month
+        label:
+          type: string
+          title: Label
+        expected:
+          type: string
+          pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Expected
+        collected:
+          type: string
+          pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Collected
+        pending:
+          type: string
+          pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Pending
+        collectionRate:
+          type: number
+          maximum: 100.0
+          minimum: 0.0
+          title: Collectionrate
+        paymentCount:
+          type: integer
+          minimum: 0.0
+          title: Paymentcount
+      type: object
+      required:
+      - month
+      - label
+      - expected
+      - collected
+      - pending
+      - collectionRate
+      - paymentCount
+      title: RevenueSeriesItem
+    RevenueTotals:
+      properties:
+        expected:
+          type: string
+          pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Expected
+        collected:
+          type: string
+          pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Collected
+        pending:
+          type: string
+          pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Pending
+        collectionRate:
+          type: number
+          maximum: 100.0
+          minimum: 0.0
+          title: Collectionrate
+        paymentCount:
+          type: integer
+          minimum: 0.0
+          title: Paymentcount
+        paidCount:
+          type: integer
+          minimum: 0.0
+          title: Paidcount
+        partiallyPaidCount:
+          type: integer
+          minimum: 0.0
+          title: Partiallypaidcount
+        unpaidCount:
+          type: integer
+          minimum: 0.0
+          title: Unpaidcount
+        revenueChange:
+          type: number
+          title: Revenuechange
+      type: object
+      required:
+      - expected
+      - collected
+      - pending
+      - collectionRate
+      - paymentCount
+      - paidCount
+      - partiallyPaidCount
+      - unpaidCount
+      - revenueChange
+      title: RevenueTotals
     SeatAllocationCreate:
       properties:
         seatId:
@@ -7286,6 +8475,24 @@ components:
       - createdAt
       - updatedAt
       title: SeatResponse
+    SeatStatusItem:
+      properties:
+        status:
+          type: string
+          title: Status
+        label:
+          type: string
+          title: Label
+        count:
+          type: integer
+          minimum: 0.0
+          title: Count
+      type: object
+      required:
+      - status
+      - label
+      - count
+      title: SeatStatusItem
     SeatStatusUpdate:
       properties:
         status:
@@ -7415,6 +8622,60 @@ components:
       - startTime
       - endTime
       title: ShiftCreate
+    ShiftOccupancyItem:
+      properties:
+        shiftId:
+          type: string
+          format: uuid
+          title: Shiftid
+        name:
+          type: string
+          title: Name
+        timing:
+          type: string
+          title: Timing
+        totalSeats:
+          type: integer
+          minimum: 0.0
+          title: Totalseats
+        available:
+          type: integer
+          minimum: 0.0
+          title: Available
+        occupied:
+          type: integer
+          minimum: 0.0
+          title: Occupied
+        blocked:
+          type: integer
+          minimum: 0.0
+          title: Blocked
+        reserved:
+          type: integer
+          minimum: 0.0
+          title: Reserved
+        maintenance:
+          type: integer
+          minimum: 0.0
+          title: Maintenance
+        occupancyRate:
+          type: number
+          maximum: 100.0
+          minimum: 0.0
+          title: Occupancyrate
+      type: object
+      required:
+      - shiftId
+      - name
+      - timing
+      - totalSeats
+      - available
+      - occupied
+      - blocked
+      - reserved
+      - maintenance
+      - occupancyRate
+      title: ShiftOccupancyItem
     ShiftResponse:
       properties:
         id:
@@ -7487,6 +8748,24 @@ components:
       required:
       - shiftIds
       title: ShiftSelectionValidation
+    ShiftStatusItem:
+      properties:
+        key:
+          type: string
+          title: Key
+        label:
+          type: string
+          title: Label
+        count:
+          type: integer
+          minimum: 0.0
+          title: Count
+      type: object
+      required:
+      - key
+      - label
+      - count
+      title: ShiftStatusItem
     ShiftStatusUpdate:
       properties:
         isEnabled:
@@ -7615,6 +8894,24 @@ components:
       - phone
       - feeAmount
       title: StudentCreate
+    StudentDistributionItem:
+      properties:
+        status:
+          type: string
+          title: Status
+        label:
+          type: string
+          title: Label
+        count:
+          type: integer
+          minimum: 0.0
+          title: Count
+      type: object
+      required:
+      - status
+      - label
+      - count
+      title: StudentDistributionItem
     StudentInvitationResponse:
       properties:
         studentId:
@@ -7645,6 +8942,38 @@ components:
       - expiresAt
       - setupUrl
       title: StudentInvitationResponse
+    StudentReport:
+      properties:
+        totals:
+          $ref: '#/components/schemas/StudentTotals'
+        joiningTrend:
+          items:
+            $ref: '#/components/schemas/StudentTrendItem'
+          type: array
+          title: Joiningtrend
+        statusDistribution:
+          items:
+            $ref: '#/components/schemas/StudentDistributionItem'
+          type: array
+          title: Statusdistribution
+        feeStatus:
+          items:
+            $ref: '#/components/schemas/StudentDistributionItem'
+          type: array
+          title: Feestatus
+        shiftDistribution:
+          items:
+            $ref: '#/components/schemas/StudentShiftItem'
+          type: array
+          title: Shiftdistribution
+      type: object
+      required:
+      - totals
+      - joiningTrend
+      - statusDistribution
+      - feeStatus
+      - shiftDistribution
+      title: StudentReport
     StudentResponse:
       properties:
         id:
@@ -7917,6 +9246,21 @@ components:
       - endDate
       - status
       title: StudentSeatAssignmentResponse
+    StudentShiftItem:
+      properties:
+        shiftId:
+          type: string
+          format: uuid
+          title: Shiftid
+        count:
+          type: integer
+          minimum: 0.0
+          title: Count
+      type: object
+      required:
+      - shiftId
+      - count
+      title: StudentShiftItem
     StudentStatus:
       type: string
       enum:
@@ -7933,6 +9277,71 @@ components:
       required:
       - status
       title: StudentStatusUpdate
+    StudentTotals:
+      properties:
+        totalStudents:
+          type: integer
+          minimum: 0.0
+          title: Totalstudents
+        activeStudents:
+          type: integer
+          minimum: 0.0
+          title: Activestudents
+        inactiveStudents:
+          type: integer
+          minimum: 0.0
+          title: Inactivestudents
+        leftStudents:
+          type: integer
+          minimum: 0.0
+          title: Leftstudents
+        suspendedStudents:
+          type: integer
+          minimum: 0.0
+          title: Suspendedstudents
+        activeRate:
+          type: number
+          maximum: 100.0
+          minimum: 0.0
+          title: Activerate
+        newStudents:
+          type: integer
+          minimum: 0.0
+          title: Newstudents
+      type: object
+      required:
+      - totalStudents
+      - activeStudents
+      - inactiveStudents
+      - leftStudents
+      - suspendedStudents
+      - activeRate
+      - newStudents
+      title: StudentTotals
+    StudentTrendItem:
+      properties:
+        month:
+          type: string
+          pattern: ^\d{4}-(0[1-9]|1[0-2])$
+          title: Month
+        label:
+          type: string
+          title: Label
+        joined:
+          type: integer
+          minimum: 0.0
+          title: Joined
+        activeStudentsAtEnd:
+          type: integer
+          minimum: 0.0
+          title: Activestudentsatend
+      type: object
+      required:
+      - month
+      - label
+      - joined
+      - activeStudentsAtEnd
+      title: StudentTrendItem
     StudentUpdate:
       properties:
         enrollmentNumber:
@@ -8118,6 +9527,42 @@ components:
       - message
       - data
       title: SuccessResponse[MonthlyFeeGenerationResponse]
+    SuccessResponse_OwnerDashboardData_:
+      properties:
+        message:
+          type: string
+          title: Message
+        data:
+          $ref: '#/components/schemas/OwnerDashboardData'
+        meta:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Meta
+      type: object
+      required:
+      - message
+      - data
+      title: SuccessResponse[OwnerDashboardData]
+    SuccessResponse_OwnerReportsData_:
+      properties:
+        message:
+          type: string
+          title: Message
+        data:
+          $ref: '#/components/schemas/OwnerReportsData'
+        meta:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Meta
+      type: object
+      required:
+      - message
+      - data
+      title: SuccessResponse[OwnerReportsData]
     SuccessResponse_PaymentTransactionRecordedResponse_:
       properties:
         message:
@@ -8154,6 +9599,24 @@ components:
       - message
       - data
       title: SuccessResponse[ReceiptDetail]
+    SuccessResponse_ReportOptionsData_:
+      properties:
+        message:
+          type: string
+          title: Message
+        data:
+          $ref: '#/components/schemas/ReportOptionsData'
+        meta:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Meta
+      type: object
+      required:
+      - message
+      - data
+      title: SuccessResponse[ReportOptionsData]
     SuccessResponse_SeatAllocationCreateResponse_:
       properties:
         message:
@@ -8644,6 +10107,8 @@ tags:
   description: Tenant-scoped owner announcement management and lifecycle commands.
 - name: Seat requests
   description: Tenant-scoped owner review of student seat-change requests without allocation mutation.
+- name: Reports
+  description: Tenant-scoped Owner dashboard and operational reports computed from source domain records.
 servers:
 - url: /
   description: Current host
