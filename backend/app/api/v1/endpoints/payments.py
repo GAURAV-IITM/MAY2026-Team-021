@@ -218,14 +218,29 @@ def list_payments(
         uuid.UUID | None,
         Query(alias="studentId"),
     ] = None,
+    due_date_from: Annotated[
+        date | None,
+        Query(alias="dueDateFrom"),
+    ] = None,
+    due_date_to: Annotated[
+        date | None,
+        Query(alias="dueDateTo"),
+    ] = None,
+    has_transactions: Annotated[
+        bool | None,
+        Query(alias="hasTransactions"),
+    ] = None,
 ) -> PaymentListResponse:
     result = payment_service.list_payments(
         db,
         tenant.library_id,
         pagination,
-        billing_month=month,
+        month=month,
         status=payment_status,
         student_id=student_id,
+        due_date_from=due_date_from,
+        due_date_to=due_date_to,
+        has_transactions=has_transactions,
     )
     return PaymentListResponse(
         message="Monthly fee records fetched successfully.",
