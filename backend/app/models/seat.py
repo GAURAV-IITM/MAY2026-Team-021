@@ -330,3 +330,7 @@ class SeatChangeRequest(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     preferred_seat: Mapped[Seat | None] = relationship(foreign_keys=[preferred_seat_id])
     preferred_floor: Mapped[Floor | None] = relationship(foreign_keys=[preferred_floor_id])
     preferred_shift: Mapped[Shift] = relationship(foreign_keys=[preferred_shift_id])
+    reviewed_by: Mapped[object | None] = relationship(
+        "User",
+        foreign_keys=[reviewed_by_user_id],
+    )

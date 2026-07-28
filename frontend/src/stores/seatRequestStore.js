@@ -1,65 +1,117 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 
-import * as studentPortalService from '../services/studentPortalService.js'
+import * as seatRequestService from '../services/seatRequestService.js'
+
+
+const emptySummary = () => ({
+  total: 0,
+  pending: 0,
+  approved: 0,
+  rejected: 0,
+  cancelled: 0,
+})
+const emptyPagination = () => ({
+  page: 1,
+  pageSize: 10,
+  totalItems: 0,
+  totalPages: 0,
+})
+const initialFilters = () => ({
+  search: '',
+  status: '',
+  preferredShiftId: '',
+  page: 1,
+  pageSize: 10,
+  sortBy: 'submittedAt',
+  sortOrder: 'desc',
+})
+
 
 export const useSeatRequestStore = defineStore('seatRequests', () => {
   const requests = ref([])
   const selectedRequest = ref(null)
+  const summary = ref(emptySummary())
+  const pagination = ref(emptyPagination())
+  const filters = ref(initialFilters())
   const isLoading = ref(false)
   const isSaving = ref(false)
   const error = ref(null)
+  let latestRequest = 0
 
-  const errorMessage = computed(() => {
-    if (!error.value) return ''
+  const errorMessage = computed(() =>
+    error.value?.response?.data?.error?.message ||
+    error.value?.response?.data?.message ||
+    error.value?.message ||
+    '',
+  )
+  const errorRequestId = computed(
+    () => error.value?.response?.data?.requestId || '',
+  )
+  const errorCode = computed(
+    () => error.value?.response?.data?.error?.code || '',
+  )
+  const pendingCount = computed(() => summary.value.pending)
+  const approvedCount = computed(() => summary.value.approved)
+  const rejectedCount = computed(() => summary.value.rejected)
 
-    return (
-      error.value?.response?.data?.message ||
-      error.value?.message ||
-      'An unexpected seat request error occurred.'
-    )
-  })
-  const pendingCount = computed(
-    () => requests.value.filter((request) => request.status === 'pending').length,
-  )
-  const approvedCount = computed(
-    () => requests.value.filter((request) => request.status === 'approved').length,
-  )
-  const rejectedCount = computed(
-    () => requests.value.filter((request) => request.status === 'rejected').length,
-  )
-
-  async function fetchRequests(admin) {
+  async function fetchRequests(nextFilters = filters.value) {
+    filters.value = { ...filters.value, ...nextFilters }
+    const requestNumber = ++latestRequest
     isLoading.value = true
     error.value = null
-
     try {
-      const response = await studentPortalService.getAdminSeatRequests(admin)
-      requests.value = response.data.requests
+      const response = await seatRequestService.getSeatRequests({
+        ...filters.value,
+      })
+      if (requestNumber === latestRequest) {
+        requests.value = response.data.requests
+        summary.value = response.summary || emptySummary()
+        pagination.value = response.meta || emptyPagination()
+      }
       return response
     } catch (requestError) {
-      error.value = requestError
+      if (requestNumber === latestRequest) error.value = requestError
       throw requestError
     } finally {
-      isLoading.value = false
+      if (requestNumber === latestRequest) isLoading.value = false
     }
   }
 
-  async function reviewRequest(admin, requestId, payload) {
+  async function reviewRequest(requestId, payload) {
     isSaving.value = true
     error.value = null
-
     try {
-      const response = await studentPortalService.reviewSeatRequest(
-        admin,
+      const response = await seatRequestService.reviewSeatRequest(
         requestId,
         payload,
       )
-      requests.value = response.data.requests
-      selectedRequest.value = response.data.request
+      selectedRequest.value = response.data
+      await fetchRequests()
       return response
     } catch (requestError) {
       error.value = requestError
+      if (requestError?.response?.status === 409) {
+        const conflict = requestError
+        const details = conflict.response?.data?.error?.details || {}
+        if (
+          selectedRequest.value &&
+          details.currentStatus
+        ) {
+          selectedRequest.value = {
+            ...selectedRequest.value,
+            status: details.currentStatus,
+            resolvedAt: details.reviewedAt || selectedRequest.value.resolvedAt,
+          }
+        }
+        try {
+          await fetchRequests()
+        } catch {
+          // Preserve the review conflict as the actionable error.
+        } finally {
+          error.value = conflict
+        }
+      }
       throw requestError
     } finally {
       isSaving.value = false
@@ -67,20 +119,33 @@ export const useSeatRequestStore = defineStore('seatRequests', () => {
   }
 
   function selectRequest(request) {
+    error.value = null
     selectedRequest.value = request
   }
-
   function clearSelectedRequest() {
     selectedRequest.value = null
+    error.value = null
+  }
+  function clearFilters() {
+    filters.value = initialFilters()
+  }
+  function setPage(page) {
+    filters.value.page = page
+    return fetchRequests()
   }
 
   return {
     requests,
     selectedRequest,
+    summary,
+    pagination,
+    filters,
     isLoading,
     isSaving,
     error,
     errorMessage,
+    errorRequestId,
+    errorCode,
     pendingCount,
     approvedCount,
     rejectedCount,
@@ -88,5 +153,7 @@ export const useSeatRequestStore = defineStore('seatRequests', () => {
     reviewRequest,
     selectRequest,
     clearSelectedRequest,
+    clearFilters,
+    setPage,
   }
 })

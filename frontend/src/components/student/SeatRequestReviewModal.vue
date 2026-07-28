@@ -10,7 +10,7 @@
         <div>
           <span class="text-small text-muted">Student</span>
           <strong>{{ request.studentName }}</strong>
-          <span class="text-small text-muted">{{ request.studentEmail }}</span>
+          <span class="text-small text-muted">{{ request.enrollmentNumber }}</span>
         </div>
         <span class="badge" :class="statusClass(request.status)">
           {{ formatLabel(request.status) }}
@@ -19,11 +19,12 @@
 
       <dl class="request-review__details">
         <div><dt>Current Seat</dt><dd>{{ request.currentSeatNumber || 'Not assigned' }}</dd></div>
+        <div><dt>Current Shift</dt><dd>{{ request.currentShiftName || 'Not assigned' }}</dd></div>
         <div><dt>Preferred Seat</dt><dd>{{ request.preferredSeatNumber || 'Any seat' }}</dd></div>
-        <div><dt>Preferred Floor</dt><dd>{{ request.preferredFloor ? `Floor ${request.preferredFloor}` : 'Any floor' }}</dd></div>
+        <div><dt>Preferred Floor</dt><dd>{{ preferredFloorLabel }}</dd></div>
         <div><dt>Preferred Shift</dt><dd>{{ formatLabel(request.preferredShiftName) }}</dd></div>
         <div><dt>Submitted</dt><dd>{{ formatDateTime(request.submittedAt) }}</dd></div>
-        <div v-if="request.resolvedAt"><dt>Resolved</dt><dd>{{ formatDateTime(request.resolvedAt) }}</dd></div>
+        <div v-if="request.resolvedAt"><dt>Reviewed</dt><dd>{{ formatDateTime(request.resolvedAt) }}</dd></div>
       </dl>
 
       <section class="request-review__reason" aria-labelledby="request-reason-title">
@@ -31,9 +32,14 @@
         <p class="m-0">{{ request.reason }}</p>
       </section>
 
-      <template v-if="request.status === 'pending'">
-        <div class="alert alert--info request-review__notice" role="note">
-          Approval records your decision only. Update the student's seat or shift separately in Student Management.
+      <template v-if="request.status === 'pending' || isAlreadyReviewed">
+        <div v-if="!isAlreadyReviewed" class="alert alert--info request-review__notice" role="note">
+          Approving this request records the decision only. It will not change the student’s seat or shift.
+        </div>
+
+        <div v-if="serverError" class="alert alert--danger" role="alert">
+          <span>{{ conflictMessage }}</span>
+          <small v-if="requestId">Request ID: {{ requestId }}</small>
         </div>
 
         <div class="form-group">
@@ -46,13 +52,15 @@
             v-model.trim="adminNote"
             class="form-textarea"
             rows="4"
+            maxlength="2000"
             placeholder="Add a response for the student"
+            :disabled="isSaving || isAlreadyReviewed"
           ></textarea>
           <span v-if="validationMessage" class="form-error">{{ validationMessage }}</span>
         </div>
       </template>
 
-      <section v-else class="request-review__response" aria-labelledby="admin-response-title">
+      <section v-else-if="request.status !== 'pending'" class="request-review__response" aria-labelledby="admin-response-title">
         <h3 id="admin-response-title" class="text-label text-muted m-0">Administrator Response</h3>
         <p class="m-0">{{ request.adminNote || 'No note was added.' }}</p>
         <span v-if="request.reviewedBy" class="text-small text-muted">
@@ -65,7 +73,7 @@
       <button class="btn btn--secondary" type="button" :disabled="isSaving" @click="handleClose">
         Close
       </button>
-      <template v-if="request?.status === 'pending'">
+      <template v-if="request?.status === 'pending' && !isAlreadyReviewed">
         <button class="btn btn--danger" type="button" :disabled="isSaving" @click="submitDecision('rejected')">
           {{ isSaving ? 'Saving...' : 'Reject' }}
         </button>
@@ -78,22 +86,40 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 import Modal from '../common/Modal.vue'
 
 const props = defineProps({
   request: { type: Object, default: null },
   isSaving: { type: Boolean, default: false },
+  serverError: { type: String, default: '' },
+  errorCode: { type: String, default: '' },
+  requestId: { type: String, default: '' },
 })
 const emit = defineEmits(['close', 'review'])
 const adminNote = ref('')
 const validationMessage = ref('')
+const conflictMessage = computed(() =>
+  props.errorCode === 'SEAT_REQUEST_ALREADY_REVIEWED'
+    ? 'This request was already reviewed by another user. The latest status has been loaded.'
+    : props.serverError,
+)
+const isAlreadyReviewed = computed(
+  () => props.errorCode === 'SEAT_REQUEST_ALREADY_REVIEWED',
+)
+const preferredFloorLabel = computed(() =>
+  props.request?.preferredFloorName ||
+  (props.request?.preferredFloor !== null &&
+  props.request?.preferredFloor !== undefined
+    ? `Floor ${props.request.preferredFloor}`
+    : 'Any floor'),
+)
 
 watch(
-  () => props.request,
-  (request) => {
-    adminNote.value = request?.adminNote || ''
+  () => props.request?.id,
+  () => {
+    adminNote.value = props.request?.adminNote || ''
     validationMessage.value = ''
   },
   { immediate: true },
@@ -136,7 +162,7 @@ function submitDecision(decision) {
   }
 
   validationMessage.value = ''
-  emit('review', { decision, adminNote: adminNote.value })
+  emit('review', { decision, reviewNote: adminNote.value })
 }
 </script>
 

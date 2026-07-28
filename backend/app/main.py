@@ -52,6 +52,20 @@ def create_app() -> FastAPI:
                     "lifecycle commands."
                 ),
             },
+            {
+                "name": "Seat requests",
+                "description": (
+                    "Tenant-scoped owner review of student seat-change "
+                    "requests without allocation mutation."
+                ),
+            },
+            {
+                "name": "Reports",
+                "description": (
+                    "Tenant-scoped Owner dashboard and operational reports "
+                    "computed from source domain records."
+                ),
+            },
         ],
     )
     application.add_middleware(

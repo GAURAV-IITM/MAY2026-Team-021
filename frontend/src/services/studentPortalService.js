@@ -73,21 +73,6 @@ function ensureStudentAccess(studentId) {
   return normalizedStudentId
 }
 
-function ensureAdminAccess(admin = {}) {
-  const id = String(admin.id || '').trim()
-  const libraryName = String(admin.libraryName || '').trim()
-
-  if (!id || !libraryName) {
-    throw createPortalError(
-      'A logged-in library owner is required.',
-      401,
-      'ADMIN_AUTH_REQUIRED',
-    )
-  }
-
-  return { id, name: String(admin.name || 'Library Owner'), libraryName }
-}
-
 function getStudentPayments(studentId) {
   return studentPaymentMock
     .filter((payment) => payment.studentId === studentId)
@@ -314,70 +299,6 @@ export async function cancelSeatRequest(studentId, requestId) {
   return createSuccessResponse('Seat change request cancelled successfully.', {
     request,
     requests: getStudentRequests(scopedStudentId),
-  })
-}
-
-export async function getAdminSeatRequests(admin) {
-  await delay()
-  const scopedAdmin = ensureAdminAccess(admin)
-  const libraryRequests = requests
-    .filter((request) => request.libraryName === scopedAdmin.libraryName)
-    .sort((first, second) => second.submittedAt.localeCompare(first.submittedAt))
-
-  return createSuccessResponse('Seat change requests fetched successfully.', {
-    requests: libraryRequests,
-  })
-}
-
-export async function reviewSeatRequest(admin, requestId, payload = {}) {
-  await delay()
-  const scopedAdmin = ensureAdminAccess(admin)
-  const decision = String(payload.decision || '').trim().toLowerCase()
-  const adminNote = String(payload.adminNote || '').trim()
-  const request = requests.find((item) => {
-    return item.id === String(requestId) && item.libraryName === scopedAdmin.libraryName
-  })
-
-  if (!request) {
-    throw createPortalError('Seat request was not found.', 404, 'SEAT_REQUEST_NOT_FOUND')
-  }
-
-  if (request.status !== 'pending') {
-    throw createPortalError(
-      'Only pending requests can be reviewed.',
-      409,
-      'SEAT_REQUEST_ALREADY_REVIEWED',
-    )
-  }
-
-  if (!['approved', 'rejected'].includes(decision)) {
-    throw createPortalError(
-      'Choose either approve or reject.',
-      422,
-      'SEAT_REQUEST_DECISION_REQUIRED',
-    )
-  }
-
-  if (decision === 'rejected' && adminNote.length < 5) {
-    throw createPortalError(
-      'Add a short reason before rejecting the request.',
-      422,
-      'SEAT_REQUEST_REJECTION_NOTE_REQUIRED',
-    )
-  }
-
-  request.status = decision
-  request.adminNote = adminNote
-  request.resolvedAt = new Date().toISOString()
-  request.reviewedBy = { id: scopedAdmin.id, name: scopedAdmin.name }
-
-  const libraryRequests = requests
-    .filter((item) => item.libraryName === scopedAdmin.libraryName)
-    .sort((first, second) => second.submittedAt.localeCompare(first.submittedAt))
-
-  return createSuccessResponse(`Seat request ${decision} successfully.`, {
-    request,
-    requests: libraryRequests,
   })
 }
 

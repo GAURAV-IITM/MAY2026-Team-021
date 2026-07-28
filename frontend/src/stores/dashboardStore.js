@@ -7,6 +7,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
   const summary = ref(null)
   const isLoading = ref(false)
   const error = ref(null)
+  let latestRequest = 0
 
   const hasSummary = computed(() => Boolean(summary.value))
   const metrics = computed(() => summary.value?.metrics || {})
@@ -17,7 +18,9 @@ export const useDashboardStore = defineStore('dashboard', () => {
   const shiftAvailability = computed(
     () => summary.value?.shiftAvailability || [],
   )
-  const attentionItems = computed(() => summary.value?.attentionItems || [])
+  const studentsRequiringAttention = computed(
+    () => summary.value?.studentsRequiringAttention || [],
+  )
   const recentActivity = computed(() => summary.value?.recentActivity || [])
   const errorMessage = computed(() => {
     if (!error.value) return ''
@@ -28,21 +31,27 @@ export const useDashboardStore = defineStore('dashboard', () => {
       'An unexpected dashboard service error occurred.'
     )
   })
+  const requestId = computed(
+    () =>
+      error.value?.response?.headers?.['x-request-id'] ||
+      error.value?.response?.data?.error?.requestId ||
+      '',
+  )
 
-  async function fetchDashboardSummary() {
+  async function fetchDashboardSummary(filters = {}) {
+    const request = ++latestRequest
     isLoading.value = true
     error.value = null
 
     try {
-      const response = await dashboardService.getDashboardSummary()
-      summary.value = response.data
-
+      const response = await dashboardService.getDashboardSummary(filters)
+      if (request === latestRequest) summary.value = response.data
       return response
     } catch (requestError) {
-      error.value = requestError
+      if (request === latestRequest) error.value = requestError
       throw requestError
     } finally {
-      isLoading.value = false
+      if (request === latestRequest) isLoading.value = false
     }
   }
 
@@ -59,9 +68,10 @@ export const useDashboardStore = defineStore('dashboard', () => {
     seatStatus,
     monthlyCollection,
     shiftAvailability,
-    attentionItems,
+    studentsRequiringAttention,
     recentActivity,
     errorMessage,
+    requestId,
     fetchDashboardSummary,
     refreshDashboard: fetchDashboardSummary,
     clearError,
