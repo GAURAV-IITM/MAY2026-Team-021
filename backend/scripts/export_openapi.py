@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+import difflib
 from pathlib import Path
 from typing import Any
 
@@ -53,7 +54,28 @@ def write_openapi_yaml(
 
 
 def check_openapi_contract(path: Path = DEFAULT_OUTPUT) -> bool:
-    return load_openapi_yaml(path) == build_openapi_schema()
+    schema = build_openapi_schema()
+    generated_yaml = yaml.safe_dump(
+        schema,
+        sort_keys=False,
+        allow_unicode=True,
+        width=100,
+    )
+    if not path.exists():
+        return False
+    current_yaml = path.read_text(encoding="utf-8")
+    if current_yaml == generated_yaml:
+        return True
+
+    print("OpenAPI contract drift detected! Difference:", file=sys.stderr)
+    diff = difflib.unified_diff(
+        current_yaml.splitlines(keepends=True),
+        generated_yaml.splitlines(keepends=True),
+        fromfile="Current docs/api/openapi.yaml",
+        tofile="Generated OpenAPI schema",
+    )
+    sys.stderr.writelines(diff)
+    return False
 
 
 def parse_args() -> argparse.Namespace:
