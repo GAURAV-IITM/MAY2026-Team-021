@@ -214,6 +214,11 @@ class SeatAllocation(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     shift_start_time: Mapped[time] = mapped_column(Time, nullable=False)
     shift_end_time: Mapped[time] = mapped_column(Time, nullable=False)
     shift_crosses_midnight: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    seat_number_snapshot: Mapped[str | None] = mapped_column(String(64))
+    floor_id_snapshot: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid(as_uuid=True)
+    )
+    floor_name_snapshot: Mapped[str | None] = mapped_column(String(100))
     notes: Mapped[str | None] = mapped_column(Text)
     close_reason: Mapped[str | None] = mapped_column(Text)
     allocated_at: Mapped[datetime] = mapped_column(
@@ -237,6 +242,14 @@ class SeatAllocation(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     student: Mapped[object] = relationship("Student", back_populates="allocations")
     seat: Mapped[Seat] = relationship(back_populates="allocations")
     shift: Mapped[Shift] = relationship(back_populates="allocations")
+    allocated_by: Mapped[object | None] = relationship(
+        "User",
+        foreign_keys=[allocated_by_user_id],
+    )
+    closed_by: Mapped[object | None] = relationship(
+        "User",
+        foreign_keys=[closed_by_user_id],
+    )
     previous_allocation: Mapped[SeatAllocation | None] = relationship(
         remote_side="SeatAllocation.id",
         foreign_keys=[previous_allocation_id],

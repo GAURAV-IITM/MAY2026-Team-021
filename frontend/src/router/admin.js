@@ -8,6 +8,7 @@ import AdminAddStudent from '../pages/admin/AddStudent.vue'
 import AdminEditStudent from '../pages/admin/EditStudent.vue'
 import AdminSeatManagement from '../pages/admin/SeatManagement.vue'
 import AdminSeatAvailability from '../pages/admin/SeatAvailability.vue'
+import AdminSeatAllocations from '../pages/admin/SeatAllocations.vue'
 import AdminShiftManagement from '../pages/admin/ShiftManagement.vue'
 import AdminPayments from '../pages/admin/Payments.vue'
 import AdminReceipts from '../pages/admin/Receipts.vue'
@@ -76,6 +77,12 @@ const adminRoutes = [
         name: 'adminSeatMap',
         component: AdminSeatAvailability,
         meta: { title: 'Seat Map', role: 'admin', requiresAuth: true },
+      },
+      {
+        path: 'seat-allocations',
+        name: 'adminSeatAllocations',
+        component: AdminSeatAllocations,
+        meta: { title: 'Allocation History', role: 'admin', requiresAuth: true },
       },
       {
         path: 'shift-management',

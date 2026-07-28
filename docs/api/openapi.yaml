@@ -2593,10 +2593,12 @@ paths:
           title: Startdate
       - name: endDate
         in: query
-        required: true
+        required: false
         schema:
-          type: string
-          format: date
+          anyOf:
+          - type: string
+            format: date
+          - type: 'null'
           title: Enddate
       - name: floorId
         in: query
@@ -2674,6 +2676,1575 @@ paths:
       x-user-stories:
       - STUDENT-REGISTER-SEAT
       - SEAT-AVAILABILITY
+  /api/v1/seat-allocations:
+    get:
+      tags:
+      - Seat allocations
+      summary: List Seat Allocations
+      operationId: listSeatAllocations
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: studentId
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Studentid
+      - name: seatId
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Seatid
+      - name: shiftId
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Shiftid
+      - name: status
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/AllocationStatus'
+          - type: 'null'
+          title: Status
+      - name: startDate
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date
+          - type: 'null'
+          title: Startdate
+      - name: endDate
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date
+          - type: 'null'
+          title: Enddate
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+          title: Page
+      - name: pageSize
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+          default: 20
+          title: Pagesize
+      - name: search
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            maxLength: 200
+          - type: 'null'
+          title: Search
+      - name: sortBy
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 80
+          default: createdAt
+          title: Sortby
+      - name: sortOrder
+        in: query
+        required: false
+        schema:
+          type: string
+          pattern: ^(asc|desc)$
+          default: desc
+          title: Sortorder
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedResponse_SeatAllocationResponse_'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Request validation or a business rule failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      x-user-stories:
+      - SEAT-ALLOCATION-LIST
+    post:
+      tags:
+      - Seat allocations
+      summary: Create Seat Allocation
+      operationId: createSeatAllocation
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SeatAllocationCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse_SeatAllocationCreateResponse_'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '404':
+          description: The requested resource was not found in the current scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '409':
+          description: The request conflicts with existing data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Request validation or a business rule failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      x-user-stories:
+      - SEAT-ALLOCATION-CREATE
+  /api/v1/seat-allocations/{allocation_id}/status:
+    patch:
+      tags:
+      - Seat allocations
+      summary: Close Seat Allocation
+      operationId: closeSeatAllocation
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: allocation_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Allocation Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SeatAllocationStatusUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse_SeatAllocationResponse_'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '404':
+          description: The requested resource was not found in the current scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '409':
+          description: The request conflicts with existing data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Request validation or a business rule failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      x-user-stories:
+      - SEAT-ALLOCATION-CLOSE
+  /api/v1/payments:
+    get:
+      tags:
+      - Payments
+      summary: List monthly fee records
+      description: Returns tenant-scoped monthly fee records with server-calculated payment totals, balances,
+        statuses, and transactions.
+      operationId: listPayments
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: month
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            pattern: ^\d{4}-(0[1-9]|1[0-2])$
+          - type: 'null'
+          title: Month
+      - name: status
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/FeeStatus'
+          - type: 'null'
+          title: Status
+      - name: studentId
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Studentid
+      - name: dueDateFrom
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date
+          - type: 'null'
+          title: Duedatefrom
+      - name: dueDateTo
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date
+          - type: 'null'
+          title: Duedateto
+      - name: hasTransactions
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Hastransactions
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+          title: Page
+      - name: pageSize
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+          default: 20
+          title: Pagesize
+      - name: search
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            maxLength: 200
+          - type: 'null'
+          title: Search
+      - name: sortBy
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 80
+          default: createdAt
+          title: Sortby
+      - name: sortOrder
+        in: query
+        required: false
+        schema:
+          type: string
+          pattern: ^(asc|desc)$
+          default: desc
+          title: Sortorder
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentListResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Request validation or a business rule failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      x-user-stories:
+      - PAYMENT-LIST
+      - PAYMENT-HISTORY
+  /api/v1/payments/monthly-generation:
+    post:
+      tags:
+      - Payments
+      summary: Generate monthly fee records
+      description: Idempotently creates one fee record for each eligible active student. Student eligibility,
+        fee amounts, due dates, and initial status are derived by the server.
+      operationId: generateMonthlyFees
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MonthlyFeeGenerationRequest'
+        required: true
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse_MonthlyFeeGenerationResponse_'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '409':
+          description: The request conflicts with existing data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Request validation or a business rule failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      security:
+      - BearerAuth: []
+      x-user-stories:
+      - MONTHLY-FEE-GENERATION
+  /api/v1/payments/receipts:
+    get:
+      tags:
+      - Payments
+      summary: List payment receipts
+      description: Returns paginated immutable payment receipts belonging to the current library. Search
+        and filters are applied by the server.
+      operationId: listPaymentReceipts
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: billingMonth
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            pattern: ^\d{4}-(0[1-9]|1[0-2])$
+          - type: 'null'
+          title: Billingmonth
+      - name: paymentMethod
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/PaymentMethod'
+          - type: 'null'
+          title: Paymentmethod
+      - name: studentId
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Studentid
+      - name: status
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/ReceiptStatus'
+          - type: 'null'
+          title: Status
+      - name: dateFrom
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date
+          - type: 'null'
+          title: Datefrom
+      - name: dateTo
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date
+          - type: 'null'
+          title: Dateto
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+          title: Page
+      - name: pageSize
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+          default: 20
+          title: Pagesize
+      - name: search
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            maxLength: 200
+          - type: 'null'
+          title: Search
+      - name: sortBy
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 80
+          default: createdAt
+          title: Sortby
+      - name: sortOrder
+        in: query
+        required: false
+        schema:
+          type: string
+          pattern: ^(asc|desc)$
+          default: desc
+          title: Sortorder
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReceiptListResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Request validation or a business rule failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      x-user-stories:
+      - RECEIPT-LIST
+  /api/v1/payments/receipts/{receipt_id}:
+    get:
+      tags:
+      - Payments
+      summary: Get a payment receipt
+      description: Returns the immutable snapshot used for receipt preview. Receipts outside the current
+        library are hidden as not found.
+      operationId: getPaymentReceipt
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: receipt_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Receipt Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse_ReceiptDetail_'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '404':
+          description: The requested resource was not found in the current scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      x-user-stories:
+      - RECEIPT-PREVIEW
+  /api/v1/payments/receipts/{receipt_id}/download:
+    get:
+      tags:
+      - Payments
+      summary: Download a payment receipt
+      description: Returns an authenticated PDF generated from the same immutable snapshot used by receipt
+        preview.
+      operationId: downloadPaymentReceipt
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: receipt_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Receipt Id
+      responses:
+        '200':
+          description: Receipt PDF.
+          content:
+            application/pdf: {}
+          headers:
+            Content-Disposition:
+              description: Suggested receipt filename.
+              schema:
+                type: string
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '404':
+          description: The requested resource was not found in the current scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      x-user-stories:
+      - RECEIPT-DOWNLOAD
+  /api/v1/payments/{fee_record_id}/reminders:
+    post:
+      tags:
+      - Payments
+      summary: Create a WhatsApp payment reminder
+      description: Validates the current outstanding balance and student phone, records an auditable link-generation
+        attempt, then returns a wa.me URL. This does not claim the message was sent or delivered.
+      operationId: createPaymentReminder
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: fee_record_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Fee Record Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReminderCreateRequest'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse_WhatsAppReminderResponse_'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '404':
+          description: The requested resource was not found in the current scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '409':
+          description: The request conflicts with existing data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Request validation or a business rule failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      x-user-stories:
+      - PAYMENT-WHATSAPP-REMINDER
+  /api/v1/payments/{fee_record_id}/transactions:
+    post:
+      tags:
+      - Payments
+      summary: Record a payment transaction
+      description: Records an immutable payment transaction and recalculates the fee record's paid amount,
+        balance, and status on the server.
+      operationId: recordPaymentTransaction
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: fee_record_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Fee Record Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentTransactionCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse_PaymentTransactionRecordedResponse_'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '404':
+          description: The requested resource was not found in the current scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '409':
+          description: The request conflicts with existing data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Request validation or a business rule failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      x-user-stories:
+      - PAYMENT-RECORD
+  /api/v1/announcements:
+    get:
+      tags:
+      - Announcements
+      summary: List owner announcements
+      description: Returns paginated announcements and filter-independent summary counts for the authenticated
+        user's library.
+      operationId: listOwnerAnnouncements
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: status
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/AnnouncementStatus'
+          - type: 'null'
+          title: Status
+      - name: category
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/AnnouncementCategory'
+          - type: 'null'
+          title: Category
+      - name: priority
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/AnnouncementPriority'
+          - type: 'null'
+          title: Priority
+      - name: audience
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/AnnouncementAudience'
+          - type: 'null'
+          title: Audience
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+          title: Page
+      - name: pageSize
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+          default: 20
+          title: Pagesize
+      - name: search
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            maxLength: 200
+          - type: 'null'
+          title: Search
+      - name: sortBy
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 80
+          default: createdAt
+          title: Sortby
+      - name: sortOrder
+        in: query
+        required: false
+        schema:
+          type: string
+          pattern: ^(asc|desc)$
+          default: desc
+          title: Sortorder
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnnouncementListResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Request validation or a business rule failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      x-user-stories:
+      - ANNOUNCEMENT-LIST
+    post:
+      tags:
+      - Announcements
+      summary: Create an announcement
+      description: Creates a draft or scheduled announcement in the current library. Library and author
+        fields are derived from authentication.
+      operationId: createOwnerAnnouncement
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnnouncementCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse_AnnouncementResponse_'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Request validation or a business rule failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      x-user-stories:
+      - ANNOUNCEMENT-CREATE
+  /api/v1/announcements/{announcement_id}:
+    patch:
+      tags:
+      - Announcements
+      summary: Update an announcement
+      description: Updates an eligible draft or scheduled announcement. Lifecycle commands must use the
+        publish and archive endpoints.
+      operationId: updateOwnerAnnouncement
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: announcement_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Announcement Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnnouncementUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse_AnnouncementResponse_'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '404':
+          description: The requested resource was not found in the current scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '409':
+          description: The request conflicts with existing data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Request validation or a business rule failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      x-user-stories:
+      - ANNOUNCEMENT-EDIT
+    delete:
+      tags:
+      - Announcements
+      summary: Delete an eligible announcement
+      description: Soft-deletes a draft or archived announcement. Published and scheduled announcements
+        must be archived first.
+      operationId: deleteOwnerAnnouncement
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: announcement_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Announcement Id
+      responses:
+        '204':
+          description: Successful Response
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '404':
+          description: The requested resource was not found in the current scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '409':
+          description: The request conflicts with existing data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      x-user-stories:
+      - ANNOUNCEMENT-DELETE
+  /api/v1/announcements/{announcement_id}/publish:
+    post:
+      tags:
+      - Announcements
+      summary: Publish an announcement
+      description: Publishes a draft or scheduled announcement immediately and records the authenticated
+        actor.
+      operationId: publishOwnerAnnouncement
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: announcement_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Announcement Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse_AnnouncementResponse_'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '404':
+          description: The requested resource was not found in the current scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '409':
+          description: The request conflicts with existing data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Request validation or a business rule failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      x-user-stories:
+      - ANNOUNCEMENT-PUBLISH
+  /api/v1/announcements/{announcement_id}/archive:
+    post:
+      tags:
+      - Announcements
+      summary: Archive an announcement
+      description: Archives an eligible announcement while preserving it for history.
+      operationId: archiveOwnerAnnouncement
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: announcement_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Announcement Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnnouncementArchiveRequest'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse_AnnouncementResponse_'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '404':
+          description: The requested resource was not found in the current scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '409':
+          description: The request conflicts with existing data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      x-user-stories:
+      - ANNOUNCEMENT-ARCHIVE
   /api/v1/settings/library:
     get:
       tags:
@@ -2870,6 +4441,69 @@ components:
       - message
       - email
       title: AcceptInvitationResponse
+    AllocationActorSummary:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        name:
+          type: string
+          title: Name
+      type: object
+      required:
+      - id
+      - name
+      title: AllocationActorSummary
+    AllocationSeatSummary:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        seatNumber:
+          type: string
+          title: Seatnumber
+        floorId:
+          type: string
+          format: uuid
+          title: Floorid
+        floorName:
+          type: string
+          title: Floorname
+      type: object
+      required:
+      - id
+      - seatNumber
+      - floorId
+      - floorName
+      title: AllocationSeatSummary
+    AllocationShiftSummary:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        name:
+          type: string
+          title: Name
+        startTime:
+          type: string
+          title: Starttime
+        endTime:
+          type: string
+          title: Endtime
+        crossesMidnight:
+          type: boolean
+          title: Crossesmidnight
+      type: object
+      required:
+      - id
+      - name
+      - startTime
+      - endTime
+      - crossesMidnight
+      title: AllocationShiftSummary
     AllocationStatus:
       type: string
       enum:
@@ -2877,6 +4511,321 @@ components:
       - completed
       - cancelled
       title: AllocationStatus
+    AllocationStudentSummary:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        enrollmentNumber:
+          type: string
+          title: Enrollmentnumber
+        name:
+          type: string
+          title: Name
+        status:
+          type: string
+          title: Status
+      type: object
+      required:
+      - id
+      - enrollmentNumber
+      - name
+      - status
+      title: AllocationStudentSummary
+    AnnouncementActorSummary:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        name:
+          type: string
+          title: Name
+      type: object
+      required:
+      - id
+      - name
+      title: AnnouncementActorSummary
+    AnnouncementArchiveRequest:
+      properties:
+        reason:
+          anyOf:
+          - type: string
+            maxLength: 500
+          - type: 'null'
+          title: Reason
+      type: object
+      title: AnnouncementArchiveRequest
+    AnnouncementAudience:
+      type: string
+      enum:
+      - all_students
+      - active_students
+      - pending_fee_students
+      title: AnnouncementAudience
+    AnnouncementCategory:
+      type: string
+      enum:
+      - general
+      - schedule
+      - fees
+      - policy
+      - facility
+      title: AnnouncementCategory
+    AnnouncementCreate:
+      properties:
+        title:
+          type: string
+          maxLength: 120
+          minLength: 5
+          title: Title
+        body:
+          type: string
+          maxLength: 1000
+          minLength: 10
+          title: Body
+        category:
+          $ref: '#/components/schemas/AnnouncementCategory'
+          default: general
+        priority:
+          $ref: '#/components/schemas/AnnouncementPriority'
+          default: normal
+        audience:
+          $ref: '#/components/schemas/AnnouncementAudience'
+          default: all_students
+        status:
+          $ref: '#/components/schemas/AnnouncementStatus'
+          default: draft
+        scheduledAt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Scheduledat
+        expiresAt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Expiresat
+      type: object
+      required:
+      - title
+      - body
+      title: AnnouncementCreate
+      examples:
+      - audience: all_students
+        body: The library will remain closed this Sunday for maintenance.
+        category: general
+        priority: normal
+        status: draft
+        title: Library Closed on Sunday
+    AnnouncementListResponse:
+      properties:
+        message:
+          type: string
+          title: Message
+        data:
+          items:
+            $ref: '#/components/schemas/AnnouncementResponse'
+          type: array
+          title: Data
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+        summary:
+          $ref: '#/components/schemas/AnnouncementSummary'
+      type: object
+      required:
+      - message
+      - data
+      - meta
+      - summary
+      title: AnnouncementListResponse
+    AnnouncementPriority:
+      type: string
+      enum:
+      - normal
+      - important
+      title: AnnouncementPriority
+    AnnouncementResponse:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        title:
+          type: string
+          title: Title
+        body:
+          type: string
+          title: Body
+        category:
+          $ref: '#/components/schemas/AnnouncementCategory'
+        priority:
+          $ref: '#/components/schemas/AnnouncementPriority'
+        audience:
+          $ref: '#/components/schemas/AnnouncementAudience'
+        status:
+          $ref: '#/components/schemas/AnnouncementStatus'
+        scheduledAt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Scheduledat
+        publishedAt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Publishedat
+        expiresAt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Expiresat
+        archivedAt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Archivedat
+        isExpired:
+          type: boolean
+          title: Isexpired
+        createdAt:
+          type: string
+          format: date-time
+          title: Createdat
+        updatedAt:
+          type: string
+          format: date-time
+          title: Updatedat
+        createdBy:
+          anyOf:
+          - $ref: '#/components/schemas/AnnouncementActorSummary'
+          - type: 'null'
+      type: object
+      required:
+      - id
+      - title
+      - body
+      - category
+      - priority
+      - audience
+      - status
+      - scheduledAt
+      - publishedAt
+      - expiresAt
+      - archivedAt
+      - isExpired
+      - createdAt
+      - updatedAt
+      - createdBy
+      title: AnnouncementResponse
+    AnnouncementStatus:
+      type: string
+      enum:
+      - draft
+      - scheduled
+      - published
+      - expired
+      - archived
+      title: AnnouncementStatus
+    AnnouncementSummary:
+      properties:
+        total:
+          type: integer
+          minimum: 0.0
+          title: Total
+        drafts:
+          type: integer
+          minimum: 0.0
+          title: Drafts
+        scheduled:
+          type: integer
+          minimum: 0.0
+          title: Scheduled
+        published:
+          type: integer
+          minimum: 0.0
+          title: Published
+        archived:
+          type: integer
+          minimum: 0.0
+          title: Archived
+        expired:
+          type: integer
+          minimum: 0.0
+          title: Expired
+        important:
+          type: integer
+          minimum: 0.0
+          title: Important
+      type: object
+      required:
+      - total
+      - drafts
+      - scheduled
+      - published
+      - archived
+      - expired
+      - important
+      title: AnnouncementSummary
+    AnnouncementUpdate:
+      properties:
+        title:
+          anyOf:
+          - type: string
+            maxLength: 120
+            minLength: 5
+          - type: 'null'
+          title: Title
+        body:
+          anyOf:
+          - type: string
+            maxLength: 1000
+            minLength: 10
+          - type: 'null'
+          title: Body
+        category:
+          anyOf:
+          - $ref: '#/components/schemas/AnnouncementCategory'
+          - type: 'null'
+        priority:
+          anyOf:
+          - $ref: '#/components/schemas/AnnouncementPriority'
+          - type: 'null'
+        audience:
+          anyOf:
+          - $ref: '#/components/schemas/AnnouncementAudience'
+          - type: 'null'
+        status:
+          anyOf:
+          - $ref: '#/components/schemas/AnnouncementStatus'
+          - type: 'null'
+        scheduledAt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Scheduledat
+        expiresAt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Expiresat
+        expectedUpdatedAt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Expectedupdatedat
+      type: object
+      title: AnnouncementUpdate
     AuthResponse:
       properties:
         accessToken:
@@ -3053,6 +5002,98 @@ components:
           details: {}
           message: The request conflicts with existing data.
         requestId: frontend-request-123
+    FeeRecordResponse:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        student:
+          $ref: '#/components/schemas/PaymentStudentSummary'
+        month:
+          type: string
+          pattern: ^\d{4}-(0[1-9]|1[0-2])$
+          title: Month
+        dueDate:
+          type: string
+          format: date
+          title: Duedate
+        baseAmount:
+          type: string
+          pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Baseamount
+        discountAmount:
+          type: string
+          pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Discountamount
+        lateFeeAmount:
+          type: string
+          pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Latefeeamount
+        totalAmount:
+          type: string
+          pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Totalamount
+        paidAmount:
+          type: string
+          pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Paidamount
+        balanceAmount:
+          type: string
+          pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Balanceamount
+        status:
+          $ref: '#/components/schemas/FeeStatus'
+        notes:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Notes
+        latestTransaction:
+          anyOf:
+          - $ref: '#/components/schemas/PaymentTransactionResponse'
+          - type: 'null'
+        transactions:
+          items:
+            $ref: '#/components/schemas/PaymentTransactionResponse'
+          type: array
+          title: Transactions
+        createdAt:
+          type: string
+          format: date-time
+          title: Createdat
+        updatedAt:
+          type: string
+          format: date-time
+          title: Updatedat
+      type: object
+      required:
+      - id
+      - student
+      - month
+      - dueDate
+      - baseAmount
+      - discountAmount
+      - lateFeeAmount
+      - totalAmount
+      - paidAmount
+      - balanceAmount
+      - status
+      - notes
+      - latestTransaction
+      - transactions
+      - createdAt
+      - updatedAt
+      title: FeeRecordResponse
+    FeeStatus:
+      type: string
+      enum:
+      - unpaid
+      - partially_paid
+      - paid
+      - waived
+      - cancelled
+      title: FeeStatus
     FloorCreate:
       properties:
         name:
@@ -3460,6 +5501,105 @@ components:
       title: MessageResponse
       examples:
       - message: Operation completed successfully.
+    MonthlyFeeGenerationRequest:
+      properties:
+        month:
+          type: string
+          pattern: ^\d{4}-(0[1-9]|1[0-2])$
+          title: Month
+      type: object
+      required:
+      - month
+      title: MonthlyFeeGenerationRequest
+      examples:
+      - month: 2026-07
+    MonthlyFeeGenerationResponse:
+      properties:
+        month:
+          type: string
+          pattern: ^\d{4}-(0[1-9]|1[0-2])$
+          title: Month
+        activeStudentCount:
+          type: integer
+          minimum: 0.0
+          title: Activestudentcount
+        eligibleStudentCount:
+          type: integer
+          minimum: 0.0
+          title: Eligiblestudentcount
+        createdCount:
+          type: integer
+          minimum: 0.0
+          title: Createdcount
+        existingCount:
+          type: integer
+          minimum: 0.0
+          title: Existingcount
+        skippedCount:
+          type: integer
+          minimum: 0.0
+          title: Skippedcount
+        createdPayments:
+          items:
+            $ref: '#/components/schemas/FeeRecordResponse'
+          type: array
+          title: Createdpayments
+        skippedStudents:
+          items:
+            $ref: '#/components/schemas/MonthlyFeeGenerationSkip'
+          type: array
+          title: Skippedstudents
+      type: object
+      required:
+      - month
+      - activeStudentCount
+      - eligibleStudentCount
+      - createdCount
+      - existingCount
+      - skippedCount
+      - createdPayments
+      - skippedStudents
+      title: MonthlyFeeGenerationResponse
+    MonthlyFeeGenerationSkip:
+      properties:
+        studentId:
+          type: string
+          format: uuid
+          title: Studentid
+        studentName:
+          type: string
+          title: Studentname
+        reason:
+          type: string
+          title: Reason
+        message:
+          type: string
+          title: Message
+      type: object
+      required:
+      - studentId
+      - studentName
+      - reason
+      - message
+      title: MonthlyFeeGenerationSkip
+    PaginatedResponse_SeatAllocationResponse_:
+      properties:
+        message:
+          type: string
+          title: Message
+        data:
+          items:
+            $ref: '#/components/schemas/SeatAllocationResponse'
+          type: array
+          title: Data
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+      type: object
+      required:
+      - message
+      - data
+      - meta
+      title: PaginatedResponse[SeatAllocationResponse]
     PaginatedResponse_StudentResponse_:
       properties:
         message:
@@ -3509,6 +5649,500 @@ components:
         pageSize: 20
         totalItems: 42
         totalPages: 3
+    PaymentActorSummary:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        name:
+          type: string
+          title: Name
+      type: object
+      required:
+      - id
+      - name
+      title: PaymentActorSummary
+    PaymentListResponse:
+      properties:
+        message:
+          type: string
+          title: Message
+        data:
+          items:
+            $ref: '#/components/schemas/FeeRecordResponse'
+          type: array
+          title: Data
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+        summary:
+          $ref: '#/components/schemas/PaymentSummary'
+      type: object
+      required:
+      - message
+      - data
+      - meta
+      - summary
+      title: PaymentListResponse
+    PaymentMethod:
+      type: string
+      enum:
+      - cash
+      - upi
+      - bank_transfer
+      - card
+      - other
+      title: PaymentMethod
+    PaymentStudentSummary:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        enrollmentNumber:
+          type: string
+          title: Enrollmentnumber
+        name:
+          type: string
+          title: Name
+        email:
+          type: string
+          title: Email
+        phone:
+          type: string
+          title: Phone
+      type: object
+      required:
+      - id
+      - enrollmentNumber
+      - name
+      - email
+      - phone
+      title: PaymentStudentSummary
+    PaymentSummary:
+      properties:
+        totalRecords:
+          type: integer
+          minimum: 0.0
+          title: Totalrecords
+        unpaidCount:
+          type: integer
+          minimum: 0.0
+          title: Unpaidcount
+        partiallyPaidCount:
+          type: integer
+          minimum: 0.0
+          title: Partiallypaidcount
+        paidCount:
+          type: integer
+          minimum: 0.0
+          title: Paidcount
+        totalBilledAmount:
+          type: string
+          pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Totalbilledamount
+        totalCollectedAmount:
+          type: string
+          pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Totalcollectedamount
+        totalPendingAmount:
+          type: string
+          pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Totalpendingamount
+      type: object
+      required:
+      - totalRecords
+      - unpaidCount
+      - partiallyPaidCount
+      - paidCount
+      - totalBilledAmount
+      - totalCollectedAmount
+      - totalPendingAmount
+      title: PaymentSummary
+    PaymentTransactionCreate:
+      properties:
+        amount:
+          anyOf:
+          - type: number
+            exclusiveMinimum: 0.0
+          - type: string
+            pattern: ^(?!^[-+.]*$)[+-]?0*(?:\d{0,10}|(?=[\d.]{1,13}0*$)\d{0,10}\.\d{0,2}0*$)
+          title: Amount
+        method:
+          $ref: '#/components/schemas/PaymentMethod'
+        paidAt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Paidat
+        referenceNumber:
+          anyOf:
+          - type: string
+            maxLength: 120
+          - type: 'null'
+          title: Referencenumber
+        notes:
+          anyOf:
+          - type: string
+            maxLength: 2000
+          - type: 'null'
+          title: Notes
+      type: object
+      required:
+      - amount
+      - method
+      title: PaymentTransactionCreate
+      examples:
+      - amount: '500.00'
+        method: upi
+        notes: First instalment.
+        paidAt: '2026-07-27T10:30:00+05:30'
+        referenceNumber: UPI-20260727-001
+    PaymentTransactionRecordedResponse:
+      properties:
+        payment:
+          $ref: '#/components/schemas/FeeRecordResponse'
+        transaction:
+          $ref: '#/components/schemas/PaymentTransactionResponse'
+        receipt:
+          $ref: '#/components/schemas/ReceiptListItem'
+      type: object
+      required:
+      - payment
+      - transaction
+      - receipt
+      title: PaymentTransactionRecordedResponse
+    PaymentTransactionResponse:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        amount:
+          type: string
+          pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Amount
+        method:
+          $ref: '#/components/schemas/PaymentMethod'
+        status:
+          $ref: '#/components/schemas/PaymentTransactionStatus'
+        referenceNumber:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Referencenumber
+        paidAt:
+          type: string
+          format: date-time
+          title: Paidat
+        notes:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Notes
+        recordedBy:
+          anyOf:
+          - $ref: '#/components/schemas/PaymentActorSummary'
+          - type: 'null'
+        createdAt:
+          type: string
+          format: date-time
+          title: Createdat
+      type: object
+      required:
+      - id
+      - amount
+      - method
+      - status
+      - referenceNumber
+      - paidAt
+      - notes
+      - recordedBy
+      - createdAt
+      title: PaymentTransactionResponse
+    PaymentTransactionStatus:
+      type: string
+      enum:
+      - pending
+      - completed
+      - failed
+      - refunded
+      title: PaymentTransactionStatus
+    ReceiptActorSummary:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        name:
+          type: string
+          title: Name
+      type: object
+      required:
+      - id
+      - name
+      title: ReceiptActorSummary
+    ReceiptDetail:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        receiptNumber:
+          type: string
+          title: Receiptnumber
+        status:
+          $ref: '#/components/schemas/ReceiptStatus'
+        issuedAt:
+          type: string
+          format: date-time
+          title: Issuedat
+        currency:
+          type: string
+          title: Currency
+          default: INR
+        library:
+          $ref: '#/components/schemas/ReceiptLibrarySummary'
+        student:
+          $ref: '#/components/schemas/ReceiptStudentSummary'
+        fee:
+          $ref: '#/components/schemas/ReceiptFeeSummary'
+        payment:
+          $ref: '#/components/schemas/ReceiptPaymentSummary'
+      type: object
+      required:
+      - id
+      - receiptNumber
+      - status
+      - issuedAt
+      - library
+      - student
+      - fee
+      - payment
+      title: ReceiptDetail
+    ReceiptFeeSummary:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        billingMonth:
+          type: string
+          pattern: ^\d{4}-(0[1-9]|1[0-2])$
+          title: Billingmonth
+        dueDate:
+          type: string
+          format: date
+          title: Duedate
+        totalAmount:
+          type: string
+          pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Totalamount
+        previouslyPaidAmount:
+          type: string
+          pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Previouslypaidamount
+        paymentAmount:
+          type: string
+          pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Paymentamount
+        remainingBalance:
+          type: string
+          pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Remainingbalance
+        paymentStatus:
+          $ref: '#/components/schemas/FeeStatus'
+      type: object
+      required:
+      - id
+      - billingMonth
+      - dueDate
+      - totalAmount
+      - previouslyPaidAmount
+      - paymentAmount
+      - remainingBalance
+      - paymentStatus
+      title: ReceiptFeeSummary
+    ReceiptLibrarySummary:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        name:
+          type: string
+          title: Name
+        address:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Address
+        phone:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Phone
+        email:
+          type: string
+          title: Email
+      type: object
+      required:
+      - id
+      - name
+      - address
+      - phone
+      - email
+      title: ReceiptLibrarySummary
+    ReceiptListItem:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        receiptNumber:
+          type: string
+          title: Receiptnumber
+        student:
+          $ref: '#/components/schemas/ReceiptStudentSummary'
+        feeRecordId:
+          type: string
+          format: uuid
+          title: Feerecordid
+        paymentTransactionId:
+          type: string
+          format: uuid
+          title: Paymenttransactionid
+        billingMonth:
+          type: string
+          pattern: ^\d{4}-(0[1-9]|1[0-2])$
+          title: Billingmonth
+        amount:
+          type: string
+          pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Amount
+        paymentMethod:
+          $ref: '#/components/schemas/PaymentMethod'
+        paymentReference:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Paymentreference
+        paidAt:
+          type: string
+          format: date-time
+          title: Paidat
+        issuedAt:
+          type: string
+          format: date-time
+          title: Issuedat
+        status:
+          $ref: '#/components/schemas/ReceiptStatus'
+        currency:
+          type: string
+          title: Currency
+          default: INR
+        downloadAvailable:
+          type: boolean
+          title: Downloadavailable
+          default: true
+      type: object
+      required:
+      - id
+      - receiptNumber
+      - student
+      - feeRecordId
+      - paymentTransactionId
+      - billingMonth
+      - amount
+      - paymentMethod
+      - paymentReference
+      - paidAt
+      - issuedAt
+      - status
+      title: ReceiptListItem
+    ReceiptListResponse:
+      properties:
+        message:
+          type: string
+          title: Message
+        data:
+          items:
+            $ref: '#/components/schemas/ReceiptListItem'
+          type: array
+          title: Data
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+      type: object
+      required:
+      - message
+      - data
+      - meta
+      title: ReceiptListResponse
+    ReceiptPaymentSummary:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        amount:
+          type: string
+          pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Amount
+        method:
+          $ref: '#/components/schemas/PaymentMethod'
+        referenceNumber:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Referencenumber
+        paidAt:
+          type: string
+          format: date-time
+          title: Paidat
+        recordedBy:
+          anyOf:
+          - $ref: '#/components/schemas/ReceiptActorSummary'
+          - type: 'null'
+        notes:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Notes
+      type: object
+      required:
+      - id
+      - amount
+      - method
+      - referenceNumber
+      - paidAt
+      - recordedBy
+      - notes
+      title: ReceiptPaymentSummary
+    ReceiptStatus:
+      type: string
+      enum:
+      - issued
+      - voided
+      title: ReceiptStatus
+    ReceiptStudentSummary:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        name:
+          type: string
+          title: Name
+        enrollmentNumber:
+          type: string
+          title: Enrollmentnumber
+      type: object
+      required:
+      - id
+      - name
+      - enrollmentNumber
+      title: ReceiptStudentSummary
     RefreshRequest:
       properties:
         refreshToken:
@@ -3575,6 +6209,240 @@ components:
         password: SecurePass123
         phone: '9876543210'
         seatCount: 25
+    ReminderAttemptResponse:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        feeRecordId:
+          type: string
+          format: uuid
+          title: Feerecordid
+        studentId:
+          type: string
+          format: uuid
+          title: Studentid
+        channel:
+          $ref: '#/components/schemas/ReminderChannel'
+        outcome:
+          $ref: '#/components/schemas/ReminderOutcome'
+        attemptedAt:
+          type: string
+          format: date-time
+          title: Attemptedat
+        initiatedBy:
+          anyOf:
+          - $ref: '#/components/schemas/ReceiptActorSummary'
+          - type: 'null'
+        maskedPhone:
+          type: string
+          title: Maskedphone
+        message:
+          type: string
+          title: Message
+      type: object
+      required:
+      - id
+      - feeRecordId
+      - studentId
+      - channel
+      - outcome
+      - attemptedAt
+      - initiatedBy
+      - maskedPhone
+      - message
+      title: ReminderAttemptResponse
+    ReminderChannel:
+      type: string
+      enum:
+      - whatsapp
+      - sms
+      - email
+      title: ReminderChannel
+    ReminderCreateRequest:
+      properties:
+        channel:
+          type: string
+          const: whatsapp
+          title: Channel
+          default: whatsapp
+        message:
+          anyOf:
+          - type: string
+            maxLength: 2000
+          - type: 'null'
+          title: Message
+      type: object
+      title: ReminderCreateRequest
+      examples:
+      - channel: whatsapp
+    ReminderOutcome:
+      type: string
+      enum:
+      - link_generated
+      - failed
+      title: ReminderOutcome
+    SeatAllocationCreate:
+      properties:
+        seatId:
+          type: string
+          format: uuid
+          title: Seatid
+        shiftIds:
+          items:
+            type: string
+            format: uuid
+          type: array
+          maxItems: 24
+          minItems: 1
+          title: Shiftids
+        startDate:
+          type: string
+          format: date
+          title: Startdate
+        endDate:
+          type: string
+          format: date
+          title: Enddate
+        notes:
+          anyOf:
+          - type: string
+            maxLength: 2000
+          - type: 'null'
+          title: Notes
+        studentId:
+          type: string
+          format: uuid
+          title: Studentid
+      type: object
+      required:
+      - seatId
+      - shiftIds
+      - startDate
+      - endDate
+      - studentId
+      title: SeatAllocationCreate
+    SeatAllocationCreateResponse:
+      properties:
+        allocationCount:
+          type: integer
+          title: Allocationcount
+        allocations:
+          items:
+            $ref: '#/components/schemas/SeatAllocationResponse'
+          type: array
+          title: Allocations
+      type: object
+      required:
+      - allocationCount
+      - allocations
+      title: SeatAllocationCreateResponse
+    SeatAllocationResponse:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        libraryId:
+          type: string
+          format: uuid
+          title: Libraryid
+        student:
+          $ref: '#/components/schemas/AllocationStudentSummary'
+        seat:
+          $ref: '#/components/schemas/AllocationSeatSummary'
+        shift:
+          $ref: '#/components/schemas/AllocationShiftSummary'
+        startDate:
+          type: string
+          format: date
+          title: Startdate
+        endDate:
+          type: string
+          format: date
+          title: Enddate
+        status:
+          $ref: '#/components/schemas/AllocationStatus'
+        notes:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Notes
+        closeReason:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Closereason
+        allocatedAt:
+          type: string
+          format: date-time
+          title: Allocatedat
+        closedAt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Closedat
+        allocatedBy:
+          anyOf:
+          - $ref: '#/components/schemas/AllocationActorSummary'
+          - type: 'null'
+        closedBy:
+          anyOf:
+          - $ref: '#/components/schemas/AllocationActorSummary'
+          - type: 'null'
+        previousAllocationId:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Previousallocationid
+        transferGroupId:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Transfergroupid
+      type: object
+      required:
+      - id
+      - libraryId
+      - student
+      - seat
+      - shift
+      - startDate
+      - endDate
+      - status
+      - notes
+      - closeReason
+      - allocatedAt
+      - closedAt
+      title: SeatAllocationResponse
+    SeatAllocationStatusUpdate:
+      properties:
+        status:
+          type: string
+          enum:
+          - completed
+          - cancelled
+          title: Status
+        effectiveEndDate:
+          anyOf:
+          - type: string
+            format: date
+          - type: 'null'
+          title: Effectiveenddate
+        closeReason:
+          type: string
+          maxLength: 2000
+          minLength: 1
+          title: Closereason
+      type: object
+      required:
+      - status
+      - closeReason
+      title: SeatAllocationStatusUpdate
     SeatAvailabilityBlockerResponse:
       properties:
         allocationId:
@@ -3643,6 +6511,8 @@ components:
         availableSeatCount:
           type: integer
           title: Availableseatcount
+        summary:
+          $ref: '#/components/schemas/SeatAvailabilitySummaryResponse'
         seats:
           items:
             $ref: '#/components/schemas/SeatAvailabilitySeatResponse'
@@ -3655,6 +6525,7 @@ components:
       - endDate
       - totalSeats
       - availableSeatCount
+      - summary
       - seats
       title: SeatAvailabilityResponse
     SeatAvailabilitySeatResponse:
@@ -3678,6 +6549,10 @@ components:
           - type: integer
           - type: 'null'
           title: Floor
+        seatType:
+          $ref: '#/components/schemas/SeatType'
+        physicalStatus:
+          $ref: '#/components/schemas/SeatOperationalStatus'
         status:
           type: string
           enum:
@@ -3686,6 +6561,7 @@ components:
           - reserved
           - blocked
           - maintenance
+          - physically_blocked
           title: Status
         isAvailable:
           type: boolean
@@ -3707,9 +6583,39 @@ components:
       - floorId
       - floorName
       - floor
+      - seatType
+      - physicalStatus
       - status
       - isAvailable
       title: SeatAvailabilitySeatResponse
+    SeatAvailabilitySummaryResponse:
+      properties:
+        available:
+          type: integer
+          title: Available
+          default: 0
+        allotted:
+          type: integer
+          title: Allotted
+          default: 0
+        reserved:
+          type: integer
+          title: Reserved
+          default: 0
+        blocked:
+          type: integer
+          title: Blocked
+          default: 0
+        maintenance:
+          type: integer
+          title: Maintenance
+          default: 0
+        physicallyBlocked:
+          type: integer
+          title: Physicallyblocked
+          default: 0
+      type: object
+      title: SeatAvailabilitySummaryResponse
     SeatCreate:
       properties:
         seatNumber:
@@ -4596,6 +7502,24 @@ components:
           - type: 'null'
       type: object
       title: StudentUpdate
+    SuccessResponse_AnnouncementResponse_:
+      properties:
+        message:
+          type: string
+          title: Message
+        data:
+          $ref: '#/components/schemas/AnnouncementResponse'
+        meta:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Meta
+      type: object
+      required:
+      - message
+      - data
+      title: SuccessResponse[AnnouncementResponse]
     SuccessResponse_BulkSeatResult_:
       properties:
         message:
@@ -4650,6 +7574,96 @@ components:
       - message
       - data
       title: SuccessResponse[LibrarySettingsResponse]
+    SuccessResponse_MonthlyFeeGenerationResponse_:
+      properties:
+        message:
+          type: string
+          title: Message
+        data:
+          $ref: '#/components/schemas/MonthlyFeeGenerationResponse'
+        meta:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Meta
+      type: object
+      required:
+      - message
+      - data
+      title: SuccessResponse[MonthlyFeeGenerationResponse]
+    SuccessResponse_PaymentTransactionRecordedResponse_:
+      properties:
+        message:
+          type: string
+          title: Message
+        data:
+          $ref: '#/components/schemas/PaymentTransactionRecordedResponse'
+        meta:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Meta
+      type: object
+      required:
+      - message
+      - data
+      title: SuccessResponse[PaymentTransactionRecordedResponse]
+    SuccessResponse_ReceiptDetail_:
+      properties:
+        message:
+          type: string
+          title: Message
+        data:
+          $ref: '#/components/schemas/ReceiptDetail'
+        meta:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Meta
+      type: object
+      required:
+      - message
+      - data
+      title: SuccessResponse[ReceiptDetail]
+    SuccessResponse_SeatAllocationCreateResponse_:
+      properties:
+        message:
+          type: string
+          title: Message
+        data:
+          $ref: '#/components/schemas/SeatAllocationCreateResponse'
+        meta:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Meta
+      type: object
+      required:
+      - message
+      - data
+      title: SuccessResponse[SeatAllocationCreateResponse]
+    SuccessResponse_SeatAllocationResponse_:
+      properties:
+        message:
+          type: string
+          title: Message
+        data:
+          $ref: '#/components/schemas/SeatAllocationResponse'
+        meta:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Meta
+      type: object
+      required:
+      - message
+      - data
+      title: SuccessResponse[SeatAllocationResponse]
     SuccessResponse_SeatAvailabilityResponse_:
       properties:
         message:
@@ -4776,6 +7790,24 @@ components:
       - message
       - data
       title: SuccessResponse[StudentResponse]
+    SuccessResponse_WhatsAppReminderResponse_:
+      properties:
+        message:
+          type: string
+          title: Message
+        data:
+          $ref: '#/components/schemas/WhatsAppReminderResponse'
+        meta:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Meta
+      type: object
+      required:
+      - message
+      - data
+      title: SuccessResponse[WhatsAppReminderResponse]
     SuccessResponse_list_FloorResponse__:
       properties:
         message:
@@ -4943,6 +7975,18 @@ components:
       - msg
       - type
       title: ValidationError
+    WhatsAppReminderResponse:
+      properties:
+        reminder:
+          $ref: '#/components/schemas/ReminderAttemptResponse'
+        whatsappUrl:
+          type: string
+          title: Whatsappurl
+      type: object
+      required:
+      - reminder
+      - whatsappUrl
+      title: WhatsAppReminderResponse
     PaginationParams:
       examples:
       - page: 1
@@ -5052,6 +8096,8 @@ tags:
   description: Study shift definitions and overlap validation.
 - name: Settings
   description: Library profile and operating preferences.
+- name: Announcements
+  description: Tenant-scoped owner announcement management and lifecycle commands.
 servers:
 - url: /
   description: Current host

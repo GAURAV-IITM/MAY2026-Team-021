@@ -7,20 +7,6 @@ function operationResponse(response, key) {
   }
 }
 
-function unavailableOperation(message) {
-  const error = new Error(message)
-  error.response = {
-    status: 501,
-    data: {
-      error: {
-        code: 'FEATURE_NOT_AVAILABLE',
-        message,
-      },
-    },
-  }
-  return Promise.reject(error)
-}
-
 export async function fetchSeats(filters = {}) {
   const response = await apiClient.get('/seats', {
     params: {
@@ -136,22 +122,26 @@ export async function validateShiftSelection(shiftIds = []) {
   return response.data
 }
 
-export async function fetchSeatAvailability(filters = {}) {
+export function buildSeatAvailabilityParams(filters = {}) {
   const params = new URLSearchParams()
   const shiftIds = Array.isArray(filters.shiftIds) ? filters.shiftIds : []
 
   shiftIds.forEach((shiftId) => {
     params.append('shiftId', shiftId)
   })
-  params.set('startDate', filters.startDate)
-  params.set('endDate', filters.endDate)
+  if (filters.startDate) params.set('startDate', filters.startDate)
+  if (filters.endDate) params.set('endDate', filters.endDate)
   if (filters.floorId) params.set('floorId', filters.floorId)
   if (filters.excludeStudentId) {
     params.set('excludeStudentId', filters.excludeStudentId)
   }
 
+  return params
+}
+
+export async function fetchSeatAvailability(filters = {}) {
   const response = await apiClient.get('/seat-allocations/availability', {
-    params,
+    params: buildSeatAvailabilityParams(filters),
   })
   return response.data
 }
@@ -164,20 +154,55 @@ export async function initializeLibrarySeats() {
   return fetchSeats()
 }
 
-export async function allocateSeat() {
-  return unavailableOperation(
-    'Seat allocation will be connected in Phase 3.',
-  )
+export function buildSeatAllocationParams(filters = {}) {
+  return {
+    page: filters.page || 1,
+    pageSize: filters.pageSize || 20,
+    search: filters.search || undefined,
+    sortBy: filters.sortBy || 'allocatedAt',
+    sortOrder: filters.sortOrder || 'desc',
+    studentId: filters.studentId || undefined,
+    seatId: filters.seatId || undefined,
+    shiftId: filters.shiftId || undefined,
+    status: filters.status || undefined,
+    startDate: filters.startDate || undefined,
+    endDate: filters.endDate || undefined,
+  }
+}
+
+export async function fetchSeatAllocations(filters = {}) {
+  const response = await apiClient.get('/seat-allocations', {
+    params: buildSeatAllocationParams(filters),
+  })
+  return response.data
+}
+
+export async function allocateSeat(payload = {}) {
+  const response = await apiClient.post('/seat-allocations', {
+    studentId: payload.studentId,
+    seatId: payload.seatId,
+    shiftIds: payload.shiftIds,
+    startDate: payload.startDate,
+    endDate: payload.endDate,
+    notes: payload.notes || null,
+  })
+  return response.data
 }
 
 export async function assignSeat(payload = {}) {
   return allocateSeat(payload)
 }
 
-export async function releaseSeat() {
-  return unavailableOperation(
-    'Seat release will be connected in Phase 3.',
+export async function closeSeatAllocation(allocationId, payload = {}) {
+  const response = await apiClient.patch(
+    `/seat-allocations/${allocationId}/status`,
+    {
+      status: payload.status,
+      effectiveEndDate: payload.effectiveEndDate || null,
+      closeReason: payload.closeReason,
+    },
   )
+  return response.data
 }
 
 export async function updateShift(shiftPayload = {}) {

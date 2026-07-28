@@ -1,113 +1,186 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 
-import { PAYMENT_STATUSES } from '../mocks/paymentMock.js'
+import { PAYMENT_STATUSES } from '../constants/payment.js'
 import * as paymentService from '../services/paymentService.js'
 
-// src/stores: Centralized payment state for payment management workflows.
-// The store remains a thin state layer and delegates payment operations to paymentService.
-//
-// TODO:
-// - Replace mock-backed service calls with FastAPI-backed service calls in Milestone 3.
-// - Keep filtering, receipt generation, and reminder workflows behind paymentService.
+function currentMonth() {
+  const now = new Date()
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+}
+
+function emptySummary() {
+  return {
+    totalRecords: 0,
+    unpaidCount: 0,
+    partiallyPaidCount: 0,
+    paidCount: 0,
+    totalBilledAmount: 0,
+    totalCollectedAmount: 0,
+    totalPendingAmount: 0,
+  }
+}
+
+function emptyPagination() {
+  return {
+    page: 1,
+    pageSize: 10,
+    totalItems: 0,
+    totalPages: 0,
+  }
+}
 
 export const usePaymentStore = defineStore('payment', () => {
   const payments = ref([])
-  const paymentMonths = ref([])
   const selectedPayment = ref(null)
   const receipts = ref([])
-  const pendingPayments = ref([])
   const selectedReceipt = ref(null)
   const selectedReminder = ref(null)
-
+  const summary = ref(emptySummary())
+  const pagination = ref(emptyPagination())
+  const receiptPagination = ref(emptyPagination())
   const paymentFilters = ref({
     search: '',
-    month: '',
+    month: currentMonth(),
     status: '',
+    page: 1,
+    pageSize: 10,
+    sortBy: 'month',
+    sortOrder: 'desc',
   })
-
   const isLoading = ref(false)
+  const isReceiptLoading = ref(false)
+  const isReceiptPreviewLoading = ref(false)
+  const isReceiptDownloading = ref(false)
+  const isReminderSubmitting = ref(false)
   const error = ref(null)
+  const receiptError = ref(null)
+  const reminderError = ref(null)
+  const receiptFilters = ref({
+    search: '',
+    billingMonth: '',
+    paymentMethod: '',
+    status: '',
+    page: 1,
+    pageSize: 10,
+    sortBy: 'issuedAt',
+    sortOrder: 'desc',
+  })
+  let latestListRequest = 0
+  let latestReceiptListRequest = 0
+  let latestReceiptPreviewRequest = 0
 
-  const paymentCount = computed(() => payments.value.length)
-
-  const paidPayments = computed(() => {
-    return payments.value.filter(
+  const paymentCount = computed(() => summary.value.totalRecords)
+  const paidPaymentCount = computed(() => summary.value.paidCount)
+  const unpaidPaymentCount = computed(() => summary.value.unpaidCount)
+  const partiallyPaidPaymentCount = computed(
+    () => summary.value.partiallyPaidCount,
+  )
+  const totalCollectedAmount = computed(
+    () => Number(summary.value.totalCollectedAmount || 0),
+  )
+  const totalPendingAmount = computed(
+    () => Number(summary.value.totalPendingAmount || 0),
+  )
+  const totalBilledAmount = computed(
+    () => Number(summary.value.totalBilledAmount || 0),
+  )
+  const paidPayments = computed(() =>
+    payments.value.filter(
       (payment) => payment.status === PAYMENT_STATUSES.PAID,
-    )
-  })
-
-  const unpaidPayments = computed(() => {
-    return payments.value.filter(
+    ),
+  )
+  const unpaidPayments = computed(() =>
+    payments.value.filter(
       (payment) => payment.status === PAYMENT_STATUSES.UNPAID,
+    ),
+  )
+  const availableMonths = computed(() => {
+    const months = []
+    const cursor = new Date()
+    cursor.setDate(1)
+    for (let index = 0; index < 24; index += 1) {
+      months.push(
+        `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}`,
+      )
+      cursor.setMonth(cursor.getMonth() - 1)
+    }
+    if (
+      paymentFilters.value.month &&
+      !months.includes(paymentFilters.value.month)
+    ) {
+      months.unshift(paymentFilters.value.month)
+    }
+    return months
+  })
+  const hasActivePaymentFilters = computed(() => {
+    return Boolean(
+      paymentFilters.value.search ||
+      paymentFilters.value.status ||
+      paymentFilters.value.month !== currentMonth(),
+    )
+  })
+  const errorMessage = computed(() => {
+    return (
+      error.value?.response?.data?.error?.message ||
+      error.value?.response?.data?.message ||
+      error.value?.message ||
+      ''
+    )
+  })
+  const receiptErrorMessage = computed(() => {
+    return (
+      receiptError.value?.response?.data?.error?.message ||
+      receiptError.value?.response?.data?.message ||
+      receiptError.value?.message ||
+      ''
+    )
+  })
+  const reminderErrorMessage = computed(() => {
+    return (
+      reminderError.value?.response?.data?.error?.message ||
+      reminderError.value?.response?.data?.message ||
+      reminderError.value?.message ||
+      ''
     )
   })
 
-  const paidPaymentCount = computed(() => paidPayments.value.length)
-  const unpaidPaymentCount = computed(() => unpaidPayments.value.length)
-
-  const totalCollectedAmount = computed(() => {
-    return paidPayments.value.reduce((total, payment) => {
-      return total + Number(payment.amount || 0)
-    }, 0)
-  })
-
-  const totalPendingAmount = computed(() => {
-    return unpaidPayments.value.reduce((total, payment) => {
-      return total + Number(payment.amount || 0)
-    }, 0)
-  })
-
-  const availableMonths = computed(() => paymentMonths.value)
-
-  const hasActivePaymentFilters = computed(() => {
-    return Object.values(paymentFilters.value).some((value) => Boolean(value))
-  })
-
-  const errorMessage = computed(() => {
-    return error.value?.response?.data?.message || error.value?.message || ''
-  })
-
-  function getResponseData(response) {
-    return response?.data || {}
+  function syncListResponse(response) {
+    payments.value = response?.data?.payments || []
+    pagination.value = response?.meta || emptyPagination()
+    summary.value = response?.summary || emptySummary()
   }
 
-  function syncPaymentList(response) {
-    const data = getResponseData(response)
-
-    if (Array.isArray(data.payments)) {
-      payments.value = data.payments
-    }
-  }
-
-  function syncPaymentMonths(response) {
-    const data = getResponseData(response)
-
-    if (!Array.isArray(data.payments)) return
-
-    paymentMonths.value = [
-      ...new Set(data.payments.map((payment) => payment.month)),
-    ]
-      .filter(Boolean)
-      .sort((firstMonth, secondMonth) =>
-        secondMonth.localeCompare(firstMonth),
-      )
-  }
-
-  function syncSelectedPayment(response) {
-    const data = getResponseData(response)
-
-    if (data.payment) {
-      selectedPayment.value = data.payment
-    }
-  }
-
-  async function runPaymentServiceRequest(serviceRequest) {
+  async function fetchPayments(filters = paymentFilters.value) {
+    const requestNumber = ++latestListRequest
     isLoading.value = true
     error.value = null
 
     try {
-      return await serviceRequest()
+      const response = await paymentService.getPayments({ ...filters })
+      if (requestNumber === latestListRequest) {
+        syncListResponse(response)
+      }
+      return response
+    } catch (requestError) {
+      if (requestNumber === latestListRequest) {
+        error.value = requestError
+      }
+      throw requestError
+    } finally {
+      if (requestNumber === latestListRequest) {
+        isLoading.value = false
+      }
+    }
+  }
+
+  async function generateMonthlyPayments(month) {
+    isLoading.value = true
+    error.value = null
+    try {
+      const response = await paymentService.generateMonthlyPayments(month)
+      await fetchPayments()
+      return response
     } catch (requestError) {
       error.value = requestError
       throw requestError
@@ -116,131 +189,126 @@ export const usePaymentStore = defineStore('payment', () => {
     }
   }
 
-  async function fetchPayments(filters = paymentFilters.value) {
-    if (paymentMonths.value.length === 0) {
-      const monthResponse = await runPaymentServiceRequest(() =>
-        paymentService.getPayments(),
-      )
-
-      syncPaymentMonths(monthResponse)
+  async function recordPayment(paymentId, payload) {
+    isLoading.value = true
+    error.value = null
+    try {
+      const response = await paymentService.recordPayment(paymentId, payload)
+      selectedPayment.value = response.data.payment
+      selectedReceipt.value = response.data.receipt
+      if (receipts.value.length || receiptPagination.value.totalItems) {
+        const existingIndex = receipts.value.findIndex(
+          (receipt) => receipt.id === response.data.receipt.id,
+        )
+        if (existingIndex >= 0) {
+          receipts.value.splice(existingIndex, 1, response.data.receipt)
+        } else {
+          receipts.value.unshift(response.data.receipt)
+          receiptPagination.value = {
+            ...receiptPagination.value,
+            totalItems: receiptPagination.value.totalItems + 1,
+          }
+        }
+      }
+      await fetchPayments()
+      return response
+    } catch (requestError) {
+      error.value = requestError
+      throw requestError
+    } finally {
+      isLoading.value = false
     }
-
-    const response = await runPaymentServiceRequest(() =>
-      paymentService.getPayments({ ...filters }),
-    )
-
-    syncPaymentList(response)
-
-    return response
-  }
-
-  async function fetchPaymentById(paymentId) {
-    const response = await runPaymentServiceRequest(() =>
-      paymentService.getPaymentById(paymentId),
-    )
-
-    syncSelectedPayment(response)
-
-    return response
-  }
-
-  async function createPayment(paymentPayload) {
-    const response = await runPaymentServiceRequest(() =>
-      paymentService.createPayment(paymentPayload),
-    )
-
-    syncPaymentList(response)
-    syncSelectedPayment(response)
-
-    return response
-  }
-
-  async function generateMonthlyPayments(month, studentRecords) {
-    const response = await runPaymentServiceRequest(() =>
-      paymentService.generateMonthlyPayments(month, studentRecords),
-    )
-
-    syncPaymentList(response)
-    syncPaymentMonths(response)
-
-    return response
-  }
-
-  async function updatePaymentStatus(paymentId, statusPayload) {
-    const response = await runPaymentServiceRequest(() =>
-      paymentService.updatePaymentStatus(paymentId, statusPayload),
-    )
-
-    syncPaymentList(response)
-    syncSelectedPayment(response)
-
-    return response
   }
 
   async function fetchPaymentHistory(filters = paymentFilters.value) {
-    const response = await runPaymentServiceRequest(() =>
-      paymentService.getPaymentHistory({ ...filters }),
-    )
-
-    syncPaymentList(response)
-
-    return response
+    return fetchPayments({ ...filters, month: filters.month || '' })
   }
 
-  async function fetchPendingPayments(filters = paymentFilters.value) {
-    const response = await runPaymentServiceRequest(() =>
-      paymentService.getPendingPayments({ ...filters }),
-    )
-
-    const data = getResponseData(response)
-    pendingPayments.value = Array.isArray(data.payments) ? data.payments : []
-
-    return response
+  async function fetchReceipts(filters = receiptFilters.value) {
+    const requestNumber = ++latestReceiptListRequest
+    isReceiptLoading.value = true
+    receiptError.value = null
+    try {
+      const response = await paymentService.getReceipts({ ...filters })
+      if (requestNumber === latestReceiptListRequest) {
+        receipts.value = response.data.receipts || []
+        receiptPagination.value = response.meta || emptyPagination()
+      }
+      return response
+    } catch (requestError) {
+      if (requestNumber === latestReceiptListRequest) {
+        receiptError.value = requestError
+      }
+      throw requestError
+    } finally {
+      if (requestNumber === latestReceiptListRequest) {
+        isReceiptLoading.value = false
+      }
+    }
   }
 
-  async function fetchReceipts(filters = {}) {
-    const response = await runPaymentServiceRequest(() =>
-      paymentService.getReceipts({ ...filters }),
-    )
-
-    const data = getResponseData(response)
-    receipts.value = Array.isArray(data.receipts) ? data.receipts : []
-
-    return response
+  async function fetchReceiptDetail(receiptId) {
+    const requestNumber = ++latestReceiptPreviewRequest
+    selectedReceipt.value = null
+    isReceiptPreviewLoading.value = true
+    receiptError.value = null
+    try {
+      const response = await paymentService.getReceipt(receiptId)
+      if (requestNumber === latestReceiptPreviewRequest) {
+        selectedReceipt.value = response.data
+      }
+      return response
+    } catch (requestError) {
+      if (requestNumber === latestReceiptPreviewRequest) {
+        receiptError.value = requestError
+      }
+      throw requestError
+    } finally {
+      if (requestNumber === latestReceiptPreviewRequest) {
+        isReceiptPreviewLoading.value = false
+      }
+    }
   }
 
-  async function generateReceipt(paymentId) {
-    const response = await runPaymentServiceRequest(() =>
-      paymentService.generateReceipt(paymentId),
-    )
-
-    const data = getResponseData(response)
-
-    selectedReceipt.value = data.receipt || null
-    syncSelectedPayment(response)
-
-    return response
+  async function downloadReceipt(receiptId) {
+    isReceiptDownloading.value = true
+    receiptError.value = null
+    try {
+      return await paymentService.downloadReceipt(receiptId)
+    } catch (requestError) {
+      receiptError.value = requestError
+      throw requestError
+    } finally {
+      isReceiptDownloading.value = false
+    }
   }
 
-  async function generateWhatsAppReminder(paymentId, reminderPayload = {}) {
-    const response = await runPaymentServiceRequest(() =>
-      paymentService.generateWhatsAppReminder(paymentId, reminderPayload),
-    )
-
-    const data = getResponseData(response)
-
-    selectedReminder.value = data.reminder || null
-    syncSelectedPayment(response)
-
-    return response
+  async function createWhatsAppReminder(paymentId, payload = {}) {
+    if (isReminderSubmitting.value) return null
+    isReminderSubmitting.value = true
+    reminderError.value = null
+    selectedReminder.value = null
+    try {
+      const response = await paymentService.createWhatsAppReminder(
+        paymentId,
+        payload,
+      )
+      selectedReminder.value = response.data
+      return response
+    } catch (requestError) {
+      reminderError.value = requestError
+      throw requestError
+    } finally {
+      isReminderSubmitting.value = false
+    }
   }
 
   function updatePaymentFilter(filterName, value) {
     if (!(filterName in paymentFilters.value)) return
-
     paymentFilters.value = {
       ...paymentFilters.value,
       [filterName]: value,
+      page: filterName === 'page' ? value : 1,
     }
   }
 
@@ -253,9 +321,38 @@ export const usePaymentStore = defineStore('payment', () => {
 
   function resetPaymentFilters() {
     paymentFilters.value = {
+      ...paymentFilters.value,
       search: '',
-      month: '',
+      month: currentMonth(),
       status: '',
+      page: 1,
+    }
+  }
+
+  function updateReceiptFilter(filterName, value) {
+    if (!(filterName in receiptFilters.value)) return
+    receiptFilters.value = {
+      ...receiptFilters.value,
+      [filterName]: value,
+      page: filterName === 'page' ? value : 1,
+    }
+  }
+
+  function setReceiptFilters(filters = {}) {
+    receiptFilters.value = {
+      ...receiptFilters.value,
+      ...filters,
+    }
+  }
+
+  function resetReceiptFilters() {
+    receiptFilters.value = {
+      ...receiptFilters.value,
+      search: '',
+      billingMonth: '',
+      paymentMethod: '',
+      status: '',
+      page: 1,
     }
   }
 
@@ -264,54 +361,68 @@ export const usePaymentStore = defineStore('payment', () => {
   }
 
   function clearSelectedReceipt() {
+    latestReceiptPreviewRequest += 1
     selectedReceipt.value = null
+    isReceiptPreviewLoading.value = false
   }
 
   function clearSelectedReminder() {
     selectedReminder.value = null
+    reminderError.value = null
   }
 
   function clearError() {
     error.value = null
+    reminderError.value = null
   }
 
   return {
     payments,
-    paymentMonths,
     selectedPayment,
     receipts,
-    pendingPayments,
     selectedReceipt,
     selectedReminder,
+    summary,
+    pagination,
+    receiptPagination,
     paymentFilters,
+    receiptFilters,
     isLoading,
+    isReceiptLoading,
+    isReceiptPreviewLoading,
+    isReceiptDownloading,
+    isReminderSubmitting,
     error,
-
+    receiptError,
+    reminderError,
     paymentCount,
     paidPayments,
     unpaidPayments,
     paidPaymentCount,
     unpaidPaymentCount,
+    partiallyPaidPaymentCount,
     totalCollectedAmount,
     totalPendingAmount,
+    totalBilledAmount,
     availableMonths,
     hasActivePaymentFilters,
     errorMessage,
-
+    receiptErrorMessage,
+    reminderErrorMessage,
     fetchPayments,
-    fetchPaymentById,
-    createPayment,
-    generateMonthlyPayments,
-    updatePaymentStatus,
     fetchPaymentHistory,
-    fetchPendingPayments,
     fetchReceipts,
-    generateReceipt,
-    generateWhatsAppReminder,
-
+    fetchReceiptDetail,
+    downloadReceipt,
+    createWhatsAppReminder,
+    generateMonthlyPayments,
+    recordPayment,
     updatePaymentFilter,
     setPaymentFilters,
     resetPaymentFilters,
+    updateReceiptFilter,
+    setReceiptFilters,
+    resetReceiptFilters,
     clearSelectedPayment,
     clearSelectedReceipt,
     clearSelectedReminder,

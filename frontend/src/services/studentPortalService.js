@@ -1,19 +1,17 @@
 import {
   STUDENT_PORTAL_NETWORK_DELAY_MS,
   seatRequestMock,
+  studentAnnouncementMock,
   studentPaymentMock,
   studentProfileMock,
   studentSeatMock,
 } from '../mocks/studentPortalMock.js'
 import { shiftMock } from '../mocks/seatMock.js'
-import {
-  getPublishedAnnouncementsForStudent,
-  markAnnouncementReadForStudent,
-} from './announcementService.js'
 import { getCurrentLibrarySettings } from './librarySettingsService.js'
 
 let profile = clone(studentProfileMock)
 let requests = clone(seatRequestMock)
+let studentAnnouncements = clone(studentAnnouncementMock)
 
 function clone(value) {
   return structuredClone(value)
@@ -120,7 +118,22 @@ function getStudentReceipts(studentId) {
 }
 
 function getStudentAnnouncements(studentId) {
-  return getPublishedAnnouncementsForStudent(studentId, profile.libraryName)
+  const now = new Date()
+  return studentAnnouncements
+    .filter((announcement) => {
+      return (
+        (!announcement.publishedAt ||
+          new Date(announcement.publishedAt) <= now) &&
+        (!announcement.expiresAt || new Date(announcement.expiresAt) > now)
+      )
+    })
+    .sort((first, second) =>
+      second.publishedAt.localeCompare(first.publishedAt),
+    )
+    .map((announcement) => ({
+      ...announcement,
+      isRead: announcement.readBy.includes(studentId),
+    }))
 }
 
 function getStudentRequests(studentId) {
@@ -380,15 +393,27 @@ export async function getAnnouncements(studentId) {
 export async function markAnnouncementRead(studentId, announcementId) {
   await delay()
   const scopedStudentId = ensureStudentAccess(studentId)
-  const announcement = markAnnouncementReadForStudent(
-    scopedStudentId,
-    announcementId,
-    profile.libraryName,
+  const index = studentAnnouncements.findIndex(
+    (item) => item.id === String(announcementId),
   )
+  if (index === -1) {
+    throw createPortalError(
+      'Announcement was not found.',
+      404,
+      'ANNOUNCEMENT_NOT_FOUND',
+    )
+  }
+  const announcement = studentAnnouncements[index]
+  if (!announcement.readBy.includes(scopedStudentId)) {
+    studentAnnouncements[index] = {
+      ...announcement,
+      readBy: [...announcement.readBy, scopedStudentId],
+    }
+  }
 
   return createSuccessResponse('Announcement marked as read.', {
     announcement: {
-      ...announcement,
+      ...studentAnnouncements[index],
       isRead: true,
     },
     announcements: getStudentAnnouncements(scopedStudentId),

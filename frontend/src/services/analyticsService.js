@@ -154,11 +154,8 @@ function getStudentScope(students, seats, filters) {
 function buildRevenueReport(payments, months) {
   const series = months.map((month) => {
     const records = payments.filter((payment) => payment.month === month)
-    const collected = sum(
-      records.filter((payment) => payment.status === 'paid'),
-      (payment) => payment.amount,
-    )
-    const expected = sum(records, (payment) => payment.amount)
+    const collected = sum(records, (payment) => payment.paidAmount)
+    const expected = sum(records, (payment) => payment.totalAmount)
 
     return {
       month,
@@ -172,8 +169,10 @@ function buildRevenueReport(payments, months) {
   })
   const expected = sum(series, (item) => item.expected)
   const collected = sum(series, (item) => item.collected)
-  const paidPayments = payments.filter((payment) => payment.status === 'paid')
-  const methodCounts = paidPayments.reduce((counts, payment) => {
+  const paymentsWithTransactions = payments.filter(
+    (payment) => payment.latestTransaction,
+  )
+  const methodCounts = paymentsWithTransactions.reduce((counts, payment) => {
     const method = payment.paymentMethod || 'not_recorded'
     counts[method] = (counts[method] || 0) + 1
     return counts
@@ -198,7 +197,7 @@ function buildRevenueReport(payments, months) {
         .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
         .join(' '),
       count,
-      share: percentage(count, paidPayments.length),
+      share: percentage(count, paymentsWithTransactions.length),
     })),
   }
 }
@@ -329,10 +328,12 @@ function buildPendingPaymentReport(payments, students) {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   const records = payments
-    .filter((payment) => payment.status === 'unpaid')
+    .filter((payment) => ['unpaid', 'partially_paid'].includes(payment.status))
     .map((payment) => {
       const student = studentById.get(payment.studentId)
-      const configuredDueDate = String(student?.feeDueDate || '')
+      const configuredDueDate = String(
+        payment.dueDate || student?.feeDueDate || '',
+      )
       const appliesToPaymentMonth = configuredDueDate.startsWith(payment.month)
       const dueDate = appliesToPaymentMonth
         ? new Date(`${configuredDueDate}T00:00:00`)
@@ -350,7 +351,7 @@ function buildPendingPaymentReport(payments, students) {
         seatNumber: payment.seatNumber || 'Not assigned',
         month: payment.month,
         monthLabel: formatMonthLabel(payment.month),
-        amount: payment.amount,
+        amount: payment.balanceAmount,
         dueDate: formatDateKey(dueDate),
         daysOverdue,
         ageing: daysOverdue > 0 ? `${daysOverdue} days overdue` : 'Due this month',
@@ -417,7 +418,7 @@ function buildInsights(revenue, occupancy, students, pending) {
 
 export async function getReportOptions() {
   const [paymentResponse, seatResponse] = await Promise.all([
-    paymentService.getPayments(),
+    paymentService.getPayments({ pageSize: 100 }),
     seatService.fetchSeats(),
   ])
   const payments = paymentResponse.data.payments
@@ -443,7 +444,7 @@ export async function getReportOptions() {
 
 export async function getReports(filters = {}) {
   const [paymentResponse, studentResponse, seatResponse] = await Promise.all([
-    paymentService.getPayments(),
+    paymentService.getPayments({ pageSize: 100 }),
     studentService.getStudents(),
     seatService.fetchSeats(),
     delay(),

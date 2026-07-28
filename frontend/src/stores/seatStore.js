@@ -1,12 +1,11 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 
-import * as seatService from '../services/seatService'
+import * as seatService from '../services/seatService.js'
 
 let allocationAvailabilityRequestId = 0
 
-// src/stores: Centralized Seat Management state for the Smart Library App.
-// TODO: Keep this store as the single frontend state boundary when FastAPI seat APIs are added.
+// Centralized physical-seat, shift, availability, and allocation state.
 export const useSeatStore = defineStore('seat', () => {
   const seats = ref([])
   const studyShifts = ref([])
@@ -21,10 +20,20 @@ export const useSeatStore = defineStore('seat', () => {
   })
   const seatAvailability = ref(null)
   const allocationAvailability = ref(null)
+  const allocations = ref([])
+  const allocationMeta = ref({
+    page: 1,
+    pageSize: 20,
+    totalItems: 0,
+    totalPages: 0,
+  })
   const isLoading = ref(false)
   const isAvailabilityLoading = ref(false)
+  const isAllocationLoading = ref(false)
+  const isAllocationSubmitting = ref(false)
   const error = ref(null)
   const availabilityError = ref(null)
+  const allocationError = ref(null)
 
   const occupiedSeats = computed(() => {
     return seats.value.filter((seat) => isOccupiedSeat(seat))
@@ -125,6 +134,10 @@ export const useSeatStore = defineStore('seat', () => {
     return availabilityError.value
       ? getErrorMessage(availabilityError.value)
       : ''
+  })
+
+  const allocationErrorMessage = computed(() => {
+    return allocationError.value ? getErrorMessage(allocationError.value) : ''
   })
 
   function isOccupiedSeat(seat) {
@@ -266,10 +279,7 @@ export const useSeatStore = defineStore('seat', () => {
     }
   }
 
-  /**
-   * Fetches seat records through seatService and stores them as the frontend source of truth.
-   * TODO: Replace the mock service response with FastAPI query parameters for filters.
-   */
+  /** Fetches physical seat records from the tenant-scoped API. */
   async function fetchSeats() {
     const response = await runSeatServiceRequest(() =>
       seatService.getSeats(),
@@ -369,10 +379,7 @@ export const useSeatStore = defineStore('seat', () => {
     return response
   }
 
-  /**
-   * Fetches study shifts through seatService and stores them for dynamic shift workflows.
-   * TODO: Replace the mock service response with FastAPI GET /shifts.
-   */
+  /** Fetches tenant-defined shifts used by seat workflows. */
   async function fetchShifts() {
     const response = await runSeatServiceRequest(() =>
       seatService.fetchShifts(),
@@ -389,10 +396,7 @@ export const useSeatStore = defineStore('seat', () => {
     return response
   }
 
-  /**
-   * Creates a study shift through seatService.
-   * TODO: Persist unlimited tenant-defined shifts through FastAPI.
-   */
+  /** Creates a tenant-defined shift. */
   async function createShift(shiftPayload) {
     const response = await runSeatServiceRequest(() =>
       seatService.createShift(shiftPayload),
@@ -403,10 +407,7 @@ export const useSeatStore = defineStore('seat', () => {
     return response
   }
 
-  /**
-   * Updates shift name, status, and timing through seatService.
-   * TODO: Add backend validation for tenant-specific shift overlaps in FastAPI.
-   */
+  /** Updates shift name, status, and timing. */
   async function updateStudyShift(shiftId, shiftPayload) {
     const response = await runSeatServiceRequest(() =>
       seatService.updateStudyShift(shiftId, shiftPayload),
@@ -417,10 +418,7 @@ export const useSeatStore = defineStore('seat', () => {
     return response
   }
 
-  /**
-   * Updates only shift timing through seatService.
-   * TODO: Replace mock timing updates with FastAPI PATCH /shifts/{id}/timing.
-   */
+  /** Updates only shift timing. */
   async function updateShiftTiming(shiftId, timingPayload) {
     const response = await runSeatServiceRequest(() =>
       seatService.updateShiftTiming(shiftId, timingPayload),
@@ -431,10 +429,7 @@ export const useSeatStore = defineStore('seat', () => {
     return response
   }
 
-  /**
-   * Enables or disables a study shift through seatService.
-   * TODO: Let FastAPI enforce whether disabled shifts can accept new allocations.
-   */
+  /** Enables or disables a study shift. */
   async function toggleStudyShift(shiftId, isEnabled) {
     const response = await runSeatServiceRequest(() =>
       seatService.toggleStudyShift(shiftId, isEnabled),
@@ -445,10 +440,7 @@ export const useSeatStore = defineStore('seat', () => {
     return response
   }
 
-  /**
-   * Deletes a study shift through seatService and syncs affected seat availability.
-   * TODO: Replace mock deletion with FastAPI delete semantics and audit logging.
-   */
+  /** Soft-deletes a shift through the API. */
   async function deleteStudyShift(shiftId) {
     const response = await runSeatServiceRequest(() =>
       seatService.deleteStudyShift(shiftId),
@@ -459,24 +451,21 @@ export const useSeatStore = defineStore('seat', () => {
     return response
   }
 
-  /**
-   * Allocates a seat by delegating to seatService and syncing the returned seat/student state.
-   * TODO: Move allocation rules and conflict checks to FastAPI.
-   */
   async function allocateSeat(allocationPayload) {
-    const response = await runSeatServiceRequest(() =>
-      seatService.allocateSeat(allocationPayload),
-    )
+    isAllocationSubmitting.value = true
+    allocationError.value = null
 
-    syncSeatStateFromResponse(response)
-
-    return response
+    try {
+      return await seatService.allocateSeat(allocationPayload)
+    } catch (requestError) {
+      allocationError.value = requestError
+      throw requestError
+    } finally {
+      isAllocationSubmitting.value = false
+    }
   }
 
-  /**
-   * Updates a seat's operational status through seatService.
-   * TODO: Replace mock status updates with FastAPI PATCH /seats/{id}/status and audit logging.
-   */
+  /** Updates a seat's physical operational status. */
   async function updateSeatStatus(seatId, statusPayload) {
     const response = await runSeatServiceRequest(() =>
       seatService.updateSeatStatus(seatId, statusPayload),
@@ -487,10 +476,7 @@ export const useSeatStore = defineStore('seat', () => {
     return response
   }
 
-  /**
-   * Updates the selected shift through seatService and stores the service-confirmed shift.
-   * TODO: Persist shift preferences and availability windows through FastAPI.
-   */
+  /** Updates the locally selected shift preference. */
   async function updateShift(shiftPayload) {
     const response = await runSeatServiceRequest(() =>
       seatService.updateShift(shiftPayload),
@@ -505,10 +491,7 @@ export const useSeatStore = defineStore('seat', () => {
     return response
   }
 
-  /**
-   * Refreshes seat availability through seatService without exposing mock data to pages.
-   * TODO: Replace mock availability calculations with FastAPI availability endpoints.
-   */
+  /** Refreshes backend-calculated allocation availability. */
   async function refreshSeatAvailability(filters = seatFilters.value) {
     const response = await runSeatServiceRequest(() =>
       seatService.refreshSeatAvailability({ ...filters }),
@@ -544,6 +527,52 @@ export const useSeatStore = defineStore('seat', () => {
     }
   }
 
+  async function fetchAllocations(filters = {}) {
+    isAllocationLoading.value = true
+    allocationError.value = null
+
+    try {
+      const response = await seatService.fetchSeatAllocations(filters)
+      allocations.value = response.data || []
+      allocationMeta.value = {
+        page: response.meta?.page || 1,
+        pageSize: response.meta?.pageSize || filters.pageSize || 20,
+        totalItems: response.meta?.totalItems || 0,
+        totalPages: response.meta?.totalPages || 0,
+      }
+      return response
+    } catch (requestError) {
+      allocationError.value = requestError
+      throw requestError
+    } finally {
+      isAllocationLoading.value = false
+    }
+  }
+
+  async function closeAllocation(allocationId, payload) {
+    isAllocationSubmitting.value = true
+    allocationError.value = null
+
+    try {
+      const response = await seatService.closeSeatAllocation(
+        allocationId,
+        payload,
+      )
+      const index = allocations.value.findIndex(
+        (allocation) => allocation.id === allocationId,
+      )
+      if (index !== -1) {
+        allocations.value.splice(index, 1, response.data)
+      }
+      return response
+    } catch (requestError) {
+      allocationError.value = requestError
+      throw requestError
+    } finally {
+      isAllocationSubmitting.value = false
+    }
+  }
+
   function clearAllocationAvailability() {
     allocationAvailabilityRequestId += 1
     allocationAvailability.value = null
@@ -551,10 +580,11 @@ export const useSeatStore = defineStore('seat', () => {
     isAvailabilityLoading.value = false
   }
 
-  /**
-   * Selects a seat by loading the service-confirmed record into store state.
-   * TODO: Replace mock detail fetch with FastAPI GET /seats/{seatId}.
-   */
+  function clearAllocationError() {
+    allocationError.value = null
+  }
+
+  /** Loads a physical seat detail record into selection state. */
   async function selectSeat(seatId) {
     const response = await runSeatServiceRequest(() =>
       seatService.getSeatById(seatId),
@@ -570,10 +600,7 @@ export const useSeatStore = defineStore('seat', () => {
     return response
   }
 
-  /**
-   * Clears seat, student, and shift selections after delegating to seatService.
-   * TODO: Keep this local-only unless future backend workflows require session selection state.
-   */
+  /** Clears local seat, student, and shift selection state. */
   async function clearSelection() {
     await runSeatServiceRequest(() => seatService.clearSelection())
 
@@ -612,10 +639,15 @@ export const useSeatStore = defineStore('seat', () => {
     seatFilters,
     seatAvailability,
     allocationAvailability,
+    allocations,
+    allocationMeta,
     isLoading,
     isAvailabilityLoading,
+    isAllocationLoading,
+    isAllocationSubmitting,
     error,
     availabilityError,
+    allocationError,
 
     occupiedSeats,
     availableSeats,
@@ -630,6 +662,7 @@ export const useSeatStore = defineStore('seat', () => {
     selectedSeat,
     errorMessage,
     availabilityErrorMessage,
+    allocationErrorMessage,
 
     fetchSeats,
     fetchFloors,
@@ -652,7 +685,10 @@ export const useSeatStore = defineStore('seat', () => {
     updateShift,
     refreshSeatAvailability,
     fetchAllocationAvailability,
+    fetchAllocations,
+    closeAllocation,
     clearAllocationAvailability,
+    clearAllocationError,
     selectSeat,
     clearSelection,
     updateSeatFilter,

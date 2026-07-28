@@ -126,6 +126,14 @@ class AnnouncementPriority(StrEnum):
     IMPORTANT = "important"
 
 
+class AnnouncementCategory(StrEnum):
+    GENERAL = "general"
+    SCHEDULE = "schedule"
+    FEES = "fees"
+    POLICY = "policy"
+    FACILITY = "facility"
+
+
 class AnnouncementAudience(StrEnum):
     ALL_STUDENTS = "all_students"
     ACTIVE_STUDENTS = "active_students"
