@@ -1,5 +1,30 @@
 import apiClient from '../api/axios.js'
 
+function formatFeeItem(item) {
+  if (!item) return null
+  const latestTx = item.transactions && item.transactions.length > 0 ? item.transactions[0] : null
+  return {
+    ...item,
+    month: item.billingMonth || item.month,
+    amount: item.totalAmount !== undefined ? item.totalAmount : item.amount,
+    paidAt: latestTx?.paidAt || item.paidAt || null,
+    paymentMethod: latestTx?.method || item.paymentMethod || null,
+  }
+}
+
+function formatProfileData(data) {
+  if (!data) return null
+  const fullName = `${data.firstName || ''} ${data.lastName || ''}`.trim() || data.fullName || 'Student'
+  const membershipId = data.enrollmentNumber || data.membershipId || '-'
+  const libraryName = data.libraryName || 'Library Member'
+  return {
+    ...data,
+    fullName,
+    membershipId,
+    libraryName,
+  }
+}
+
 export async function getDashboard() {
   const results = await Promise.allSettled([
     getProfile(),
@@ -53,17 +78,39 @@ export async function getSeat() {
 
 export async function getFees() {
   const response = await apiClient.get('/payments/me')
-  return response.data
+  const feeSummary = response.data?.data?.feeSummary
+  if (!feeSummary) return response.data
+
+  return {
+    ...response.data,
+    data: {
+      feeSummary: {
+        ...feeSummary,
+        currentPayment: formatFeeItem(feeSummary.currentPayment),
+        payments: (feeSummary.payments || []).map(formatFeeItem)
+      }
+    }
+  }
 }
 
 export async function getReceipts() {
   const response = await apiClient.get('/payments/receipts/me')
+  const rawReceipts = response.data?.data || []
+  const receipts = rawReceipts.map((item) => ({
+    ...item,
+    month: item.billingMonth || item.month,
+  }))
   return {
     ...response.data,
     data: {
-      receipts: response.data.data
+      receipts,
     }
   }
+}
+
+export async function getReceipt(receiptId) {
+  const response = await apiClient.get(`/payments/receipts/${receiptId}`)
+  return response.data
 }
 
 export async function getRequests() {
@@ -126,7 +173,7 @@ export async function getProfile() {
   return {
     ...response.data,
     data: {
-      profile: response.data.data
+      profile: formatProfileData(response.data.data)
     }
   }
 }
@@ -142,7 +189,7 @@ export async function updateProfile(studentId, payload = {}) {
   return {
     ...response.data,
     data: {
-      profile: response.data.data
+      profile: formatProfileData(response.data.data)
     }
   }
 }

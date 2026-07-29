@@ -48,6 +48,7 @@ class StudentAllocationItem(APIModel):
 class StudentSeatAllocationsResponse(APIModel):
     seat: StudentSeatSummary | None = None
     allocations: list[StudentAllocationItem] = Field(default_factory=list)
+    history: list[StudentAllocationItem] = Field(default_factory=list)
 
 
 # Fees /me schemas

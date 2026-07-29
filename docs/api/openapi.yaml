@@ -10081,6 +10081,11 @@ components:
             $ref: '#/components/schemas/StudentAllocationItem'
           type: array
           title: Allocations
+        history:
+          items:
+            $ref: '#/components/schemas/StudentAllocationItem'
+          type: array
+          title: History
       type: object
       title: StudentSeatAllocationsResponse
     StudentSeatAssignmentResponse:

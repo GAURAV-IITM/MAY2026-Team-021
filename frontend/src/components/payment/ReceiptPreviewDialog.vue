@@ -24,10 +24,10 @@
     <article v-else-if="receipt" class="receipt-preview">
       <header class="receipt-preview__header">
         <div>
-          <p class="text-label text-muted m-0">{{ receipt.library.name }}</p>
+          <p class="text-label text-muted m-0">{{ receipt.library?.name || 'Library' }}</p>
           <h3 class="text-h4 m-0">Payment Receipt</h3>
           <p class="text-small text-muted m-0">
-            {{ receipt.library.address || receipt.library.email }}
+            {{ receipt.library?.address || receipt.library?.email || '' }}
           </p>
         </div>
         <span
@@ -49,45 +49,46 @@
       <dl class="receipt-preview__details">
         <div class="receipt-preview__detail">
           <dt>Student</dt>
-          <dd>{{ receipt.student.name }}</dd>
+          <dd>{{ receipt.student?.name || 'Student' }}</dd>
         </div>
         <div class="receipt-preview__detail">
           <dt>Enrollment Number</dt>
-          <dd>{{ receipt.student.enrollmentNumber }}</dd>
+          <dd>{{ receipt.student?.enrollmentNumber || '-' }}</dd>
         </div>
         <div class="receipt-preview__detail">
           <dt>Billing Month</dt>
-          <dd>{{ formatMonth(receipt.fee.billingMonth) }}</dd>
+          <dd>{{ formatMonth(receipt.fee?.billingMonth || receipt.billingMonth || receipt.month) }}</dd>
         </div>
         <div class="receipt-preview__detail">
           <dt>Amount Paid</dt>
-          <dd>{{ formatCurrency(receipt.payment.amount) }}</dd>
+          <dd>{{ formatCurrency(receipt.payment?.amount || receipt.amount) }}</dd>
         </div>
         <div class="receipt-preview__detail">
           <dt>Payment Method</dt>
-          <dd>{{ formatLabel(receipt.payment.method) }}</dd>
+          <dd>{{ formatLabel(receipt.payment?.method || receipt.paymentMethod) }}</dd>
         </div>
         <div class="receipt-preview__detail">
           <dt>Payment Date</dt>
-          <dd>{{ formatDateTime(receipt.payment.paidAt) }}</dd>
+          <dd>{{ formatDateTime(receipt.payment?.paidAt || receipt.paidAt) }}</dd>
         </div>
         <div class="receipt-preview__detail">
           <dt>Payment Reference</dt>
-          <dd>{{ receipt.payment.referenceNumber || 'Not provided' }}</dd>
+          <dd>{{ receipt.payment?.referenceNumber || receipt.paymentReference || 'Not provided' }}</dd>
         </div>
         <div class="receipt-preview__detail">
           <dt>Remaining Balance</dt>
-          <dd>{{ formatCurrency(receipt.fee.remainingBalance) }}</dd>
+          <dd>{{ formatCurrency(receipt.fee?.remainingBalance ?? 0) }}</dd>
         </div>
         <div class="receipt-preview__detail">
           <dt>Fee Status</dt>
-          <dd>{{ formatLabel(receipt.fee.paymentStatus) }}</dd>
+          <dd>{{ formatLabel(receipt.fee?.paymentStatus || 'paid') }}</dd>
         </div>
         <div class="receipt-preview__detail">
           <dt>Recorded By</dt>
-          <dd>{{ receipt.payment.recordedBy?.name || 'System' }}</dd>
+          <dd>{{ receipt.payment?.recordedBy?.name || 'System' }}</dd>
         </div>
       </dl>
+
 
       <p class="receipt-preview__note text-small text-muted">
         This historical receipt is generated from the immutable snapshot saved
