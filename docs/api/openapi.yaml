@@ -614,6 +614,134 @@ paths:
               $ref: '#/components/headers/XRequestId'
       x-user-stories:
       - STUDENT-PORTAL-ACTIVATION
+  /api/v1/students/me:
+    get:
+      tags:
+      - Students
+      summary: Get own profile
+      description: Returns the authenticated student's own profile.
+      operationId: getStudentProfile
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse_StudentResponse_'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '404':
+          description: The requested resource was not found in the current scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      security:
+      - BearerAuth: []
+      x-user-stories:
+      - STUDENT-PORTAL-PROFILE-VIEW
+    patch:
+      tags:
+      - Students
+      summary: Update own profile
+      description: Allows the authenticated student to update contact and personal fields.
+      operationId: updateStudentProfile
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StudentSelfUpdate'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse_StudentResponse_'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '404':
+          description: The requested resource was not found in the current scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Request validation or a business rule failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      security:
+      - BearerAuth: []
+      x-user-stories:
+      - STUDENT-PORTAL-PROFILE-UPDATE
   /api/v1/students:
     get:
       tags:
@@ -2565,6 +2693,63 @@ paths:
               $ref: '#/components/headers/XRequestId'
       x-user-stories:
       - SHIFT-STATUS
+  /api/v1/seat-allocations/me:
+    get:
+      tags:
+      - Seat allocations
+      summary: Get own seat allocations
+      description: Returns the authenticated student's active seat details and allocation history.
+      operationId: getStudentSeatAllocations
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse_StudentSeatAllocationsResponse_'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '404':
+          description: The requested resource was not found in the current scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      security:
+      - BearerAuth: []
+      x-user-stories:
+      - STUDENT-PORTAL-SEAT-VIEW
   /api/v1/seat-allocations/availability:
     get:
       tags:
@@ -2995,6 +3180,217 @@ paths:
               $ref: '#/components/headers/XRequestId'
       x-user-stories:
       - SEAT-ALLOCATION-CLOSE
+  /api/v1/seat-requests/me:
+    get:
+      tags:
+      - Seat requests
+      summary: Get own seat-change requests
+      description: Returns the authenticated student's own requests and active library shifts.
+      operationId: getStudentSeatRequests
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse_StudentSeatRequestsResponse_'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      security:
+      - BearerAuth: []
+      x-user-stories:
+      - STUDENT-PORTAL-REQUESTS-VIEW
+    post:
+      tags:
+      - Seat requests
+      summary: Submit a seat-change request
+      description: Submits a new pending seat or shift change request.
+      operationId: createStudentSeatRequest
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StudentSeatRequestCreate'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse_SeatChangeRequestResponse_'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '404':
+          description: The requested resource was not found in the current scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '409':
+          description: The request conflicts with existing data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Request validation or a business rule failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      security:
+      - BearerAuth: []
+      x-user-stories:
+      - STUDENT-PORTAL-REQUEST-SUBMIT
+  /api/v1/seat-requests/me/{request_id}/cancel:
+    patch:
+      tags:
+      - Seat requests
+      summary: Cancel a seat-change request
+      description: Cancels a pending seat-change request.
+      operationId: cancelStudentSeatRequest
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: request_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Request Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse_SeatChangeRequestResponse_'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '404':
+          description: The requested resource was not found in the current scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '409':
+          description: The request conflicts with existing data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      x-user-stories:
+      - STUDENT-PORTAL-REQUEST-CANCEL
   /api/v1/seat-requests:
     get:
       tags:
@@ -3221,6 +3617,172 @@ paths:
               $ref: '#/components/headers/XRequestId'
       x-user-stories:
       - SEAT-REQUEST-REVIEW
+  /api/v1/payments/me:
+    get:
+      tags:
+      - Payments
+      summary: Get own fee summary
+      description: Returns the authenticated student's own monthly fees and payment history.
+      operationId: getStudentFees
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse_StudentFeesResponse_'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '404':
+          description: The requested resource was not found in the current scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      security:
+      - BearerAuth: []
+      x-user-stories:
+      - STUDENT-PORTAL-FEES-VIEW
+  /api/v1/payments/receipts/me:
+    get:
+      tags:
+      - Payments
+      summary: List student's own receipts
+      description: Returns paginated payment receipts belonging to the authenticated student.
+      operationId: listStudentReceipts
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: billingMonth
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            pattern: ^\d{4}-\d{2}$
+          - type: 'null'
+          title: Billingmonth
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+          title: Page
+      - name: pageSize
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+          default: 20
+          title: Pagesize
+      - name: search
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            maxLength: 200
+          - type: 'null'
+          title: Search
+      - name: sortBy
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 80
+          default: createdAt
+          title: Sortby
+      - name: sortOrder
+        in: query
+        required: false
+        schema:
+          type: string
+          pattern: ^(asc|desc)$
+          default: desc
+          title: Sortorder
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReceiptListResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Request validation or a business rule failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      x-user-stories:
+      - STUDENT-PORTAL-RECEIPTS-LIST
   /api/v1/payments:
     get:
       tags:
@@ -3232,7 +3794,7 @@ paths:
       security:
       - BearerAuth: []
       parameters:
-      - name: month
+      - name: billingMonth
         in: query
         required: false
         schema:
@@ -3240,7 +3802,7 @@ paths:
           - type: string
             pattern: ^\d{4}-(0[1-9]|1[0-2])$
           - type: 'null'
-          title: Month
+          title: Billingmonth
       - name: status
         in: query
         required: false
@@ -3933,6 +4495,137 @@ paths:
               $ref: '#/components/headers/XRequestId'
       x-user-stories:
       - PAYMENT-RECORD
+  /api/v1/announcements/feed:
+    get:
+      tags:
+      - Announcements
+      summary: Get announcement feed
+      description: Returns the authenticated student's library announcements feed with read status indicators.
+      operationId: getStudentAnnouncementFeed
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse_StudentAnnouncementsResponse_'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      security:
+      - BearerAuth: []
+      x-user-stories:
+      - STUDENT-PORTAL-ANNOUNCEMENTS-FEED
+  /api/v1/announcements/feed/{announcement_id}/read:
+    post:
+      tags:
+      - Announcements
+      summary: Mark an announcement as read
+      description: Marks the specified announcement as read by the authenticated student.
+      operationId: readAnnouncement
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: announcement_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Announcement Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse_dict_'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '404':
+          description: The requested resource was not found in the current scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '409':
+          description: The request conflicts with existing data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      x-user-stories:
+      - STUDENT-PORTAL-ANNOUNCEMENT-READ
   /api/v1/announcements:
     get:
       tags:
@@ -8803,6 +9496,115 @@ components:
           title: Isenabled
       type: object
       title: ShiftUpdate
+    StudentAllocationItem:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        seatId:
+          type: string
+          format: uuid
+          title: Seatid
+        seatNumber:
+          type: string
+          title: Seatnumber
+        floor:
+          anyOf:
+          - type: string
+          - type: integer
+          - type: 'null'
+          title: Floor
+        shiftId:
+          type: string
+          format: uuid
+          title: Shiftid
+        shiftName:
+          type: string
+          title: Shiftname
+        startTime:
+          type: string
+          title: Starttime
+        endTime:
+          type: string
+          title: Endtime
+        startDate:
+          type: string
+          format: date
+          title: Startdate
+        endDate:
+          type: string
+          format: date
+          title: Enddate
+        status:
+          $ref: '#/components/schemas/AllocationStatus'
+        allocatedAt:
+          type: string
+          format: date-time
+          title: Allocatedat
+      type: object
+      required:
+      - id
+      - seatId
+      - seatNumber
+      - floor
+      - shiftId
+      - shiftName
+      - startTime
+      - endTime
+      - startDate
+      - endDate
+      - status
+      - allocatedAt
+      title: StudentAllocationItem
+    StudentAnnouncementItem:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        title:
+          type: string
+          title: Title
+        body:
+          type: string
+          title: Body
+        category:
+          $ref: '#/components/schemas/AnnouncementCategory'
+        priority:
+          $ref: '#/components/schemas/AnnouncementPriority'
+        publishedAt:
+          type: string
+          format: date-time
+          title: Publishedat
+        expiresAt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Expiresat
+        isRead:
+          type: boolean
+          title: Isread
+          default: false
+      type: object
+      required:
+      - id
+      - title
+      - body
+      - category
+      - priority
+      - publishedAt
+      title: StudentAnnouncementItem
+    StudentAnnouncementsResponse:
+      properties:
+        announcements:
+          items:
+            $ref: '#/components/schemas/StudentAnnouncementItem'
+          type: array
+          title: Announcements
+      type: object
+      title: StudentAnnouncementsResponse
     StudentCreate:
       properties:
         enrollmentNumber:
@@ -8912,6 +9714,94 @@ components:
       - label
       - count
       title: StudentDistributionItem
+    StudentFeeItem:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        billingMonth:
+          type: string
+          title: Billingmonth
+        dueDate:
+          type: string
+          format: date
+          title: Duedate
+        totalAmount:
+          type: string
+          pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Totalamount
+        paidAmount:
+          type: string
+          pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Paidamount
+        remainingBalance:
+          type: string
+          pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Remainingbalance
+        status:
+          $ref: '#/components/schemas/FeeStatus'
+        transactions:
+          items:
+            $ref: '#/components/schemas/StudentTransactionItem'
+          type: array
+          title: Transactions
+      type: object
+      required:
+      - id
+      - billingMonth
+      - dueDate
+      - totalAmount
+      - paidAmount
+      - remainingBalance
+      - status
+      title: StudentFeeItem
+    StudentFeeSummary:
+      properties:
+        currentPayment:
+          anyOf:
+          - $ref: '#/components/schemas/StudentFeeItem'
+          - type: 'null'
+        payments:
+          items:
+            $ref: '#/components/schemas/StudentFeeItem'
+          type: array
+          title: Payments
+        totalPaid:
+          type: string
+          pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Totalpaid
+        totalOutstanding:
+          type: string
+          pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Totaloutstanding
+        paidCount:
+          type: integer
+          title: Paidcount
+        unpaidCount:
+          type: integer
+          title: Unpaidcount
+        nextDueDate:
+          anyOf:
+          - type: string
+            format: date
+          - type: 'null'
+          title: Nextduedate
+      type: object
+      required:
+      - totalPaid
+      - totalOutstanding
+      - paidCount
+      - unpaidCount
+      title: StudentFeeSummary
+    StudentFeesResponse:
+      properties:
+        feeSummary:
+          $ref: '#/components/schemas/StudentFeeSummary'
+      type: object
+      required:
+      - feeSummary
+      title: StudentFeesResponse
     StudentInvitationResponse:
       properties:
         studentId:
@@ -9180,6 +10070,24 @@ components:
       - startDate
       - endDate
       title: StudentSeatAllocationCreate
+    StudentSeatAllocationsResponse:
+      properties:
+        seat:
+          anyOf:
+          - $ref: '#/components/schemas/StudentSeatSummary'
+          - type: 'null'
+        allocations:
+          items:
+            $ref: '#/components/schemas/StudentAllocationItem'
+          type: array
+          title: Allocations
+        history:
+          items:
+            $ref: '#/components/schemas/StudentAllocationItem'
+          type: array
+          title: History
+      type: object
+      title: StudentSeatAllocationsResponse
     StudentSeatAssignmentResponse:
       properties:
         seatId:
@@ -9246,6 +10154,199 @@ components:
       - endDate
       - status
       title: StudentSeatAssignmentResponse
+    StudentSeatRequestCreate:
+      properties:
+        preferredSeatId:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Preferredseatid
+        preferredFloorId:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Preferredfloorid
+        preferredShiftId:
+          type: string
+          format: uuid
+          title: Preferredshiftid
+        reason:
+          type: string
+          minLength: 15
+          title: Reason
+      type: object
+      required:
+      - preferredShiftId
+      - reason
+      title: StudentSeatRequestCreate
+    StudentSeatRequestListItem:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        studentId:
+          type: string
+          format: uuid
+          title: Studentid
+        studentName:
+          type: string
+          title: Studentname
+        studentEmail:
+          type: string
+          title: Studentemail
+        libraryId:
+          type: string
+          format: uuid
+          title: Libraryid
+        libraryName:
+          type: string
+          title: Libraryname
+        currentSeatNumber:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Currentseatnumber
+        preferredSeatNumber:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Preferredseatnumber
+        preferredFloor:
+          anyOf:
+          - type: string
+          - type: integer
+          - type: 'null'
+          title: Preferredfloor
+        preferredShiftId:
+          type: string
+          format: uuid
+          title: Preferredshiftid
+        preferredShiftName:
+          type: string
+          title: Preferredshiftname
+        reason:
+          type: string
+          title: Reason
+        status:
+          $ref: '#/components/schemas/SeatRequestStatus'
+        adminNote:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Adminnote
+        submittedAt:
+          type: string
+          format: date-time
+          title: Submittedat
+        resolvedAt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Resolvedat
+        reviewedBy:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Reviewedby
+      type: object
+      required:
+      - id
+      - studentId
+      - studentName
+      - studentEmail
+      - libraryId
+      - libraryName
+      - preferredShiftId
+      - preferredShiftName
+      - reason
+      - status
+      - submittedAt
+      title: StudentSeatRequestListItem
+    StudentSeatRequestsResponse:
+      properties:
+        requests:
+          items:
+            $ref: '#/components/schemas/StudentSeatRequestListItem'
+          type: array
+          title: Requests
+        shifts:
+          items:
+            additionalProperties: true
+            type: object
+          type: array
+          title: Shifts
+      type: object
+      title: StudentSeatRequestsResponse
+    StudentSeatSummary:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        seatNumber:
+          type: string
+          title: Seatnumber
+        floor:
+          anyOf:
+          - type: string
+          - type: integer
+          title: Floor
+        seatType:
+          $ref: '#/components/schemas/SeatType'
+        notes:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Notes
+      type: object
+      required:
+      - id
+      - seatNumber
+      - floor
+      - seatType
+      title: StudentSeatSummary
+    StudentSelfUpdate:
+      properties:
+        phone:
+          anyOf:
+          - type: string
+            maxLength: 32
+            minLength: 7
+          - type: 'null'
+          title: Phone
+        address:
+          anyOf:
+          - type: string
+            maxLength: 2000
+          - type: 'null'
+          title: Address
+        guardianName:
+          anyOf:
+          - type: string
+            maxLength: 160
+          - type: 'null'
+          title: Guardianname
+        guardianPhone:
+          anyOf:
+          - type: string
+            maxLength: 32
+          - type: 'null'
+          title: Guardianphone
+        preferredLanguage:
+          anyOf:
+          - type: string
+            maxLength: 16
+            minLength: 2
+          - type: 'null'
+          title: Preferredlanguage
+      additionalProperties: false
+      type: object
+      title: StudentSelfUpdate
     StudentShiftItem:
       properties:
         shiftId:
@@ -9318,6 +10419,29 @@ components:
       - activeRate
       - newStudents
       title: StudentTotals
+    StudentTransactionItem:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        amount:
+          type: string
+          pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Amount
+        method:
+          $ref: '#/components/schemas/PaymentMethod'
+        paidAt:
+          type: string
+          format: date-time
+          title: Paidat
+      type: object
+      required:
+      - id
+      - amount
+      - method
+      - paidAt
+      title: StudentTransactionItem
     StudentTrendItem:
       properties:
         month:
@@ -9761,6 +10885,42 @@ components:
       - message
       - data
       title: SuccessResponse[ShiftSelectionResult]
+    SuccessResponse_StudentAnnouncementsResponse_:
+      properties:
+        message:
+          type: string
+          title: Message
+        data:
+          $ref: '#/components/schemas/StudentAnnouncementsResponse'
+        meta:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Meta
+      type: object
+      required:
+      - message
+      - data
+      title: SuccessResponse[StudentAnnouncementsResponse]
+    SuccessResponse_StudentFeesResponse_:
+      properties:
+        message:
+          type: string
+          title: Message
+        data:
+          $ref: '#/components/schemas/StudentFeesResponse'
+        meta:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Meta
+      type: object
+      required:
+      - message
+      - data
+      title: SuccessResponse[StudentFeesResponse]
     SuccessResponse_StudentInvitationResponse_:
       properties:
         message:
@@ -9797,6 +10957,42 @@ components:
       - message
       - data
       title: SuccessResponse[StudentResponse]
+    SuccessResponse_StudentSeatAllocationsResponse_:
+      properties:
+        message:
+          type: string
+          title: Message
+        data:
+          $ref: '#/components/schemas/StudentSeatAllocationsResponse'
+        meta:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Meta
+      type: object
+      required:
+      - message
+      - data
+      title: SuccessResponse[StudentSeatAllocationsResponse]
+    SuccessResponse_StudentSeatRequestsResponse_:
+      properties:
+        message:
+          type: string
+          title: Message
+        data:
+          $ref: '#/components/schemas/StudentSeatRequestsResponse'
+        meta:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Meta
+      type: object
+      required:
+      - message
+      - data
+      title: SuccessResponse[StudentSeatRequestsResponse]
     SuccessResponse_WhatsAppReminderResponse_:
       properties:
         message:
@@ -9815,6 +11011,26 @@ components:
       - message
       - data
       title: SuccessResponse[WhatsAppReminderResponse]
+    SuccessResponse_dict_:
+      properties:
+        message:
+          type: string
+          title: Message
+        data:
+          additionalProperties: true
+          type: object
+          title: Data
+        meta:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Meta
+      type: object
+      required:
+      - message
+      - data
+      title: SuccessResponse[dict]
     SuccessResponse_list_FloorResponse__:
       properties:
         message:

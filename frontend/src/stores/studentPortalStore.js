@@ -133,8 +133,21 @@ export const useStudentPortalStore = defineStore('studentPortal', () => {
     return response
   }
 
-  function selectReceipt(receipt) {
-    selectedReceipt.value = receipt
+  async function selectReceipt(receipt) {
+    if (!receipt) {
+      selectedReceipt.value = null
+      return
+    }
+    if (!receipt.library && receipt.id) {
+      try {
+        const response = await studentPortalService.getReceipt(receipt.id)
+        selectedReceipt.value = response.data
+      } catch {
+        selectedReceipt.value = receipt
+      }
+    } else {
+      selectedReceipt.value = receipt
+    }
   }
 
   function clearSelectedReceipt() {

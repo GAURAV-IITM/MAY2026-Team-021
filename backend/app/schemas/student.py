@@ -4,7 +4,7 @@ from __future__ import annotations
 import uuid
 from datetime import date, datetime
 
-from pydantic import Field, model_validator
+from pydantic import ConfigDict, Field, model_validator
 
 from app.models.enums import InvitationStatus, StudentStatus
 from app.schemas.allocation import (
@@ -132,3 +132,15 @@ class StudentInvitationResponse(APIModel):
     expires_at: datetime
     setup_url: str
     delivery_method: str = "manual"
+
+
+class StudentSelfUpdate(APIModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    phone: str | None = Field(default=None, min_length=7, max_length=32)
+    address: str | None = Field(default=None, max_length=2000)
+    guardian_name: str | None = Field(default=None, max_length=160)
+    guardian_phone: str | None = Field(default=None, max_length=32)
+    preferred_language: str | None = Field(default=None, min_length=2, max_length=16)
+
