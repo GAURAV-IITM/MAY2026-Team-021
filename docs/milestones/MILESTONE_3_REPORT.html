@@ -1,0 +1,576 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>MAY2026-Team-021 - Milestone 3 Report</title>
+  <style>
+    @page { size: A4; margin: 18mm 16mm 18mm; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: #172033;
+      font: 10.5pt/1.45 Arial, Helvetica, sans-serif;
+    }
+    h1, h2, h3 { color: #111827; page-break-after: avoid; }
+    h1 { margin: 0 0 8px; font-size: 25pt; }
+    h2 {
+      margin: 0 0 12px;
+      padding-bottom: 6px;
+      border-bottom: 2px solid #2563eb;
+      font-size: 17pt;
+    }
+    h3 { margin: 18px 0 7px; font-size: 12.5pt; }
+    p { margin: 0 0 9px; }
+    ul, ol { margin: 5px 0 10px 20px; padding: 0; }
+    li { margin: 3px 0; }
+    code {
+      padding: 1px 4px;
+      border-radius: 3px;
+      background: #eef2ff;
+      color: #1e3a8a;
+      font: 9pt Consolas, monospace;
+    }
+    pre {
+      margin: 8px 0 12px;
+      padding: 10px;
+      border: 1px solid #dbe3f0;
+      border-radius: 5px;
+      background: #f8fafc;
+      color: #1f2937;
+      font: 8.4pt/1.35 Consolas, monospace;
+      white-space: pre-wrap;
+    }
+    table {
+      width: 100%;
+      margin: 8px 0 14px;
+      border-collapse: collapse;
+      page-break-inside: auto;
+    }
+    tr { page-break-inside: avoid; }
+    th, td {
+      padding: 6px 7px;
+      border: 1px solid #cbd5e1;
+      vertical-align: top;
+      text-align: left;
+    }
+    th { background: #eaf1fb; color: #172554; font-size: 9pt; }
+    td { font-size: 8.8pt; }
+    .cover {
+      min-height: 245mm;
+      padding: 24mm 10mm 0;
+      text-align: center;
+      page-break-after: always;
+    }
+    .cover .kicker {
+      margin-bottom: 18px;
+      color: #2563eb;
+      font-size: 11pt;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+    .cover h1 { font-size: 31pt; }
+    .cover h2 {
+      margin: 10px auto 28px;
+      padding: 0;
+      border: 0;
+      color: #475569;
+      font-size: 18pt;
+      font-weight: 400;
+    }
+    .cover .project {
+      margin: 25px auto;
+      padding: 16px;
+      border-top: 2px solid #2563eb;
+      border-bottom: 2px solid #2563eb;
+      font-size: 13pt;
+    }
+    .members { display: inline-block; margin-top: 20px; text-align: left; }
+    .members strong { display: block; margin-bottom: 7px; text-align: center; }
+    .page { page-break-before: always; }
+    .lead { color: #334155; font-size: 11.5pt; }
+    .callout {
+      margin: 11px 0;
+      padding: 10px 12px;
+      border-left: 4px solid #2563eb;
+      background: #eff6ff;
+    }
+    .warning { border-left-color: #d97706; background: #fffbeb; }
+    .success { border-left-color: #16a34a; background: #f0fdf4; }
+    .failure { border-left-color: #dc2626; background: #fef2f2; }
+    .result-pass { color: #15803d; font-weight: 700; }
+    .result-fail { color: #b91c1c; font-weight: 700; }
+    .meta-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      margin: 10px 0 15px;
+    }
+    .meta-grid div { padding: 9px; border: 1px solid #dbe3f0; background: #f8fafc; }
+    .meta-grid strong { display: block; color: #1d4ed8; }
+    .meta-grid span { display: block; margin-top: 2px; }
+    .small { color: #64748b; font-size: 8.7pt; }
+    .test-case {
+      margin: 0 0 15px;
+      padding: 11px;
+      border: 1px solid #cbd5e1;
+      border-radius: 5px;
+      page-break-inside: avoid;
+    }
+    .test-case h3 { margin-top: 0; color: #1e40af; }
+    .test-case dl {
+      display: grid;
+      grid-template-columns: 31mm 1fr;
+      gap: 4px 7px;
+      margin: 0;
+    }
+    .test-case dt { font-weight: 700; }
+    .test-case dd { margin: 0; }
+    .pytest-snapshot {
+      margin: 11px 0 0;
+      page-break-inside: avoid;
+    }
+    .pytest-snapshot figcaption {
+      margin-bottom: 5px;
+      color: #475569;
+      font-size: 8.5pt;
+      font-weight: 700;
+    }
+    .pytest-snapshot img {
+      display: block;
+      width: 100%;
+      height: auto;
+      border: 1px solid #334155;
+      border-radius: 4px;
+    }
+    .pytest-snapshot img + img { margin-top: 7px; }
+    .pytest-snapshot.compact img {
+      width: 82%;
+      margin-right: auto;
+      margin-left: auto;
+    }
+    .footer-note { margin-top: 18px; color: #64748b; font-size: 8.5pt; }
+  </style>
+</head>
+<body>
+  <section class="cover">
+    <div class="kicker">Software Engineering Team Project</div>
+    <h1>Milestone 3</h1>
+    <h2>API Sprint 1 Consolidated Report</h2>
+    <div class="project">
+      <strong>Project:</strong> Community Services Platform<br>
+      <strong>System:</strong> Smart Library Management System<br>
+      <strong>Team:</strong> MAY2026-Team-021<br>
+      <strong>Submission date:</strong> 2 August 2026
+    </div>
+    <div class="members">
+      <strong>Team Members</strong>
+      <ol>
+        <li>Shubham Nagar (21f3000093)</li>
+        <li>Gaurav Ramesh Ghodge (22f2000467)</li>
+        <li>Piyush Jha (21f1002373)</li>
+        <li>Mandeep (23f2001951)</li>
+        <li>Hitarth Mehta (23f1001948)</li>
+      </ol>
+    </div>
+  </section>
+
+  <section>
+    <h2>1. Sprint Summary</h2>
+    <p class="lead">
+      Sprint 1 replaced the frontend-only mock foundation with working FastAPI,
+      SQLAlchemy, JWT, tenant isolation, and PostgreSQL-compatible domain APIs.
+      The result is an integrated owner workflow for registering a library,
+      managing students and physical resources, allocating seats, recording fees,
+      publishing announcements, and viewing operational reports.
+    </p>
+    <div class="meta-grid">
+      <div><strong>74</strong><span>documented API operations</span></div>
+      <div><strong>133 passed</strong><span>backend pytest cases in the final run</span></div>
+      <div><strong>87</strong><span>backend application Python files</span></div>
+      <div><strong>26</strong><span>backend test modules</span></div>
+    </div>
+    <h3>Sprint goals</h3>
+    <ol>
+      <li>Establish a secure authentication, role, tenant, error, and API-contract foundation.</li>
+      <li>Implement owner-facing core library, seat-allocation, payment, and announcement workflows.</li>
+      <li>Integrate completed frontend services with real APIs without changing the page/store/service architecture.</li>
+      <li>Protect historical records, prevent cross-library access, and test positive and negative paths.</li>
+      <li>Generate a Swagger-compatible YAML contract with operation descriptions, errors, and user-story mapping.</li>
+    </ol>
+    <h3>Final technical baseline</h3>
+    <ul>
+      <li>FastAPI routes use Pydantic schemas, service rules, tenant-scoped repositories, and SQLAlchemy models.</li>
+      <li>Passwords use salted <strong>scrypt</strong> hashes. Access tokens are JWTs and refresh sessions rotate and are revocable.</li>
+      <li>Every expected API error uses a structured code/message/details envelope and includes an <code>X-Request-ID</code>.</li>
+      <li>Browser authentication uses an HttpOnly refresh cookie; API clients may use explicit refresh tokens.</li>
+      <li>Frontend integrations retain the Vue page to Pinia store to Axios service flow.</li>
+    </ul>
+  </section>
+
+  <section class="page">
+    <h2>2. Architecture and Functional Delivery</h2>
+    <pre>Vue page/component
+    -> Pinia store
+    -> Axios service
+    -> FastAPI route + authentication/tenant dependency
+    -> Pydantic request/response schema
+    -> application service + transaction boundary
+    -> tenant-scoped SQLAlchemy repository
+    -> database models</pre>
+    <table>
+      <thead><tr><th>Functional area</th><th>Delivered behavior</th></tr></thead>
+      <tbody>
+        <tr><td>Authentication</td><td>Library registration, login, access/refresh tokens, refresh rotation, browser sessions, logout, current user, profile, password change, and invitation activation.</td></tr>
+        <tr><td>Core library data</td><td>Student CRUD/status/invitations, floor CRUD, physical seat CRUD and bulk status, shift CRUD and overlap validation, and library settings.</td></tr>
+        <tr><td>Seat allocation</td><td>Date- and shift-aware availability, overnight overlap detection, atomic multi-shift creation, conflict prevention, lifecycle closure, snapshots, and history.</td></tr>
+        <tr><td>Fees and payments</td><td>Idempotent monthly generation, full/partial transactions, calculated balances, receipts, downloads, and persisted reminder-link generation.</td></tr>
+        <tr><td>Announcements</td><td>Owner list/create/update/publish/archive/delete lifecycle and student feed/read state.</td></tr>
+        <tr><td>Seat requests</td><td>Student submit/cancel workflow and tenant-scoped owner review.</td></tr>
+        <tr><td>Dashboard and reports</td><td>Database-backed student, seat, occupancy, revenue, pending-fee, ageing, activity, and attention metrics.</td></tr>
+        <tr><td>Student self-service</td><td>Own profile, seat/allocation history, fee summary, receipts, announcements, and seat-change requests.</td></tr>
+      </tbody>
+    </table>
+    <h3>Important business rules implemented</h3>
+    <ul>
+      <li>The active membership determines <code>libraryId</code>; tenant-owned APIs never trust a client-supplied library identifier.</li>
+      <li>Maintenance, blocked, inactive, or deleted seats and inactive/deleted shifts cannot receive new allocations.</li>
+      <li>Allocation date ranges are inclusive; consecutive booking starts on the day after the earlier allocation ends.</li>
+      <li>Shift comparison handles midnight crossings such as 22:00-02:00 versus 01:00-06:00.</li>
+      <li>Monthly fee records are idempotent and payment balances are calculated from completed append-only transactions.</li>
+      <li>Soft deletion and lifecycle statuses retain student, seat, shift, allocation, payment, receipt, and audit history.</li>
+    </ul>
+  </section>
+
+  <section class="page">
+    <h2>3. API Inventory and Swagger Evidence</h2>
+    <p>
+      The submitted <code>openapi.yaml</code> is generated from FastAPI and validated
+      against OpenAPI 3.1. It contains stable operation IDs, descriptions,
+      request/response schemas, authentication requirements, structured error
+      responses, request-ID headers, examples, and <code>x-user-stories</code> mappings.
+    </p>
+    <table>
+      <thead><tr><th>Route group</th><th>Operations</th><th>Representative user stories</th></tr></thead>
+      <tbody>
+        <tr><td>Authentication</td><td>13</td><td>Register library, login, rotate session, logout, profile, password, student activation</td></tr>
+        <tr><td>Students</td><td>9</td><td>Owner CRUD and invitation; student profile view/update</td></tr>
+        <tr><td>Floors and seats</td><td>12</td><td>Physical layout CRUD, status and bulk actions</td></tr>
+        <tr><td>Shifts</td><td>6</td><td>Shift administration and overlapping-selection validation</td></tr>
+        <tr><td>Seat allocations</td><td>5</td><td>Availability, create, list/history, close, student seat view</td></tr>
+        <tr><td>Seat requests</td><td>5</td><td>Student submit/cancel; owner list/review</td></tr>
+        <tr><td>Payments and receipts</td><td>9</td><td>Monthly generation, transactions, receipts, reminder links, student fee view</td></tr>
+        <tr><td>Announcements</td><td>8</td><td>Owner lifecycle; student audience feed and read state</td></tr>
+        <tr><td>Reports</td><td>3</td><td>Filter options, owner reports, operational dashboard</td></tr>
+        <tr><td>Settings and system</td><td>4</td><td>Library settings, API discovery, health</td></tr>
+        <tr><th>Total</th><th>74</th><th>All operations mapped in the YAML</th></tr>
+      </tbody>
+    </table>
+    <div class="callout success">
+      <strong>Final contract audit:</strong> 74 operations; 0 missing descriptions;
+      0 missing user-story mappings; 0 missing documented 4xx/5xx responses.
+      The semantic drift test passed against the checked-in YAML.
+    </div>
+    <h3>Shared error contract</h3>
+    <pre>{
+  "error": {
+    "code": "SEAT_ALLOCATION_CONFLICT",
+    "message": "Seat A-01 is occupied during the requested period.",
+    "details": {}
+  },
+  "requestId": "frontend-request-123"
+}</pre>
+  </section>
+
+  <section class="page">
+    <h2>4. API Test Cases - Part A</h2>
+    <p class="small">Environment: Python 3.12, FastAPI in-process ASGI client, and an isolated test database.</p>
+
+    <article class="test-case">
+      <h3>API-001 - Register library with initial physical resources</h3>
+      <dl>
+        <dt>API</dt><dd><code>POST /api/v1/auth/register-library</code></dd>
+        <dt>Input</dt><dd>Valid library/owner details with <code>seatCount: 25</code>.</dd>
+        <dt>Expected</dt><dd>201; admin user, library ID, access/refresh tokens; one settings row, Floor 1, three default shifts, and 25 seats.</dd>
+        <dt>Actual</dt><dd>201; all response fields and database bootstrap counts matched.</dd>
+        <dt>Result</dt><dd class="result-pass">SUCCESS</dd>
+        <dt>Pytest</dt><dd><code>test_registration_bootstraps_library_and_me</code></dd>
+      </dl>
+      <figure class="pytest-snapshot">
+        <figcaption>Snapshot of pytest function - backend/tests/test_auth_api.py</figcaption>
+        <img src="assets/api-test-snapshots/api-001-registration.png" alt="Pytest snapshot for library registration and resource bootstrap">
+      </figure>
+    </article>
+
+    <article class="test-case">
+      <h3>API-002 - Reject invalid registration seat count</h3>
+      <dl>
+        <dt>API</dt><dd><code>POST /api/v1/auth/register-library</code></dd>
+        <dt>Input</dt><dd>Valid registration fields with <code>seatCount: 0</code>.</dd>
+        <dt>Expected</dt><dd>422 with error code <code>VALIDATION_ERROR</code>, field details, and matching request ID.</dd>
+        <dt>Actual</dt><dd>422; message was “The request contains invalid data.” and request ID matched the response header.</dd>
+        <dt>Result</dt><dd class="result-pass">SUCCESS</dd>
+        <dt>Pytest</dt><dd><code>test_validation_errors_use_the_shared_error_contract</code></dd>
+      </dl>
+      <figure class="pytest-snapshot">
+        <figcaption>Snapshot of pytest function - backend/tests/test_api_foundation.py</figcaption>
+        <img src="assets/api-test-snapshots/api-002-validation.png" alt="Pytest snapshot for registration validation error contract">
+      </figure>
+    </article>
+
+    <article class="test-case">
+      <h3>API-003 - Refresh-token rotation and reuse prevention</h3>
+      <dl>
+        <dt>API</dt><dd><code>POST /api/v1/auth/refresh</code></dd>
+        <dt>Input</dt><dd>Use a valid refresh token, then submit the original token again after rotation.</dd>
+        <dt>Expected</dt><dd>First request 200 with new tokens; reused old refresh token 401; old access session revoked.</dd>
+        <dt>Actual</dt><dd>200 for rotation; 401 for token reuse and old access-token use.</dd>
+        <dt>Result</dt><dd class="result-pass">SUCCESS</dd>
+        <dt>Pytest</dt><dd><code>test_refresh_rotation_revokes_old_session_and_logout_revokes_new_one</code></dd>
+      </dl>
+      <figure class="pytest-snapshot">
+        <figcaption>Snapshot of pytest function - backend/tests/test_auth_api.py</figcaption>
+        <img src="assets/api-test-snapshots/api-003-refresh.png" alt="Pytest snapshot for refresh token rotation and token reuse rejection">
+      </figure>
+    </article>
+
+    <article class="test-case">
+      <h3>API-004 - Student invitation activation and one-time use</h3>
+      <dl>
+        <dt>APIs</dt><dd><code>POST /students</code>, <code>GET /auth/invitations/validate</code>, <code>POST /auth/invitations/accept</code></dd>
+        <dt>Input</dt><dd>Create student with invitation, validate token, set password, then reuse the same token.</dd>
+        <dt>Expected</dt><dd>Student 201; validation 200; activation 200; repeated activation rejected with 422.</dd>
+        <dt>Actual</dt><dd>All statuses matched; activated credentials logged in as the Student role.</dd>
+        <dt>Result</dt><dd class="result-pass">SUCCESS</dd>
+        <dt>Pytest</dt><dd><code>test_student_crud_invitation_and_password_setup</code></dd>
+      </dl>
+      <figure class="pytest-snapshot">
+        <figcaption>Snapshot of pytest function - backend/tests/test_core_library_api.py</figcaption>
+        <img src="assets/api-test-snapshots/api-004-invitation.png" alt="Pytest snapshot for student invitation activation and one-time use">
+      </figure>
+    </article>
+  </section>
+
+  <section>
+    <h2>5. API Test Cases - Part B</h2>
+    <article class="test-case">
+      <h3>API-005 - Detect overlapping overnight shifts</h3>
+      <dl>
+        <dt>API</dt><dd><code>POST /api/v1/shifts/validate-selection</code></dd>
+        <dt>Input</dt><dd>Overnight 22:00-02:00 and Early 01:00-06:00 shift IDs.</dd>
+        <dt>Expected</dt><dd>200 response with <code>data.valid: false</code> because the shifts overlap from 01:00 to 02:00.</dd>
+        <dt>Actual</dt><dd>200 with invalid selection and overlap conflict details.</dd>
+        <dt>Result</dt><dd class="result-pass">SUCCESS</dd>
+        <dt>Pytest</dt><dd><code>test_floor_seat_shift_and_settings_workflows</code></dd>
+      </dl>
+      <figure class="pytest-snapshot">
+        <figcaption>Snapshot of relevant pytest function lines - backend/tests/test_core_library_api.py</figcaption>
+        <img src="assets/api-test-snapshots/api-005-overnight-overlap.png" alt="Pytest snapshot for overnight shift overlap validation">
+      </figure>
+    </article>
+
+    <article class="test-case">
+      <h3>API-006 - Reject overlapping seat allocation</h3>
+      <dl>
+        <dt>API</dt><dd><code>POST /api/v1/seat-allocations</code></dd>
+        <dt>Input</dt><dd>A second student requests the same seat and Morning shift during an overlapping date range.</dd>
+        <dt>Expected</dt><dd>409 with <code>SEAT_ALLOCATION_CONFLICT</code>; no partial allocation or success audit record.</dd>
+        <dt>Actual</dt><dd>409 with the expected code; database and audit counts remained unchanged.</dd>
+        <dt>Result</dt><dd class="result-pass">SUCCESS</dd>
+        <dt>Pytest</dt><dd><code>test_conflicts_atomicity_status_precedence_and_consecutive_dates</code></dd>
+      </dl>
+      <figure class="pytest-snapshot">
+        <figcaption>Snapshot of relevant pytest function lines - backend/tests/test_seat_allocation_api.py</figcaption>
+        <img src="assets/api-test-snapshots/api-006-allocation-conflict.png" alt="Pytest snapshot for overlapping seat allocation conflict">
+      </figure>
+    </article>
+
+    <article class="test-case">
+      <h3>API-007 - Record partial and final payment</h3>
+      <dl>
+        <dt>API</dt><dd><code>POST /api/v1/payments/{feeRecordId}/transactions</code></dd>
+        <dt>Input</dt><dd>Fee total 1200.00; transactions of 400.25 and 799.75.</dd>
+        <dt>Expected</dt><dd>First response partially paid with 799.75 balance; final response paid with 0.00 balance and two completed transactions.</dd>
+        <dt>Actual</dt><dd>Calculated totals, lifecycle status, transaction count, receipt count, and audit count matched.</dd>
+        <dt>Result</dt><dd class="result-pass">SUCCESS</dd>
+        <dt>Pytest</dt><dd><code>test_partial_and_full_payments_recalculate_server_totals</code></dd>
+      </dl>
+      <figure class="pytest-snapshot compact">
+        <figcaption>Snapshot of pytest function - partial payment assertions</figcaption>
+        <img src="assets/api-test-snapshots/api-007-payment-partial.png" alt="Pytest snapshot for partial payment calculation">
+      </figure>
+      <figure class="pytest-snapshot compact">
+        <figcaption>Snapshot of pytest function - final payment assertions</figcaption>
+        <img src="assets/api-test-snapshots/api-007-payment-final.png" alt="Pytest snapshot for final payment calculation">
+      </figure>
+    </article>
+
+    <article class="test-case">
+      <h3>API-008 - Hide another library's student</h3>
+      <dl>
+        <dt>API</dt><dd><code>GET /api/v1/students/{studentId}</code></dd>
+        <dt>Input</dt><dd>Owner B requests a Student ID belonging to Library A.</dd>
+        <dt>Expected</dt><dd>404, without exposing the student name or Library A.</dd>
+        <dt>Actual</dt><dd>404; cross-library student record was hidden.</dd>
+        <dt>Result</dt><dd class="result-pass">SUCCESS</dd>
+        <dt>Pytest</dt><dd><code>test_student_records_are_isolated_by_library</code></dd>
+      </dl>
+      <figure class="pytest-snapshot">
+        <figcaption>Snapshot of pytest function - backend/tests/test_core_library_api.py</figcaption>
+        <img src="assets/api-test-snapshots/api-008-tenant-isolation.png" alt="Pytest snapshot for cross-library student isolation">
+      </figure>
+    </article>
+  </section>
+
+  <section class="page">
+    <h2>6. Required Expected-vs-Actual Mismatch</h2>
+    <article class="test-case failure">
+      <h3>API-009 - Expired database session initially accepted an access JWT</h3>
+      <dl>
+        <dt>API</dt><dd><code>GET /api/v1/auth/me</code></dd>
+        <dt>Input</dt><dd>A cryptographically valid, unexpired access JWT whose backing <code>user_sessions.expires_at</code> value was changed to a past time.</dd>
+        <dt>Expected</dt><dd>401 Unauthorized because the server-side session is expired.</dd>
+        <dt>Initial actual</dt><dd><strong>200 OK</strong>. The signed JWT was accepted even though its backing database session had expired.</dd>
+        <dt>Initial result</dt><dd class="result-fail">FAIL</dd>
+        <dt>Root cause</dt><dd>The authentication dependency validated JWT claims but did not enforce the backing session's expiry/revocation state for every protected request.</dd>
+        <dt>Fix</dt><dd>Added active-session validation to protected requests and strengthened refresh/logout revocation. Implemented in commit <code>3dd6ad9</code>.</dd>
+        <dt>Retest actual</dt><dd>401 Unauthorized.</dd>
+        <dt>Retest result</dt><dd class="result-pass">SUCCESS</dd>
+        <dt>Pytest</dt><dd><code>test_expired_backing_session_is_rejected</code></dd>
+      </dl>
+      <figure class="pytest-snapshot">
+        <figcaption>Snapshot of the regression test that initially failed and now passes - backend/tests/test_auth_api.py</figcaption>
+        <img src="assets/api-test-snapshots/api-009-expired-session.png" alt="Pytest snapshot for rejecting an expired backing session">
+      </figure>
+    </article>
+    <div class="callout">
+      This mismatch demonstrates the value of API testing: signature validation
+      alone looked correct during normal login testing, but a server-side session
+      expiry scenario revealed that revoked or expired sessions could remain usable.
+      The regression test now prevents recurrence.
+    </div>
+    <h3>Other defects found and resolved during Sprint 1</h3>
+    <table>
+      <thead><tr><th>Defect</th><th>Resolution</th><th>Evidence</th></tr></thead>
+      <tbody>
+        <tr><td>Concurrent refresh or payment/allocation requests could race.</td><td>Added deterministic row locking, atomic transactions, conflict handling, and rollback tests.</td><td>Concurrency-focused API tests and service-level transaction tests.</td></tr>
+        <tr><td>Registration did not initially bootstrap all requested library resources.</td><td>Registration now creates settings, Floor 1, default shifts, requested seats, membership, owner, and session atomically.</td><td><code>test_registration_bootstraps_library_and_me</code></td></tr>
+        <tr><td>Payment list parameters temporarily drifted from the frontend/API contract.</td><td>Restored the complete parameter set and regenerated the checked-in OpenAPI file.</td><td>Commit <code>838a0af</code> and semantic drift test.</td></tr>
+        <tr><td>Overnight shifts could be mishandled by simple linear time comparison.</td><td>Split crossing-midnight intervals and reused one authoritative overlap algorithm in validation and allocation checks.</td><td>Overnight unit and API tests.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="page">
+    <h2>7. Test Execution and Quality Evidence</h2>
+    <table>
+      <thead><tr><th>Command/check</th><th>Final result</th></tr></thead>
+      <tbody>
+        <tr><td><code>backend/venv/bin/pytest -q</code></td><td>133 backend tests passed</td></tr>
+        <tr><td><code>python backend/scripts/export_openapi.py --check</code></td><td>OpenAPI contract valid and current</td></tr>
+        <tr><td><code>pytest backend/tests/test_openapi_contract.py</code></td><td>3 passed, including all-operation documentation audit</td></tr>
+        <tr><td>OpenAPI completeness scan</td><td>74 operations; no missing descriptions, stories, or error responses</td></tr>
+        <tr><td>Frontend service/component tests</td><td>Passed during integrated module validation</td></tr>
+        <tr><td>Frontend lint and production build</td><td>Passed during integrated module validation</td></tr>
+      </tbody>
+    </table>
+    <h3>Test categories represented</h3>
+    <ul>
+      <li>Successful creation, retrieval, update, status, lifecycle, and deletion paths.</li>
+      <li>Required-field and business-rule validation.</li>
+      <li>Unauthenticated, malformed-token, wrong-role, inactive membership, and suspended-library access.</li>
+      <li>Cross-tenant resource hiding and not-found behavior.</li>
+      <li>Duplicate records, payment overrun, seat/student conflicts, and transaction rollback.</li>
+      <li>Search, filters, pagination, sorting, date overlap, overnight overlap, ageing boundaries, and report reconciliation.</li>
+      <li>OpenAPI validity and semantic drift between FastAPI and the submitted YAML.</li>
+    </ul>
+  </section>
+
+  <section class="page">
+    <h2>8. User Feedback and Actions</h2>
+    <p>
+      The integrated owner workflows were demonstrated and reviewed by team members
+      acting in the Library Owner role. Feedback was captured during the Seat
+      Management and Payment Management walkthroughs and then converted into fixes
+      or backend acceptance tests.
+    </p>
+    <table>
+      <thead><tr><th>Feedback received</th><th>Decision</th><th>Action taken</th></tr></thead>
+      <tbody>
+        <tr><td>An overnight shift (22:00-02:00) and early shift (01:00-06:00) must be shown as overlapping.</td><td>Fix immediately</td><td>Implemented midnight-aware overlap logic and added frontend and backend regression tests.</td></tr>
+        <tr><td>Seat availability should be calculated for the selected shift instead of showing every shift inside every seat card.</td><td>Accepted</td><td>Created a shift-first seat map and one authoritative availability API with blocker details.</td></tr>
+        <tr><td>Student registration/edit should allow multiple non-overlapping shifts and only show seats available for those shifts.</td><td>Accepted</td><td>Added multi-shift validation, real availability lookup, and atomic student/allocation changes with rollback.</td></tr>
+        <tr><td>Action menus should close after an action, outside click, or Escape, and clickable controls should show a pointer cursor.</td><td>Fix immediately</td><td>Added a reusable dismissible-menu pattern and consistent trigger behavior.</td></tr>
+        <tr><td>Monthly payments should open on the current month, allow other months, and give owners access to receipts.</td><td>Accepted</td><td>Connected month-filtered fee APIs, receipt list/detail/download, and payment history.</td></tr>
+        <tr><td>API failures should explain conflicts clearly instead of exposing database errors.</td><td>Accepted</td><td>Introduced typed business errors, stable codes, safe messages, field details, and request correlation IDs.</td></tr>
+      </tbody>
+    </table>
+    <h3>What users considered successful</h3>
+    <ul>
+      <li>Shift-aware seat status made the same physical seat understandable across Morning, Afternoon, Evening, and custom shifts.</li>
+      <li>Student registration, seat assignment, and payment workflows remained usable on mobile layouts.</li>
+      <li>Clear conflict messages and retained allocation/payment history improved administrative confidence.</li>
+    </ul>
+  </section>
+
+  <section class="page">
+    <h2>9. Plan for Sprint 2</h2>
+    <p>
+      Several Milestone 4 vertical slices were completed early, including student
+      self-service, seat-request review, receipts/reminders, and owner reports.
+      Sprint 2 will focus on the remaining platform scope and release hardening.
+    </p>
+    <table>
+      <thead><tr><th>Priority</th><th>Planned work</th><th>Exit evidence</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>Implement Super Admin library, owner, platform analytics, and platform-settings APIs and replace remaining production mocks.</td><td>OpenAPI routes, role/tenant tests, frontend integration, reviewed PR.</td></tr>
+        <tr><td>2</td><td>Run concurrency and report-performance suites against a disposable test database.</td><td>Passing tests, query plans, timings, and evidence-backed index decision.</td></tr>
+        <tr><td>3</td><td>Expand audit coverage for student, floor, shift, and settings mutations and add an authorized audit-history view if time permits.</td><td>Audit assertions and tenant/role tests.</td></tr>
+        <tr><td>4</td><td>Complete scheduled/background behavior for fee generation, reminders, and announcement lifecycle where required by final scope.</td><td>Idempotency tests and documented task execution.</td></tr>
+        <tr><td>5</td><td>Conduct end-to-end owner and student UAT, browser/accessibility regression, security configuration review, and deployment rehearsal.</td><td>Feedback log, resolved issues, screenshots, test report, deployment checklist.</td></tr>
+        <tr><td>6</td><td>Prepare Milestone 4 submission and final demonstration.</td><td>Updated PDF, Swagger YAML, executable code ZIP, test evidence, tagged release.</td></tr>
+      </tbody>
+    </table>
+    <h3>Known Sprint 2 risks</h3>
+    <ul>
+      <li>A dedicated disposable test database is required for destructive locking and performance evidence.</li>
+      <li>Super Admin frontend currently has mock-backed areas and must not silently fall back after API integration.</li>
+      <li>Final deployment secrets, secure cookies, CORS origins, and database migrations require environment-specific verification.</li>
+    </ul>
+  </section>
+
+  <section class="page">
+    <h2>10. Submission Contents and Reproduction</h2>
+    <h3>A. Milestone 3 PDF Report</h3>
+    <p>This document contains sprint delivery, API test cases, the required failed test, user feedback, fixes, and the next-sprint plan.</p>
+    <h3>B. Swagger YAML</h3>
+    <p><code>openapi.yaml</code> documents all 74 current operations with schemas, descriptions, user stories, errors, security requirements, and request-ID headers.</p>
+    <h3>C. Backend ZIP</h3>
+    <p>The ZIP contains backend application code, migrations, tests, scripts, dependency manifest, example environment, documentation, CI workflow, and a copy of the API contract. It intentionally excludes the local <code>.env</code>, virtual environment, caches, bytecode, databases, and secrets.</p>
+    <h3>Local execution</h3>
+    <pre>cd backend
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
+alembic upgrade head
+pytest
+uvicorn app.main:app --reload</pre>
+    <h3>Swagger verification</h3>
+    <pre>python scripts/export_openapi.py --check
+pytest tests/test_openapi_contract.py
+# Swagger UI: http://127.0.0.1:8000/docs</pre>
+    <div class="callout success">
+      <strong>Final status:</strong> report prepared from repository evidence;
+      Swagger contract current; backend standard test suite passing; executable
+      submission package assembled without secrets.
+    </div>
+    <p class="footer-note">
+      Evidence references: commits <code>3dd6ad9</code>, <code>ecc3fdb</code>,
+      <code>ac4ea6f</code>, <code>5202f0d</code>, <code>0cec5ba</code>,
+      <code>885ceb7</code>, <code>4471fbd</code>, <code>802c0d6</code>,
+      <code>f39a1bb</code>, <code>c22a17f</code>, and <code>838a0af</code>.
+    </p>
+  </section>
+</body>
+</html>

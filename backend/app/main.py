@@ -6,6 +6,7 @@ from app.core.config import settings
 from app.core.exceptions import register_exception_handlers
 from app.core.openapi import configure_openapi
 from app.core.request_context import REQUEST_ID_HEADER, resolve_request_id
+from app.schemas.common import error_responses
 
 
 def create_app() -> FastAPI:
@@ -91,6 +92,8 @@ def create_app() -> FastAPI:
         tags=["System"],
         operation_id="getApiRoot",
         summary="Get API information",
+        responses=error_responses(500),
+        openapi_extra={"x-user-stories": ["SYSTEM-API-DISCOVERY"]},
     )
     def root() -> dict[str, str]:
         return {"message": "Smart Library API"}
@@ -100,6 +103,8 @@ def create_app() -> FastAPI:
         tags=["System"],
         operation_id="getHealth",
         summary="Check API health",
+        responses=error_responses(500),
+        openapi_extra={"x-user-stories": ["SYSTEM-HEALTH-CHECK"]},
     )
     def health() -> dict[str, str]:
         return {"status": "ok"}

@@ -100,7 +100,7 @@ async function handleDownload() {
     link.download = `receipt-${selectedReceipt.value.receiptNumber}.pdf`
     link.click()
     URL.revokeObjectURL(link.href)
-  } catch (err) {
+  } catch {
     notice.value = 'Failed to download receipt PDF.'
     window.clearTimeout(noticeTimer)
     noticeTimer = window.setTimeout(() => { notice.value = '' }, 4000)
