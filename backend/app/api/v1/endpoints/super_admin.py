@@ -27,8 +27,11 @@ from app.schemas.platform import (
     PlatformOwnerStatusUpdate,
     PlatformOwnerSuccessResponse,
     PlatformOwnerUpdate,
+    PlatformSettingsSuccessResponse,
+    PlatformSettingsUpdate,
 )
 from app.services import platform as platform_service
+from app.services import platform_settings as platform_settings_service
 from app.services.audit import AuditContext
 
 
@@ -79,6 +82,53 @@ def get_dashboard(
             db,
             start_month=start_month,
             end_month=end_month,
+        ),
+    )
+
+
+@router.get(
+    "/settings",
+    response_model=PlatformSettingsSuccessResponse,
+    operation_id="getPlatformSettings",
+    summary="Get platform settings",
+    description=(
+        "Returns only explicitly approved non-secret platform settings and "
+        "their safe definitions."
+    ),
+    openapi_extra={"x-user-stories": ["PLATFORM-SETTINGS-VIEW"]},
+)
+def get_platform_settings(db: DatabaseSession) -> PlatformSettingsSuccessResponse:
+    return PlatformSettingsSuccessResponse(
+        message="Platform settings fetched successfully.",
+        data=platform_settings_service.get_settings(db),
+    )
+
+
+@router.patch(
+    "/settings",
+    response_model=PlatformSettingsSuccessResponse,
+    operation_id="updatePlatformSettings",
+    summary="Update platform settings",
+    description=(
+        "Atomically validates and updates whitelisted platform settings using "
+        "optimistic concurrency."
+    ),
+    responses=error_responses(409, 422),
+    openapi_extra={"x-user-stories": ["PLATFORM-SETTINGS-UPDATE"]},
+)
+def update_platform_settings(
+    payload: PlatformSettingsUpdate,
+    request: Request,
+    db: DatabaseSession,
+    current_user: CurrentUser,
+) -> PlatformSettingsSuccessResponse:
+    return PlatformSettingsSuccessResponse(
+        message="Platform settings updated successfully.",
+        data=platform_settings_service.update_settings(
+            db,
+            payload,
+            current_user.id,
+            audit_context=_audit_context(request),
         ),
     )
 

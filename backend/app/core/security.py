@@ -52,15 +52,22 @@ _ALGORITHMS = {
 }
 
 
-def create_access_token(*, subject: str, session_id: str, roles: list[str]) -> str:
+def create_access_token(
+    *,
+    subject: str,
+    session_id: str,
+    roles: list[str],
+    expires_minutes: int | None = None,
+) -> str:
     now = datetime.now(timezone.utc)
+    lifetime_minutes = expires_minutes or settings.access_token_expire_minutes
     payload = {
         "sub": subject,
         "sid": session_id,
         "roles": roles,
         "iat": int(now.timestamp()),
         "exp": int(
-            (now + timedelta(minutes=settings.access_token_expire_minutes)).timestamp()
+            (now + timedelta(minutes=lifetime_minutes)).timestamp()
         ),
         "typ": "access",
     }

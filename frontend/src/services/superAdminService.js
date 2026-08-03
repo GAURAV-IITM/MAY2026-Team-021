@@ -2,13 +2,11 @@ import {
   LIBRARY_STATUSES,
   SUPER_ADMIN_NETWORK_DELAY_MS,
   libraryMock,
-  platformSettingsMock,
   platformTrendMock,
 } from '../mocks/superAdminMock.js'
 import apiClient from '../api/axios.js'
 
 let libraries = clone(libraryMock)
-let settings = clone(platformSettingsMock)
 
 function clone(value) {
   return structuredClone(value)
@@ -31,21 +29,6 @@ function createSuccessResponse(message, data, meta = {}) {
       ...meta,
     },
   }
-}
-
-function createServiceError(message, status = 400, code = 'SUPER_ADMIN_ERROR') {
-  const error = new Error(message)
-
-  error.response = {
-    status,
-    data: {
-      success: false,
-      message,
-      error: { code },
-    },
-  }
-
-  return error
 }
 
 function getPlatformTotals(ownerSummary = {}) {
@@ -334,46 +317,20 @@ export async function getAnalytics() {
 }
 
 export async function getSettings() {
-  await delay()
-
-  return createSuccessResponse('Platform settings fetched successfully.', {
-    settings,
-  })
+  const response = await apiClient.get('/platform/settings')
+  return response.data
 }
 
 export async function updateSettings(payload = {}) {
-  await delay()
-
-  const platformName = String(payload.platformName || '').trim()
-  const supportEmail = String(payload.supportEmail || '').trim()
-  const sessionTimeoutMinutes = Number(payload.sessionTimeoutMinutes)
-
-  if (!platformName || !/^\S+@\S+\.\S+$/.test(supportEmail)) {
-    throw createServiceError(
-      'Platform name and a valid support email are required.',
-      422,
-      'SETTINGS_VALIDATION_ERROR',
-    )
-  }
-
-  if (!Number.isInteger(sessionTimeoutMinutes) || sessionTimeoutMinutes < 15) {
-    throw createServiceError(
-      'Session timeout must be at least 15 minutes.',
-      422,
-      'SESSION_TIMEOUT_INVALID',
-    )
-  }
-
-  settings = {
-    ...settings,
-    ...clone(payload),
-    platformName,
-    supportEmail,
-    sessionTimeoutMinutes,
-    updatedAt: new Date().toISOString(),
-  }
-
-  return createSuccessResponse('Platform settings updated successfully.', {
-    settings,
+  const body = { version: payload.version }
+  const editableKeys = [
+    'allowLibraryRegistrations',
+    'sessionTimeoutMinutes',
+    'defaultTimezone',
+  ]
+  editableKeys.forEach((key) => {
+    if (Object.hasOwn(payload, key)) body[key] = payload[key]
   })
+  const response = await apiClient.patch('/platform/settings', body)
+  return response.data
 }

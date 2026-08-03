@@ -241,24 +241,8 @@ export const platformTrendMock = [
   { month: '2026-07', libraries: 8, students: 1203, seats: 1870 },
 ]
 
-export const platformSettingsMock = {
-  platformName: 'Smart Library Platform',
-  supportEmail: 'support@smartlibrary.test',
-  supportPhone: '1800123456',
-  allowLibraryRegistrations: true,
-  requireRegistrationApproval: true,
-  maintenanceMode: false,
-  sessionTimeoutMinutes: 60,
-  defaultTimezone: 'Asia/Kolkata',
-  notifyOnLibraryRegistration: true,
-  notifyOnOwnerSuspension: true,
-  weeklySummaryEnabled: true,
-  updatedAt: '2026-07-01T08:00:00.000Z',
-}
-
 export const superAdminMock = {
   libraries: libraryMock,
   owners: ownerMock,
   platformTrend: platformTrendMock,
-  settings: platformSettingsMock,
 }

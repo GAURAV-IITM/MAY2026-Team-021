@@ -5678,6 +5678,125 @@ paths:
               $ref: '#/components/headers/XRequestId'
       x-user-stories:
       - PLATFORM-DASHBOARD-VIEW
+  /api/v1/platform/settings:
+    get:
+      tags:
+      - Super admin
+      summary: Get platform settings
+      description: Returns only explicitly approved non-secret platform settings and their safe definitions.
+      operationId: getPlatformSettings
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformSettingsSuccessResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      security:
+      - BearerAuth: []
+      x-user-stories:
+      - PLATFORM-SETTINGS-VIEW
+    patch:
+      tags:
+      - Super admin
+      summary: Update platform settings
+      description: Atomically validates and updates whitelisted platform settings using optimistic concurrency.
+      operationId: updatePlatformSettings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlatformSettingsUpdate'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformSettingsSuccessResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '409':
+          description: The request conflicts with existing data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Request validation or a business rule failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      security:
+      - BearerAuth: []
+      x-user-stories:
+      - PLATFORM-SETTINGS-UPDATE
   /api/v1/platform/libraries:
     get:
       tags:
@@ -10014,6 +10133,157 @@ components:
       additionalProperties: false
       type: object
       title: PlatformOwnerUpdate
+    PlatformSettingDefinition:
+      properties:
+        key:
+          type: string
+          title: Key
+        displayName:
+          type: string
+          title: Displayname
+        type:
+          $ref: '#/components/schemas/PlatformSettingValueType'
+        editable:
+          type: boolean
+          title: Editable
+        defaultValue:
+          anyOf:
+          - type: string
+          - type: boolean
+          - type: integer
+          title: Defaultvalue
+        description:
+          type: string
+          title: Description
+        runtimeEffect:
+          type: string
+          title: Runtimeeffect
+        minimum:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Minimum
+        maximum:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Maximum
+        options:
+          items:
+            type: string
+          type: array
+          title: Options
+      type: object
+      required:
+      - key
+      - displayName
+      - type
+      - editable
+      - defaultValue
+      - description
+      - runtimeEffect
+      title: PlatformSettingDefinition
+    PlatformSettingValueType:
+      type: string
+      enum:
+      - text
+      - boolean
+      - integer
+      - enum
+      title: PlatformSettingValueType
+    PlatformSettingsResponse:
+      properties:
+        settings:
+          $ref: '#/components/schemas/PlatformSettingsValues'
+        definitions:
+          items:
+            $ref: '#/components/schemas/PlatformSettingDefinition'
+          type: array
+          title: Definitions
+        version:
+          type: integer
+          minimum: 0.0
+          title: Version
+        updatedAt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Updatedat
+      type: object
+      required:
+      - settings
+      - definitions
+      - version
+      title: PlatformSettingsResponse
+    PlatformSettingsSuccessResponse:
+      properties:
+        message:
+          type: string
+          title: Message
+        data:
+          $ref: '#/components/schemas/PlatformSettingsResponse'
+      type: object
+      required:
+      - message
+      - data
+      title: PlatformSettingsSuccessResponse
+    PlatformSettingsUpdate:
+      properties:
+        version:
+          type: integer
+          minimum: 0.0
+          title: Version
+        allowLibraryRegistrations:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Allowlibraryregistrations
+        sessionTimeoutMinutes:
+          anyOf:
+          - type: integer
+            maximum: 1440.0
+            minimum: 15.0
+          - type: 'null'
+          title: Sessiontimeoutminutes
+        defaultTimezone:
+          anyOf:
+          - $ref: '#/components/schemas/PlatformTimezone'
+          - type: 'null'
+      additionalProperties: false
+      type: object
+      required:
+      - version
+      title: PlatformSettingsUpdate
+    PlatformSettingsValues:
+      properties:
+        platformName:
+          type: string
+          title: Platformname
+        allowLibraryRegistrations:
+          type: boolean
+          title: Allowlibraryregistrations
+        sessionTimeoutMinutes:
+          type: integer
+          maximum: 1440.0
+          minimum: 15.0
+          title: Sessiontimeoutminutes
+        defaultTimezone:
+          $ref: '#/components/schemas/PlatformTimezone'
+      type: object
+      required:
+      - platformName
+      - allowLibraryRegistrations
+      - sessionTimeoutMinutes
+      - defaultTimezone
+      title: PlatformSettingsValues
+    PlatformTimezone:
+      type: string
+      enum:
+      - Asia/Kolkata
+      - UTC
+      - Asia/Dubai
+      title: PlatformTimezone
     ReceiptActorSummary:
       properties:
         id:

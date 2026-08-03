@@ -11,6 +11,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.config import settings
+from app.core.exceptions import BusinessRuleError
 from app.core.security import (
     create_access_token,
     hash_password,
@@ -37,6 +38,7 @@ from app.schemas.auth import (
     UserResponse,
     ValidateInvitationResponse,
 )
+from app.services import platform_settings as platform_settings_service
 
 
 DEFAULT_SHIFTS = (
@@ -115,6 +117,7 @@ def _auth_response(
     user: User,
     session: UserSession,
     refresh_token: str,
+    access_timeout_minutes: int,
 ) -> AuthResponse:
     roles = [link.role.name.value for link in user.role_links]
     return AuthResponse(
@@ -122,9 +125,10 @@ def _auth_response(
             subject=str(user.id),
             session_id=str(session.id),
             roles=roles,
+            expires_minutes=access_timeout_minutes,
         ),
         refresh_token=refresh_token,
-        expires_in=settings.access_token_expire_minutes * 60,
+        expires_in=access_timeout_minutes * 60,
         user=user_response(db, user),
     )
 
@@ -135,7 +139,9 @@ def _create_session(
     *,
     ip_address: str | None,
     user_agent: str | None,
+    runtime_settings: platform_settings_service.RuntimePlatformSettings | None = None,
 ) -> AuthResponse:
+    effective_settings = runtime_settings or platform_settings_service.get_runtime_settings(db)
     refresh_token = new_refresh_token()
     session = UserSession(
         user_id=user.id,
@@ -147,7 +153,13 @@ def _create_session(
     )
     db.add(session)
     db.flush()
-    return _auth_response(db, user, session, refresh_token)
+    return _auth_response(
+        db,
+        user,
+        session,
+        refresh_token,
+        effective_settings.session_timeout_minutes,
+    )
 
 
 def _initialize_library_resources(
@@ -196,6 +208,12 @@ def register_library(
     ip_address: str | None,
     user_agent: str | None,
 ) -> AuthResponse:
+    runtime_settings = platform_settings_service.get_runtime_settings(db)
+    if not runtime_settings.allow_library_registrations:
+        raise BusinessRuleError(
+            "New library registrations are currently disabled.",
+            code="LIBRARY_REGISTRATION_DISABLED",
+        )
     email = payload.email.lower()
     if db.scalar(select(User.id).where(User.email == email)):
         raise HTTPException(
@@ -213,6 +231,7 @@ def register_library(
             contact_email=email,
             contact_phone=payload.phone,
             address_line=payload.address,
+            timezone=runtime_settings.default_timezone.value,
             status=LibraryStatus.ACTIVE,
         )
         user = User(
@@ -250,6 +269,7 @@ def register_library(
             user,
             ip_address=ip_address,
             user_agent=user_agent,
+            runtime_settings=runtime_settings,
         )
         db.commit()
         return response

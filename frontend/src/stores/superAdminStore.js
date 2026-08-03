@@ -38,6 +38,9 @@ export const useSuperAdminStore = defineStore('superAdmin', () => {
   })
   const analytics = ref(null)
   const settings = ref(null)
+  const settingDefinitions = ref([])
+  const settingsVersion = ref(0)
+  const settingsUpdatedAt = ref(null)
   const isLoading = ref(false)
   const isSaving = ref(false)
   const error = ref(null)
@@ -263,12 +266,25 @@ export const useSuperAdminStore = defineStore('superAdmin', () => {
   async function fetchSettings() {
     const response = await runRequest(() => superAdminService.getSettings())
     settings.value = response.data.settings
+    settingDefinitions.value = response.data.definitions
+    settingsVersion.value = response.data.version
+    settingsUpdatedAt.value = response.data.updatedAt
     return response
   }
 
   async function updateSettings(payload) {
-    const response = await runRequest(() => superAdminService.updateSettings(payload), true)
+    const response = await runRequest(
+      () =>
+        superAdminService.updateSettings({
+          ...payload,
+          version: settingsVersion.value,
+        }),
+      true,
+    )
     settings.value = response.data.settings
+    settingDefinitions.value = response.data.definitions
+    settingsVersion.value = response.data.version
+    settingsUpdatedAt.value = response.data.updatedAt
     return response
   }
 
@@ -293,6 +309,9 @@ export const useSuperAdminStore = defineStore('superAdmin', () => {
     ownerFilters,
     analytics,
     settings,
+    settingDefinitions,
+    settingsVersion,
+    settingsUpdatedAt,
     isLoading,
     isSaving,
     error,

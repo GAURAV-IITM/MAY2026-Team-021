@@ -5,8 +5,9 @@ import uuid
 from datetime import datetime
 from enum import StrEnum
 
-from pydantic import ConfigDict, Field, field_validator
+from pydantic import ConfigDict, Field, StrictBool, StrictInt, field_validator, model_validator
 
+from app.core.exceptions import BusinessRuleError
 from app.models.enums import InvitationStatus, LibraryStatus, MembershipStatus
 from app.schemas.common import APIModel, PaginationMeta
 
@@ -23,6 +24,154 @@ class PlatformOwnerStatus(StrEnum):
 class PlatformOwnerStatusAction(StrEnum):
     ACTIVE = "active"
     SUSPENDED = "suspended"
+
+
+class PlatformSettingValueType(StrEnum):
+    TEXT = "text"
+    BOOLEAN = "boolean"
+    INTEGER = "integer"
+    ENUM = "enum"
+
+
+class PlatformTimezone(StrEnum):
+    ASIA_KOLKATA = "Asia/Kolkata"
+    UTC = "UTC"
+    ASIA_DUBAI = "Asia/Dubai"
+
+
+class PlatformSettingDefinition(APIModel):
+    key: str
+    display_name: str
+    type: PlatformSettingValueType
+    editable: bool
+    default_value: str | bool | int
+    description: str
+    runtime_effect: str
+    minimum: int | None = None
+    maximum: int | None = None
+    options: list[str] = Field(default_factory=list)
+
+
+class PlatformSettingsValues(APIModel):
+    platform_name: str
+    allow_library_registrations: bool
+    session_timeout_minutes: int = Field(ge=15, le=1440)
+    default_timezone: PlatformTimezone
+
+
+class PlatformSettingsResponse(APIModel):
+    settings: PlatformSettingsValues
+    definitions: list[PlatformSettingDefinition]
+    version: int = Field(ge=0)
+    updated_at: datetime | None = None
+
+
+class PlatformSettingsSuccessResponse(APIModel):
+    message: str
+    data: PlatformSettingsResponse
+
+
+class PlatformSettingsUpdate(APIModel):
+    model_config = ConfigDict(
+        alias_generator=APIModel.model_config["alias_generator"],
+        populate_by_name=True,
+        serialize_by_alias=True,
+        extra="allow",
+        json_schema_extra={"additionalProperties": False},
+    )
+
+    version: StrictInt = Field(ge=0)
+    allow_library_registrations: StrictBool | None = None
+    session_timeout_minutes: StrictInt | None = Field(default=None, ge=15, le=1440)
+    default_timezone: PlatformTimezone | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def validate_setting_keys_and_types(cls, value: object) -> object:
+        if not isinstance(value, dict):
+            raise BusinessRuleError(
+                "Platform settings must be submitted as an object.",
+                code="PLATFORM_SETTING_INVALID_VALUE",
+            )
+
+        aliases = {
+            "version",
+            "platformName",
+            "platform_name",
+            "allowLibraryRegistrations",
+            "allow_library_registrations",
+            "sessionTimeoutMinutes",
+            "session_timeout_minutes",
+            "defaultTimezone",
+            "default_timezone",
+        }
+        unknown = sorted(str(key) for key in value if key not in aliases)
+        if unknown:
+            raise BusinessRuleError(
+                "One or more platform setting keys are not allowed.",
+                code="PLATFORM_SETTING_UNKNOWN",
+                details={"keys": unknown},
+            )
+        if "platformName" in value or "platform_name" in value:
+            raise BusinessRuleError(
+                "Platform name is managed by deployment configuration and is read-only.",
+                code="PLATFORM_SETTING_READ_ONLY",
+                details={"key": "platformName"},
+            )
+
+        def supplied(*keys: str) -> tuple[bool, object | None]:
+            for key in keys:
+                if key in value:
+                    return True, value[key]
+            return False, None
+
+        checks = (
+            ("version", ("version",), int),
+            (
+                "allowLibraryRegistrations",
+                ("allowLibraryRegistrations", "allow_library_registrations"),
+                bool,
+            ),
+            (
+                "sessionTimeoutMinutes",
+                ("sessionTimeoutMinutes", "session_timeout_minutes"),
+                int,
+            ),
+            (
+                "defaultTimezone",
+                ("defaultTimezone", "default_timezone"),
+                str,
+            ),
+        )
+        for api_key, keys, expected_type in checks:
+            is_supplied, setting_value = supplied(*keys)
+            if is_supplied and type(setting_value) is not expected_type:
+                raise BusinessRuleError(
+                    f"{api_key} has an invalid value type.",
+                    code="PLATFORM_SETTING_INVALID_VALUE",
+                    details={"key": api_key},
+                )
+            if (
+                api_key == "sessionTimeoutMinutes"
+                and is_supplied
+                and not 15 <= setting_value <= 1440
+            ):
+                raise BusinessRuleError(
+                    "sessionTimeoutMinutes must be between 15 and 1440.",
+                    code="PLATFORM_SETTING_INVALID_VALUE",
+                    details={"key": api_key, "minimum": 15, "maximum": 1440},
+                )
+            if (
+                api_key == "defaultTimezone"
+                and is_supplied
+                and setting_value not in {item.value for item in PlatformTimezone}
+            ):
+                raise BusinessRuleError(
+                    "defaultTimezone is not an approved timezone.",
+                    code="PLATFORM_SETTING_INVALID_VALUE",
+                    details={"key": api_key},
+                )
+        return value
 
 
 class PlatformDashboardMetrics(APIModel):
