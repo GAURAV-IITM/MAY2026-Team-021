@@ -440,7 +440,12 @@ def validate_student_invitation(
         )
     )
     library = db.get(Library, invitation.library_id)
-    if student is None or library is None:
+    if (
+        student is None
+        or library is None
+        or library.deleted_at is not None
+        or library.status != LibraryStatus.ACTIVE
+    ):
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="This invitation can no longer be used.",
@@ -460,6 +465,16 @@ def accept_student_invitation(
     password: str,
 ) -> AcceptInvitationResponse:
     invitation = _invitation_record(db, token)
+    library = db.get(Library, invitation.library_id)
+    if (
+        library is None
+        or library.deleted_at is not None
+        or library.status != LibraryStatus.ACTIVE
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="This invitation cannot be used while the library is unavailable.",
+        )
     student = db.scalar(
         select(Student).where(
             Student.library_id == invitation.library_id,

@@ -51,6 +51,11 @@ class Library(UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin, Base):
     )
     approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_activity_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    suspended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    suspended_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+    suspension_reason: Mapped[str | None] = mapped_column(Text)
 
     primary_owner: Mapped[object | None] = relationship(
         "User",

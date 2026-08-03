@@ -67,6 +67,13 @@ def create_app() -> FastAPI:
                     "computed from source domain records."
                 ),
             },
+            {
+                "name": "Super admin",
+                "description": (
+                    "Platform-wide library administration restricted to "
+                    "authenticated Super Admin users."
+                ),
+            },
         ],
     )
     application.add_middleware(

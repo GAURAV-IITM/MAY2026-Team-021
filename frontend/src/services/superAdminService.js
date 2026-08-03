@@ -8,6 +8,7 @@ import {
   platformSettingsMock,
   platformTrendMock,
 } from '../mocks/superAdminMock.js'
+import apiClient from '../api/axios.js'
 
 let libraries = clone(libraryMock)
 let owners = clone(ownerMock)
@@ -82,34 +83,6 @@ function findOwner(ownerId) {
   return owner
 }
 
-function generateCode(name, city) {
-  const nameToken = String(name || '')
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((word) => word[0])
-    .join('')
-    .slice(0, 3)
-    .toUpperCase()
-  const cityToken = String(city || '').replace(/[^a-z0-9]/gi, '').slice(0, 3).toUpperCase()
-
-  return `${nameToken || 'LIB'}-${cityToken || 'NEW'}`
-}
-
-function ensureUniqueLibraryName(name, ignoredLibraryId = '') {
-  const normalizedName = String(name || '').trim().toLowerCase()
-  const duplicate = libraries.some((library) => {
-    return library.id !== ignoredLibraryId && library.name.toLowerCase() === normalizedName
-  })
-
-  if (duplicate) {
-    throw createServiceError(
-      'A library with this name already exists.',
-      409,
-      'LIBRARY_NAME_DUPLICATE',
-    )
-  }
-}
-
 function ensureUniqueOwnerEmail(email, ignoredOwnerId = '') {
   const normalizedEmail = String(email || '').trim().toLowerCase()
   const duplicate = owners.some((owner) => {
@@ -137,46 +110,6 @@ function getValidStatus(status, allowedStatuses, entityLabel) {
   }
 
   return normalizedStatus
-}
-
-function normalizeLibraryPayload(payload = {}, existingLibrary = {}) {
-  const name = String(payload.name ?? existingLibrary.name ?? '').trim()
-  const city = String(payload.city ?? existingLibrary.city ?? '').trim()
-  const state = String(payload.state ?? existingLibrary.state ?? '').trim()
-  const contactEmail = String(
-    payload.contactEmail ?? existingLibrary.contactEmail ?? '',
-  ).trim()
-  const contactPhone = String(
-    payload.contactPhone ?? existingLibrary.contactPhone ?? '',
-  ).trim()
-  const seatCount = Number(payload.seatCount ?? existingLibrary.seatCount ?? 0)
-  const status = getValidStatus(
-    payload.status ?? existingLibrary.status ?? LIBRARY_STATUSES.PENDING,
-    Object.values(LIBRARY_STATUSES),
-    'library',
-  )
-
-  if (!name || !city || !state || !contactEmail) {
-    throw createServiceError(
-      'Library name, city, state, and contact email are required.',
-      422,
-      'LIBRARY_VALIDATION_ERROR',
-    )
-  }
-
-  if (!/^\S+@\S+\.\S+$/.test(contactEmail)) {
-    throw createServiceError('Enter a valid library email.', 422, 'EMAIL_INVALID')
-  }
-
-  if (!Number.isInteger(seatCount) || seatCount < 0) {
-    throw createServiceError(
-      'Seat capacity must be a non-negative whole number.',
-      422,
-      'SEAT_COUNT_INVALID',
-    )
-  }
-
-  return { name, city, state, contactEmail, contactPhone, seatCount, status }
 }
 
 function normalizeOwnerPayload(payload = {}, existingOwner = {}) {
@@ -321,87 +254,134 @@ export async function getDashboard() {
   })
 }
 
-export async function getLibraries() {
-  await delay()
+export function buildPlatformLibraryParams(filters = {}) {
+  return {
+    page: filters.page || 1,
+    pageSize: filters.pageSize || 10,
+    search: filters.search?.trim() || undefined,
+    status: filters.status || undefined,
+    ownerId: filters.ownerId || undefined,
+    state: filters.state || undefined,
+    sortBy: filters.sortBy || 'createdAt',
+    sortOrder: filters.sortOrder || 'desc',
+  }
+}
 
-  return createSuccessResponse('Libraries fetched successfully.', {
-    libraries: [...libraries].sort((first, second) =>
-      second.joinedAt.localeCompare(first.joinedAt),
-    ),
+function mapPlatformLibrary(library = {}) {
+  return {
+    ...library,
+    ownerId: library.owner?.id || '',
+    ownerName: library.owner?.name || '',
+    joinedAt: library.createdAt,
+  }
+}
+
+function createLibraryPayload(payload = {}) {
+  return {
+    name: payload.name,
+    code: payload.code,
+    contactEmail: payload.contactEmail,
+    contactPhone: payload.contactPhone || null,
+    addressLine: payload.addressLine || null,
+    city: payload.city || null,
+    state: payload.state || null,
+    postalCode: payload.postalCode || null,
+    timezone: payload.timezone || 'Asia/Kolkata',
+    ownerId: payload.ownerId || null,
+  }
+}
+
+function updateLibraryPayload(payload = {}) {
+  const result = {}
+  const fields = [
+    'name',
+    'contactEmail',
+    'contactPhone',
+    'addressLine',
+    'city',
+    'state',
+    'postalCode',
+    'timezone',
+    'expectedUpdatedAt',
+  ]
+  fields.forEach((field) => {
+    if (Object.hasOwn(payload, field)) result[field] = payload[field]
   })
+  return result
+}
+
+export async function getLibraries(filters = {}) {
+  const response = await apiClient.get('/platform/libraries', {
+    params: buildPlatformLibraryParams(filters),
+  })
+  return {
+    ...response.data,
+    data: response.data.data.map(mapPlatformLibrary),
+  }
+}
+
+export async function getLibrary(libraryId) {
+  const response = await apiClient.get(`/platform/libraries/${libraryId}`)
+  return {
+    ...response.data,
+    data: mapPlatformLibrary(response.data.data),
+  }
 }
 
 export async function createLibrary(payload = {}) {
-  await delay()
-
-  const normalizedPayload = normalizeLibraryPayload(payload)
-  ensureUniqueLibraryName(normalizedPayload.name)
-
-  const now = new Date().toISOString()
-  const library = {
-    id: `library-${Date.now()}`,
-    code: generateCode(normalizedPayload.name, normalizedPayload.city),
-    ...normalizedPayload,
-    ownerId: null,
-    ownerName: null,
-    studentCount: 0,
-    occupancyRate: 0,
-    joinedAt: now,
-    lastActivityAt: now,
+  const response = await apiClient.post(
+    '/platform/libraries',
+    createLibraryPayload(payload),
+  )
+  return {
+    ...response.data,
+    data: mapPlatformLibrary(response.data.data),
   }
-
-  libraries.push(library)
-
-  if (payload.ownerId) {
-    assignOwnerToLibrary(String(payload.ownerId), library.id)
-  }
-
-  addActivity('library', `${library.name} registered`, `${library.city}, ${library.state}`)
-
-  return createSuccessResponse('Library created successfully.', {
-    library,
-    libraries,
-    owners,
-  })
 }
 
 export async function updateLibrary(libraryId, payload = {}) {
-  await delay()
-
-  const library = findLibrary(libraryId)
-  const normalizedPayload = normalizeLibraryPayload(payload, library)
-  ensureUniqueLibraryName(normalizedPayload.name, library.id)
-  Object.assign(library, normalizedPayload, {
-    code: generateCode(normalizedPayload.name, normalizedPayload.city),
-    lastActivityAt: new Date().toISOString(),
-  })
-
-  if (payload.ownerId && payload.ownerId !== library.ownerId) {
-    assignOwnerToLibrary(String(payload.ownerId), library.id)
+  const response = await apiClient.patch(
+    `/platform/libraries/${libraryId}`,
+    updateLibraryPayload(payload),
+  )
+  return {
+    ...response.data,
+    data: mapPlatformLibrary(response.data.data),
   }
-
-  if (library.ownerId) {
-    const owner = findOwner(library.ownerId)
-    owner.libraryName = library.name
-    library.ownerName = owner.name
-  }
-
-  addActivity('library', `${library.name} updated`, `${library.city}, ${library.state}`)
-
-  return createSuccessResponse('Library updated successfully.', {
-    library,
-    libraries,
-    owners,
-  })
 }
 
-export async function setLibraryStatus(libraryId, status) {
-  const library = findLibrary(libraryId)
+export async function setLibraryStatus(libraryId, payload = {}) {
+  const response = await apiClient.patch(
+    `/platform/libraries/${libraryId}/status`,
+    {
+      status: payload.status,
+      reason: payload.reason || null,
+      expectedUpdatedAt: payload.expectedUpdatedAt || null,
+    },
+  )
+  return {
+    ...response.data,
+    data: mapPlatformLibrary(response.data.data),
+  }
+}
 
-  return updateLibrary(libraryId, {
-    ...library,
-    status,
-  })
+export async function getLibraryOwnerOptions() {
+  const response = await apiClient.get('/platform/libraries/owner-options')
+  return response.data
+}
+
+export async function assignLibraryOwner(libraryId, payload = {}) {
+  const response = await apiClient.patch(
+    `/platform/libraries/${libraryId}/owner`,
+    {
+      ownerId: payload.ownerId,
+      expectedUpdatedAt: payload.expectedUpdatedAt || null,
+    },
+  )
+  return {
+    ...response.data,
+    data: mapPlatformLibrary(response.data.data),
+  }
 }
 
 export async function getOwners() {

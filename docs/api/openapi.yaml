@@ -5598,6 +5598,595 @@ paths:
       - LIBRARY-SETTINGS-UPDATE
       description: Updates validated settings for the authenticated staff member's current library without
         accepting a client-supplied tenant identifier.
+  /api/v1/platform/libraries:
+    get:
+      tags:
+      - Super admin
+      summary: List platform libraries
+      description: Returns a searchable, filterable, sortable, paginated platform-wide library list for
+        Super Admin users only.
+      operationId: listPlatformLibraries
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: status
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/LibraryStatus'
+          - type: 'null'
+          title: Status
+      - name: ownerId
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Ownerid
+      - name: state
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            maxLength: 100
+          - type: 'null'
+          title: State
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+          title: Page
+      - name: pageSize
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+          default: 20
+          title: Pagesize
+      - name: search
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            maxLength: 200
+          - type: 'null'
+          title: Search
+      - name: sortBy
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 80
+          default: createdAt
+          title: Sortby
+      - name: sortOrder
+        in: query
+        required: false
+        schema:
+          type: string
+          pattern: ^(asc|desc)$
+          default: desc
+          title: Sortorder
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformLibraryListResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Request validation or a business rule failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      x-user-stories:
+      - PLATFORM-LIBRARY-LIST
+    post:
+      tags:
+      - Super admin
+      summary: Create a platform library
+      description: Creates a pending library and default settings, with optional assignment of an eligible
+        existing owner.
+      operationId: createPlatformLibrary
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlatformLibraryCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformLibrarySuccessResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '409':
+          description: The request conflicts with existing data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Request validation or a business rule failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      x-user-stories:
+      - PLATFORM-LIBRARY-CREATE
+  /api/v1/platform/libraries/owner-options:
+    get:
+      tags:
+      - Super admin
+      summary: List eligible library owners
+      description: Returns active, non-deleted users eligible for explicit primary-owner assignment.
+      operationId: listPlatformLibraryOwnerOptions
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformOwnerOptionListResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      security:
+      - BearerAuth: []
+      x-user-stories:
+      - PLATFORM-LIBRARY-OWNER-ASSIGN
+  /api/v1/platform/libraries/{libraryId}:
+    get:
+      tags:
+      - Super admin
+      summary: Get platform library details
+      description: Returns non-sensitive library profile, owner, counts, lifecycle metadata, and timestamps.
+      operationId: getPlatformLibrary
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: libraryId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Libraryid
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformLibrarySuccessResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '404':
+          description: The requested resource was not found in the current scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      x-user-stories:
+      - PLATFORM-LIBRARY-DETAIL
+    patch:
+      tags:
+      - Super admin
+      summary: Edit a platform library
+      description: Updates approved profile fields while keeping code, status, owner, and lifecycle fields
+        immutable.
+      operationId: updatePlatformLibrary
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: libraryId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Libraryid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlatformLibraryUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformLibrarySuccessResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '404':
+          description: The requested resource was not found in the current scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '409':
+          description: The request conflicts with existing data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Request validation or a business rule failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      x-user-stories:
+      - PLATFORM-LIBRARY-EDIT
+  /api/v1/platform/libraries/{libraryId}/status:
+    patch:
+      tags:
+      - Super admin
+      summary: Change platform library status
+      description: Locks and transitions a library between pending, active, and suspended while preserving
+        all tenant history.
+      operationId: changePlatformLibraryStatus
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: libraryId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Libraryid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlatformLibraryStatusUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformLibrarySuccessResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '404':
+          description: The requested resource was not found in the current scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '409':
+          description: The request conflicts with existing data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Request validation or a business rule failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      x-user-stories:
+      - PLATFORM-LIBRARY-STATUS
+  /api/v1/platform/libraries/{libraryId}/owner:
+    patch:
+      tags:
+      - Super admin
+      summary: Assign a platform library owner
+      description: Assigns an eligible existing primary owner and preserves earlier membership history.
+      operationId: assignPlatformLibraryOwner
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: libraryId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Libraryid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlatformLibraryOwnerAssign'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformLibrarySuccessResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '404':
+          description: The requested resource was not found in the current scope.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '409':
+          description: The request conflicts with existing data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Request validation or a business rule failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      x-user-stories:
+      - PLATFORM-LIBRARY-OWNER-ASSIGN
   /:
     get:
       tags:
@@ -6982,6 +7571,13 @@ components:
       - notifyMaintenanceSeats
       - emailAnnouncementCopy
       title: LibrarySettingsUpdate
+    LibraryStatus:
+      type: string
+      enum:
+      - pending
+      - active
+      - suspended
+      title: LibraryStatus
     LoginRequest:
       properties:
         email:
@@ -7726,6 +8322,388 @@ components:
       - unpaidCount
       - partiallyPaidCount
       title: PendingTotals
+    PlatformLibraryCreate:
+      properties:
+        name:
+          type: string
+          maxLength: 180
+          minLength: 2
+          title: Name
+        contactEmail:
+          type: string
+          maxLength: 320
+          pattern: ^[^\s@]+@[^\s@]+\.[^\s@]+$
+          title: Contactemail
+        contactPhone:
+          anyOf:
+          - type: string
+            maxLength: 32
+          - type: 'null'
+          title: Contactphone
+        addressLine:
+          anyOf:
+          - type: string
+            maxLength: 255
+          - type: 'null'
+          title: Addressline
+        city:
+          anyOf:
+          - type: string
+            maxLength: 100
+          - type: 'null'
+          title: City
+        state:
+          anyOf:
+          - type: string
+            maxLength: 100
+          - type: 'null'
+          title: State
+        postalCode:
+          anyOf:
+          - type: string
+            maxLength: 20
+          - type: 'null'
+          title: Postalcode
+        timezone:
+          type: string
+          maxLength: 64
+          minLength: 1
+          title: Timezone
+          default: Asia/Kolkata
+        code:
+          type: string
+          maxLength: 32
+          minLength: 2
+          pattern: ^[A-Za-z0-9_-]+$
+          title: Code
+        ownerId:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Ownerid
+      additionalProperties: false
+      type: object
+      required:
+      - name
+      - contactEmail
+      - code
+      title: PlatformLibraryCreate
+      examples:
+      - addressLine: 1 Reading Lane
+        city: Pune
+        code: CSL
+        contactEmail: library@example.com
+        contactPhone: +91 9999999999
+        name: Central Study Library
+        postalCode: '411001'
+        state: Maharashtra
+        timezone: Asia/Kolkata
+    PlatformLibraryListResponse:
+      properties:
+        message:
+          type: string
+          title: Message
+        data:
+          items:
+            $ref: '#/components/schemas/PlatformLibraryResponse'
+          type: array
+          title: Data
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+        summary:
+          $ref: '#/components/schemas/PlatformLibrarySummary'
+      type: object
+      required:
+      - message
+      - data
+      - meta
+      - summary
+      title: PlatformLibraryListResponse
+    PlatformLibraryOwnerAssign:
+      properties:
+        ownerId:
+          type: string
+          format: uuid
+          title: Ownerid
+        expectedUpdatedAt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Expectedupdatedat
+      additionalProperties: false
+      type: object
+      required:
+      - ownerId
+      title: PlatformLibraryOwnerAssign
+    PlatformLibraryResponse:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        code:
+          type: string
+          title: Code
+        name:
+          type: string
+          title: Name
+        contactEmail:
+          type: string
+          title: Contactemail
+        contactPhone:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Contactphone
+        addressLine:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Addressline
+        city:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: City
+        state:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: State
+        postalCode:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Postalcode
+        timezone:
+          type: string
+          title: Timezone
+        status:
+          $ref: '#/components/schemas/LibraryStatus'
+        owner:
+          anyOf:
+          - $ref: '#/components/schemas/PlatformOwnerSummary'
+          - type: 'null'
+        studentCount:
+          type: integer
+          minimum: 0.0
+          title: Studentcount
+        seatCount:
+          type: integer
+          minimum: 0.0
+          title: Seatcount
+        membershipCount:
+          type: integer
+          minimum: 0.0
+          title: Membershipcount
+        suspendedAt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Suspendedat
+        suspensionReason:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Suspensionreason
+        createdAt:
+          type: string
+          format: date-time
+          title: Createdat
+        updatedAt:
+          type: string
+          format: date-time
+          title: Updatedat
+        lastActivityAt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Lastactivityat
+      type: object
+      required:
+      - id
+      - code
+      - name
+      - contactEmail
+      - contactPhone
+      - addressLine
+      - city
+      - state
+      - postalCode
+      - timezone
+      - status
+      - owner
+      - studentCount
+      - seatCount
+      - membershipCount
+      - suspendedAt
+      - suspensionReason
+      - createdAt
+      - updatedAt
+      - lastActivityAt
+      title: PlatformLibraryResponse
+    PlatformLibraryStatusUpdate:
+      properties:
+        status:
+          $ref: '#/components/schemas/LibraryStatus'
+        reason:
+          anyOf:
+          - type: string
+            maxLength: 500
+          - type: 'null'
+          title: Reason
+        expectedUpdatedAt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Expectedupdatedat
+      additionalProperties: false
+      type: object
+      required:
+      - status
+      title: PlatformLibraryStatusUpdate
+    PlatformLibrarySuccessResponse:
+      properties:
+        message:
+          type: string
+          title: Message
+        data:
+          $ref: '#/components/schemas/PlatformLibraryResponse'
+      type: object
+      required:
+      - message
+      - data
+      title: PlatformLibrarySuccessResponse
+    PlatformLibrarySummary:
+      properties:
+        total:
+          type: integer
+          minimum: 0.0
+          title: Total
+        active:
+          type: integer
+          minimum: 0.0
+          title: Active
+        pending:
+          type: integer
+          minimum: 0.0
+          title: Pending
+        suspended:
+          type: integer
+          minimum: 0.0
+          title: Suspended
+      type: object
+      required:
+      - total
+      - active
+      - pending
+      - suspended
+      title: PlatformLibrarySummary
+    PlatformLibraryUpdate:
+      properties:
+        name:
+          anyOf:
+          - type: string
+            maxLength: 180
+            minLength: 2
+          - type: 'null'
+          title: Name
+        contactEmail:
+          anyOf:
+          - type: string
+            maxLength: 320
+            pattern: ^[^\s@]+@[^\s@]+\.[^\s@]+$
+          - type: 'null'
+          title: Contactemail
+        contactPhone:
+          anyOf:
+          - type: string
+            maxLength: 32
+          - type: 'null'
+          title: Contactphone
+        addressLine:
+          anyOf:
+          - type: string
+            maxLength: 255
+          - type: 'null'
+          title: Addressline
+        city:
+          anyOf:
+          - type: string
+            maxLength: 100
+          - type: 'null'
+          title: City
+        state:
+          anyOf:
+          - type: string
+            maxLength: 100
+          - type: 'null'
+          title: State
+        postalCode:
+          anyOf:
+          - type: string
+            maxLength: 20
+          - type: 'null'
+          title: Postalcode
+        timezone:
+          anyOf:
+          - type: string
+            maxLength: 64
+            minLength: 1
+          - type: 'null'
+          title: Timezone
+        expectedUpdatedAt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Expectedupdatedat
+      additionalProperties: false
+      type: object
+      title: PlatformLibraryUpdate
+    PlatformOwnerOptionListResponse:
+      properties:
+        message:
+          type: string
+          title: Message
+        data:
+          items:
+            $ref: '#/components/schemas/PlatformOwnerSummary'
+          type: array
+          title: Data
+      type: object
+      required:
+      - message
+      - data
+      title: PlatformOwnerOptionListResponse
+    PlatformOwnerSummary:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        name:
+          type: string
+          title: Name
+        email:
+          type: string
+          title: Email
+        phone:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Phone
+      type: object
+      required:
+      - id
+      - name
+      - email
+      title: PlatformOwnerSummary
     ReceiptActorSummary:
       properties:
         id:
@@ -11424,6 +12402,8 @@ tags:
   description: Tenant-scoped owner review of student seat-change requests without allocation mutation.
 - name: Reports
   description: Tenant-scoped Owner dashboard and operational reports computed from source domain records.
+- name: Super admin
+  description: Platform-wide library administration restricted to authenticated Super Admin users.
 servers:
 - url: /
   description: Current host

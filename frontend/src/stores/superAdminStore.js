@@ -6,6 +6,20 @@ import * as superAdminService from '../services/superAdminService.js'
 export const useSuperAdminStore = defineStore('superAdmin', () => {
   const dashboard = ref(null)
   const libraries = ref([])
+  const selectedLibrary = ref(null)
+  const libraryOwnerOptions = ref([])
+  const librarySummary = ref({ total: 0, active: 0, pending: 0, suspended: 0 })
+  const libraryPagination = ref({ page: 1, pageSize: 10, totalItems: 0, totalPages: 0 })
+  const libraryFilters = ref({
+    search: '',
+    status: '',
+    ownerId: '',
+    state: '',
+    page: 1,
+    pageSize: 10,
+    sortBy: 'createdAt',
+    sortOrder: 'desc',
+  })
   const owners = ref([])
   const analytics = ref(null)
   const settings = ref(null)
@@ -17,11 +31,21 @@ export const useSuperAdminStore = defineStore('superAdmin', () => {
     if (!error.value) return ''
 
     return (
+      error.value?.response?.data?.error?.message ||
       error.value?.response?.data?.message ||
       error.value?.message ||
       'An unexpected Super Admin service error occurred.'
     )
   })
+  const errorRequestId = computed(
+    () =>
+      error.value?.response?.headers?.['x-request-id'] ||
+      error.value?.response?.data?.requestId ||
+      '',
+  )
+  const errorCode = computed(
+    () => error.value?.response?.data?.error?.code || '',
+  )
   const activeLibraries = computed(() =>
     libraries.value.filter((library) => library.status === 'active'),
   )
@@ -58,9 +82,40 @@ export const useSuperAdminStore = defineStore('superAdmin', () => {
     return response
   }
 
-  async function fetchLibraries() {
-    const response = await runRequest(() => superAdminService.getLibraries())
-    libraries.value = response.data.libraries
+  let latestLibraryRequest = 0
+
+  async function fetchLibraries(nextFilters = libraryFilters.value) {
+    libraryFilters.value = { ...libraryFilters.value, ...nextFilters }
+    const requestNumber = ++latestLibraryRequest
+    isLoading.value = true
+    error.value = null
+    try {
+      const response = await superAdminService.getLibraries(libraryFilters.value)
+      if (requestNumber === latestLibraryRequest) {
+        libraries.value = response.data
+        librarySummary.value = response.summary
+        libraryPagination.value = response.meta
+      }
+      return response
+    } catch (requestError) {
+      if (requestNumber === latestLibraryRequest) error.value = requestError
+      throw requestError
+    } finally {
+      if (requestNumber === latestLibraryRequest) isLoading.value = false
+    }
+  }
+
+  function upsertLibrary(library) {
+    const index = libraries.value.findIndex((item) => item.id === library.id)
+    if (index === -1) libraries.value.unshift(library)
+    else libraries.value[index] = library
+    if (selectedLibrary.value?.id === library.id) selectedLibrary.value = library
+  }
+
+  async function fetchLibrary(libraryId) {
+    const response = await runRequest(() => superAdminService.getLibrary(libraryId))
+    selectedLibrary.value = response.data
+    upsertLibrary(response.data)
     return response
   }
 
@@ -69,7 +124,7 @@ export const useSuperAdminStore = defineStore('superAdmin', () => {
       () => superAdminService.createLibrary(payload),
       true,
     )
-    syncManagementData(response.data)
+    upsertLibrary(response.data)
     return response
   }
 
@@ -78,16 +133,33 @@ export const useSuperAdminStore = defineStore('superAdmin', () => {
       () => superAdminService.updateLibrary(libraryId, payload),
       true,
     )
-    syncManagementData(response.data)
+    upsertLibrary(response.data)
     return response
   }
 
-  async function setLibraryStatus(libraryId, status) {
+  async function setLibraryStatus(libraryId, payload) {
     const response = await runRequest(
-      () => superAdminService.setLibraryStatus(libraryId, status),
+      () => superAdminService.setLibraryStatus(libraryId, payload),
       true,
     )
-    syncManagementData(response.data)
+    upsertLibrary(response.data)
+    return response
+  }
+
+  async function fetchLibraryOwnerOptions() {
+    const response = await runRequest(
+      () => superAdminService.getLibraryOwnerOptions(),
+    )
+    libraryOwnerOptions.value = response.data
+    return response
+  }
+
+  async function assignLibraryOwner(libraryId, payload) {
+    const response = await runRequest(
+      () => superAdminService.assignLibraryOwner(libraryId, payload),
+      true,
+    )
+    upsertLibrary(response.data)
     return response
   }
 
@@ -152,6 +224,11 @@ export const useSuperAdminStore = defineStore('superAdmin', () => {
   return {
     dashboard,
     libraries,
+    selectedLibrary,
+    libraryOwnerOptions,
+    librarySummary,
+    libraryPagination,
+    libraryFilters,
     owners,
     analytics,
     settings,
@@ -159,14 +236,19 @@ export const useSuperAdminStore = defineStore('superAdmin', () => {
     isSaving,
     error,
     errorMessage,
+    errorRequestId,
+    errorCode,
     activeLibraries,
     availableLibraries,
     activeOwners,
     fetchDashboard,
     fetchLibraries,
+    fetchLibrary,
     createLibrary,
     updateLibrary,
     setLibraryStatus,
+    fetchLibraryOwnerOptions,
+    assignLibraryOwner,
     fetchOwners,
     createOwner,
     updateOwner,
