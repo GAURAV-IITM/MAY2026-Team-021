@@ -3,12 +3,24 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass
+from datetime import datetime, timezone
 
-from sqlalchemy import case, func, or_, select
+from sqlalchemy import case, func, or_, select, update
 from sqlalchemy.orm import Session, joinedload, selectinload
 
-from app.models.enums import LibraryStatus, MembershipStatus, RoleName
-from app.models.identity import Role, User, UserRole
+from app.models.enums import (
+    InvitationStatus,
+    LibraryStatus,
+    MembershipStatus,
+    RoleName,
+)
+from app.models.identity import (
+    AccountInvitation,
+    Role,
+    User,
+    UserRole,
+    UserSession,
+)
 from app.models.library import Library, LibraryMembership
 from app.models.seat import Seat
 from app.models.student import Student
@@ -34,6 +46,13 @@ class LibraryRecord:
     student_count: int
     seat_count: int
     membership_count: int
+
+
+@dataclass(frozen=True, slots=True)
+class OwnerRecord:
+    user: User | None
+    invitation: AccountInvitation | None
+    memberships: tuple[LibraryMembership, ...]
 
 
 def _list_conditions(
@@ -166,6 +185,39 @@ def get_library(
     return db.scalar(query)
 
 
+def get_libraries_for_update(
+    db: Session,
+    library_ids: set[uuid.UUID],
+) -> dict[uuid.UUID, Library]:
+    if not library_ids:
+        return {}
+    libraries = db.scalars(
+        select(Library)
+        .where(
+            Library.id.in_(library_ids),
+            Library.deleted_at.is_(None),
+        )
+        .order_by(Library.id.asc())
+        .with_for_update(of=Library)
+    )
+    return {library.id: library for library in libraries}
+
+
+def get_libraries_by_ids(
+    db: Session,
+    library_ids: set[uuid.UUID],
+) -> dict[uuid.UUID, Library]:
+    if not library_ids:
+        return {}
+    libraries = db.scalars(
+        select(Library).where(
+            Library.id.in_(library_ids),
+            Library.deleted_at.is_(None),
+        )
+    )
+    return {library.id: library for library in libraries}
+
+
 def get_library_counts(db: Session, library_id: uuid.UUID) -> tuple[int, int, int]:
     return (
         db.scalar(
@@ -295,3 +347,205 @@ def list_eligible_owners(db: Session) -> list[User]:
             .order_by(User.full_name.asc(), User.id.asc())
         )
     )
+
+
+def list_owner_records(db: Session) -> list[OwnerRecord]:
+    users = list(
+        db.scalars(
+            select(User)
+            .join(UserRole, UserRole.user_id == User.id)
+            .join(Role, Role.id == UserRole.role_id)
+            .where(
+                Role.name == RoleName.LIBRARY_OWNER,
+                User.deleted_at.is_(None),
+            )
+            .order_by(User.created_at.desc(), User.id.asc())
+        )
+    )
+    user_ids = [user.id for user in users]
+    memberships_by_user: dict[uuid.UUID, list[LibraryMembership]] = {
+        user_id: [] for user_id in user_ids
+    }
+    if user_ids:
+        memberships = db.scalars(
+            select(LibraryMembership)
+            .join(Library, Library.id == LibraryMembership.library_id)
+            .options(joinedload(LibraryMembership.library))
+            .where(
+                LibraryMembership.user_id.in_(user_ids),
+                LibraryMembership.role == RoleName.LIBRARY_OWNER,
+            )
+            .order_by(
+                LibraryMembership.joined_at.desc(),
+                LibraryMembership.id.asc(),
+            )
+        )
+        for membership in memberships:
+            memberships_by_user[membership.user_id].append(membership)
+
+    invitations = list(
+        db.scalars(
+            select(AccountInvitation)
+            .where(AccountInvitation.role == RoleName.LIBRARY_OWNER)
+            .order_by(
+                AccountInvitation.created_at.desc(),
+                AccountInvitation.id.asc(),
+            )
+        )
+    )
+    latest_by_email: dict[str, AccountInvitation] = {}
+    latest_by_user: dict[uuid.UUID, AccountInvitation] = {}
+    for invitation in invitations:
+        latest_by_email.setdefault(invitation.email.lower(), invitation)
+        if invitation.accepted_user_id is not None:
+            latest_by_user.setdefault(invitation.accepted_user_id, invitation)
+
+    existing_emails = {user.email.lower() for user in users}
+    records = [
+        OwnerRecord(
+            user=user,
+            invitation=(
+                latest_by_user.get(user.id)
+                or latest_by_email.get(user.email.lower())
+            ),
+            memberships=tuple(memberships_by_user.get(user.id, [])),
+        )
+        for user in users
+    ]
+    records.extend(
+        OwnerRecord(user=None, invitation=invitation, memberships=())
+        for email, invitation in latest_by_email.items()
+        if email not in existing_emails
+        and invitation.status
+        in {
+            InvitationStatus.PENDING,
+            InvitationStatus.EXPIRED,
+            InvitationStatus.REVOKED,
+        }
+    )
+    return records
+
+
+def get_owner_record(db: Session, owner_id: uuid.UUID) -> OwnerRecord | None:
+    user = get_owner_user(db, owner_id)
+    if user is not None:
+        memberships = tuple(
+            db.scalars(
+                select(LibraryMembership)
+                .options(joinedload(LibraryMembership.library))
+                .where(
+                    LibraryMembership.user_id == user.id,
+                    LibraryMembership.role == RoleName.LIBRARY_OWNER,
+                )
+                .order_by(
+                    LibraryMembership.joined_at.desc(),
+                    LibraryMembership.id.asc(),
+                )
+            )
+        )
+        return OwnerRecord(
+            user=user,
+            invitation=latest_owner_invitation(db, user.email),
+            memberships=memberships,
+        )
+    invitation = db.scalar(
+        select(AccountInvitation).where(
+            AccountInvitation.id == owner_id,
+            AccountInvitation.role == RoleName.LIBRARY_OWNER,
+        )
+    )
+    if invitation is None:
+        return None
+    return OwnerRecord(user=None, invitation=invitation, memberships=())
+
+
+def get_user_by_email(
+    db: Session,
+    email: str,
+    *,
+    for_update: bool = False,
+) -> User | None:
+    query = select(User).where(func.lower(User.email) == email.strip().lower())
+    if for_update:
+        query = query.with_for_update(of=User)
+    return db.scalar(query)
+
+
+def latest_owner_invitation(
+    db: Session,
+    email: str,
+) -> AccountInvitation | None:
+    return db.scalar(
+        select(AccountInvitation)
+        .where(
+            func.lower(AccountInvitation.email) == email.strip().lower(),
+            AccountInvitation.role == RoleName.LIBRARY_OWNER,
+        )
+        .order_by(AccountInvitation.created_at.desc())
+        .limit(1)
+    )
+
+
+def pending_owner_invitation(
+    db: Session,
+    *,
+    email: str | None = None,
+    library_id: uuid.UUID | None = None,
+    for_update: bool = False,
+) -> AccountInvitation | None:
+    conditions: list[object] = [
+        AccountInvitation.role == RoleName.LIBRARY_OWNER,
+        AccountInvitation.status == InvitationStatus.PENDING,
+    ]
+    if email is not None:
+        conditions.append(
+            func.lower(AccountInvitation.email) == email.strip().lower()
+        )
+    if library_id is not None:
+        conditions.append(AccountInvitation.library_id == library_id)
+    query = select(AccountInvitation).where(*conditions)
+    if for_update:
+        query = query.with_for_update(of=AccountInvitation)
+    return db.scalar(query)
+
+
+def owner_memberships(
+    db: Session,
+    owner_id: uuid.UUID,
+    *,
+    for_update: bool = False,
+) -> list[LibraryMembership]:
+    query = (
+        select(LibraryMembership)
+        .where(
+            LibraryMembership.user_id == owner_id,
+            LibraryMembership.role == RoleName.LIBRARY_OWNER,
+        )
+        .order_by(LibraryMembership.joined_at.desc())
+    )
+    if for_update:
+        query = query.with_for_update(of=LibraryMembership)
+    else:
+        query = query.options(joinedload(LibraryMembership.library))
+    return list(db.scalars(query))
+
+
+def get_role(db: Session, role_name: RoleName) -> Role | None:
+    return db.scalar(select(Role).where(Role.name == role_name))
+
+
+def revoke_user_sessions(
+    db: Session,
+    owner_id: uuid.UUID,
+    *,
+    revoked_at: datetime | None = None,
+) -> int:
+    result = db.execute(
+        update(UserSession)
+        .where(
+            UserSession.user_id == owner_id,
+            UserSession.revoked_at.is_(None),
+        )
+        .values(revoked_at=revoked_at or datetime.now(timezone.utc))
+    )
+    return result.rowcount or 0

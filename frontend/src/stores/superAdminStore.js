@@ -21,6 +21,20 @@ export const useSuperAdminStore = defineStore('superAdmin', () => {
     sortOrder: 'desc',
   })
   const owners = ref([])
+  const selectedOwner = ref(null)
+  const ownerLibraries = ref([])
+  const ownerSummary = ref({ total: 0, active: 0, invited: 0, suspended: 0 })
+  const ownerPagination = ref({ page: 1, pageSize: 10, totalItems: 0, totalPages: 0 })
+  const ownerFilters = ref({
+    search: '',
+    status: '',
+    libraryId: '',
+    invitationStatus: '',
+    page: 1,
+    pageSize: 10,
+    sortBy: 'createdAt',
+    sortOrder: 'desc',
+  })
   const analytics = ref(null)
   const settings = ref(null)
   const isLoading = ref(false)
@@ -69,11 +83,6 @@ export const useSuperAdminStore = defineStore('superAdmin', () => {
     } finally {
       loadingState.value = false
     }
-  }
-
-  function syncManagementData(data = {}) {
-    if (Array.isArray(data.libraries)) libraries.value = data.libraries
-    if (Array.isArray(data.owners)) owners.value = data.owners
   }
 
   async function fetchDashboard() {
@@ -163,9 +172,51 @@ export const useSuperAdminStore = defineStore('superAdmin', () => {
     return response
   }
 
-  async function fetchOwners() {
-    const response = await runRequest(() => superAdminService.getOwners())
-    owners.value = response.data.owners
+  let latestOwnerRequest = 0
+
+  async function fetchOwners(nextFilters = ownerFilters.value) {
+    ownerFilters.value = { ...ownerFilters.value, ...nextFilters }
+    const requestNumber = ++latestOwnerRequest
+    isLoading.value = true
+    error.value = null
+    try {
+      const response = await superAdminService.getOwners(ownerFilters.value)
+      if (requestNumber === latestOwnerRequest) {
+        owners.value = response.data
+        ownerSummary.value = response.summary
+        ownerPagination.value = response.meta
+      }
+      return response
+    } catch (requestError) {
+      if (requestNumber === latestOwnerRequest) error.value = requestError
+      throw requestError
+    } finally {
+      if (requestNumber === latestOwnerRequest) isLoading.value = false
+    }
+  }
+
+  function upsertOwner(owner) {
+    const index = owners.value.findIndex((item) => item.id === owner.id)
+    if (index === -1) owners.value.unshift(owner)
+    else owners.value[index] = owner
+    if (selectedOwner.value?.id === owner.id) selectedOwner.value = owner
+  }
+
+  async function fetchOwner(ownerId) {
+    const response = await runRequest(() => superAdminService.getOwner(ownerId))
+    selectedOwner.value = response.data
+    upsertOwner(response.data)
+    return response
+  }
+
+  async function fetchOwnerLibraries() {
+    const response = await runRequest(() => superAdminService.getLibraries({
+      page: 1,
+      pageSize: 100,
+      sortBy: 'name',
+      sortOrder: 'asc',
+    }))
+    ownerLibraries.value = response.data
     return response
   }
 
@@ -174,7 +225,7 @@ export const useSuperAdminStore = defineStore('superAdmin', () => {
       () => superAdminService.createOwner(payload),
       true,
     )
-    syncManagementData(response.data)
+    upsertOwner(response.data.owner)
     return response
   }
 
@@ -183,16 +234,25 @@ export const useSuperAdminStore = defineStore('superAdmin', () => {
       () => superAdminService.updateOwner(ownerId, payload),
       true,
     )
-    syncManagementData(response.data)
+    upsertOwner(response.data)
     return response
   }
 
-  async function setOwnerStatus(ownerId, status) {
+  async function assignOwner(ownerId, payload) {
     const response = await runRequest(
-      () => superAdminService.setOwnerStatus(ownerId, status),
+      () => superAdminService.assignOwner(ownerId, payload),
       true,
     )
-    syncManagementData(response.data)
+    upsertOwner(response.data)
+    return response
+  }
+
+  async function setOwnerStatus(ownerId, payload) {
+    const response = await runRequest(
+      () => superAdminService.setOwnerStatus(ownerId, payload),
+      true,
+    )
+    upsertOwner(response.data)
     return response
   }
 
@@ -230,6 +290,11 @@ export const useSuperAdminStore = defineStore('superAdmin', () => {
     libraryPagination,
     libraryFilters,
     owners,
+    selectedOwner,
+    ownerLibraries,
+    ownerSummary,
+    ownerPagination,
+    ownerFilters,
     analytics,
     settings,
     isLoading,
@@ -250,8 +315,11 @@ export const useSuperAdminStore = defineStore('superAdmin', () => {
     fetchLibraryOwnerOptions,
     assignLibraryOwner,
     fetchOwners,
+    fetchOwner,
+    fetchOwnerLibraries,
     createOwner,
     updateOwner,
+    assignOwner,
     setOwnerStatus,
     fetchAnalytics,
     fetchSettings,

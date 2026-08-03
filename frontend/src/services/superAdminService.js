@@ -3,7 +3,6 @@ import {
   OWNER_STATUSES,
   SUPER_ADMIN_NETWORK_DELAY_MS,
   libraryMock,
-  ownerMock,
   platformActivityMock,
   platformSettingsMock,
   platformTrendMock,
@@ -11,7 +10,6 @@ import {
 import apiClient from '../api/axios.js'
 
 let libraries = clone(libraryMock)
-let owners = clone(ownerMock)
 let activity = clone(platformActivityMock)
 let settings = clone(platformSettingsMock)
 
@@ -63,111 +61,6 @@ function addActivity(type, title, detail = '') {
   })
 }
 
-function findLibrary(libraryId) {
-  const library = libraries.find((item) => item.id === String(libraryId))
-
-  if (!library) {
-    throw createServiceError('Library was not found.', 404, 'LIBRARY_NOT_FOUND')
-  }
-
-  return library
-}
-
-function findOwner(ownerId) {
-  const owner = owners.find((item) => item.id === String(ownerId))
-
-  if (!owner) {
-    throw createServiceError('Library owner was not found.', 404, 'OWNER_NOT_FOUND')
-  }
-
-  return owner
-}
-
-function ensureUniqueOwnerEmail(email, ignoredOwnerId = '') {
-  const normalizedEmail = String(email || '').trim().toLowerCase()
-  const duplicate = owners.some((owner) => {
-    return owner.id !== ignoredOwnerId && owner.email.toLowerCase() === normalizedEmail
-  })
-
-  if (duplicate) {
-    throw createServiceError(
-      'An owner with this email already exists.',
-      409,
-      'OWNER_EMAIL_DUPLICATE',
-    )
-  }
-}
-
-function getValidStatus(status, allowedStatuses, entityLabel) {
-  const normalizedStatus = String(status || '').trim().toLowerCase()
-
-  if (!allowedStatuses.includes(normalizedStatus)) {
-    throw createServiceError(
-      `Select a valid ${entityLabel} status.`,
-      422,
-      'STATUS_INVALID',
-    )
-  }
-
-  return normalizedStatus
-}
-
-function normalizeOwnerPayload(payload = {}, existingOwner = {}) {
-  const name = String(payload.name ?? existingOwner.name ?? '').trim()
-  const email = String(payload.email ?? existingOwner.email ?? '').trim()
-  const phone = String(payload.phone ?? existingOwner.phone ?? '').trim()
-  const libraryId = String(payload.libraryId ?? existingOwner.libraryId ?? '').trim()
-  const status = getValidStatus(
-    payload.status ?? existingOwner.status ?? OWNER_STATUSES.INVITED,
-    Object.values(OWNER_STATUSES),
-    'owner',
-  )
-
-  if (!name || !email) {
-    throw createServiceError(
-      'Owner name and email are required.',
-      422,
-      'OWNER_VALIDATION_ERROR',
-    )
-  }
-
-  if (!/^\S+@\S+\.\S+$/.test(email)) {
-    throw createServiceError('Enter a valid owner email.', 422, 'EMAIL_INVALID')
-  }
-
-  return { name, email, phone, libraryId, status }
-}
-
-function assignOwnerToLibrary(ownerId, libraryId) {
-  const owner = findOwner(ownerId)
-  const library = libraryId ? findLibrary(libraryId) : null
-
-  if (library?.ownerId && library.ownerId !== ownerId) {
-    throw createServiceError(
-      `${library.name} already has an assigned owner.`,
-      409,
-      'LIBRARY_OWNER_ALREADY_ASSIGNED',
-    )
-  }
-
-  if (owner.libraryId && owner.libraryId !== libraryId) {
-    const previousLibrary = findLibrary(owner.libraryId)
-    previousLibrary.ownerId = null
-    previousLibrary.ownerName = null
-  }
-
-  if (library) {
-    owner.libraryId = library.id
-    owner.libraryName = library.name
-    library.ownerId = owner.id
-    library.ownerName = owner.name
-    return
-  }
-
-  owner.libraryId = ''
-  owner.libraryName = ''
-}
-
 function getStatusDistribution(source, statusValues) {
   return statusValues.map((status) => ({
     status,
@@ -175,7 +68,7 @@ function getStatusDistribution(source, statusValues) {
   }))
 }
 
-function getPlatformTotals() {
+function getPlatformTotals(ownerSummary = {}) {
   const activeLibraries = libraries.filter(
     (library) => library.status === LIBRARY_STATUSES.ACTIVE,
   )
@@ -189,9 +82,9 @@ function getPlatformTotals() {
     suspendedLibraries: libraries.filter(
       (library) => library.status === LIBRARY_STATUSES.SUSPENDED,
     ).length,
-    totalOwners: owners.length,
-    activeOwners: owners.filter((owner) => owner.status === OWNER_STATUSES.ACTIVE).length,
-    invitedOwners: owners.filter((owner) => owner.status === OWNER_STATUSES.INVITED).length,
+    totalOwners: ownerSummary.total || 0,
+    activeOwners: ownerSummary.active || 0,
+    invitedOwners: ownerSummary.invited || 0,
     totalStudents: activeLibraries.reduce(
       (total, library) => total + library.studentCount,
       0,
@@ -212,7 +105,8 @@ function getPlatformTotals() {
 export async function getDashboard() {
   await delay()
 
-  const totals = getPlatformTotals()
+  const ownerResponse = await getOwners({ page: 1, pageSize: 100 })
+  const totals = getPlatformTotals(ownerResponse.summary)
 
   return createSuccessResponse('Super Admin dashboard fetched successfully.', {
     totals,
@@ -220,7 +114,10 @@ export async function getDashboard() {
       libraries,
       Object.values(LIBRARY_STATUSES),
     ),
-    ownerStatus: getStatusDistribution(owners, Object.values(OWNER_STATUSES)),
+    ownerStatus: Object.values(OWNER_STATUSES).map((status) => ({
+      status,
+      count: ownerResponse.summary[status] || 0,
+    })),
     topLibraries: [...libraries]
       .filter((library) => library.status === LIBRARY_STATUSES.ACTIVE)
       .sort((first, second) => second.studentCount - first.studentCount)
@@ -384,91 +281,110 @@ export async function assignLibraryOwner(libraryId, payload = {}) {
   }
 }
 
-export async function getOwners() {
-  await delay()
+export function buildPlatformOwnerParams(filters = {}) {
+  return {
+    page: filters.page || 1,
+    pageSize: filters.pageSize || 10,
+    search: filters.search?.trim() || undefined,
+    status: filters.status || undefined,
+    libraryId: filters.libraryId || undefined,
+    invitationStatus: filters.invitationStatus || undefined,
+    sortBy: filters.sortBy || 'createdAt',
+    sortOrder: filters.sortOrder || 'desc',
+  }
+}
 
-  return createSuccessResponse('Library owners fetched successfully.', {
-    owners: [...owners].sort((first, second) =>
-      second.createdAt.localeCompare(first.createdAt),
-    ),
+function mapPlatformOwner(owner = {}) {
+  const assignment = owner.assignments?.[0] || null
+  return {
+    ...owner,
+    libraryId: assignment?.id || '',
+    libraryName: assignment?.name || '',
+    libraryStatus: assignment?.status || '',
+    isInvitation: !owner.userId,
+  }
+}
+
+export async function getOwners(filters = {}) {
+  const response = await apiClient.get('/platform/owners', {
+    params: buildPlatformOwnerParams(filters),
   })
+  return {
+    ...response.data,
+    data: response.data.data.map(mapPlatformOwner),
+  }
+}
+
+export async function getOwner(ownerId) {
+  const response = await apiClient.get(`/platform/owners/${ownerId}`)
+  return {
+    ...response.data,
+    data: mapPlatformOwner(response.data.data),
+  }
 }
 
 export async function createOwner(payload = {}) {
-  await delay()
-
-  const normalizedPayload = normalizeOwnerPayload(payload)
-  ensureUniqueOwnerEmail(normalizedPayload.email)
-
-  const owner = {
-    id: `platform-owner-${Date.now()}`,
-    ...normalizedPayload,
-    libraryId: '',
-    libraryName: '',
-    createdAt: new Date().toISOString(),
-    lastLoginAt: null,
-  }
-
-  owners.push(owner)
-
-  if (normalizedPayload.libraryId) {
-    assignOwnerToLibrary(owner.id, normalizedPayload.libraryId)
-  }
-
-  addActivity('owner', `Owner invitation sent to ${owner.name}`, owner.libraryName)
-
-  return createSuccessResponse('Owner created successfully.', {
-    owner,
-    owners,
-    libraries,
+  const response = await apiClient.post('/platform/owners/invitations', {
+    name: payload.name,
+    email: payload.email,
+    phone: payload.phone || null,
+    libraryId: payload.libraryId,
   })
+  return {
+    ...response.data,
+    data: {
+      ...response.data.data,
+      owner: mapPlatformOwner(response.data.data.owner),
+    },
+  }
 }
 
 export async function updateOwner(ownerId, payload = {}) {
-  await delay()
-
-  const owner = findOwner(ownerId)
-  const normalizedPayload = normalizeOwnerPayload(payload, owner)
-  ensureUniqueOwnerEmail(normalizedPayload.email, owner.id)
-  const requestedLibraryId = normalizedPayload.libraryId
-  const shouldUpdateLibrary = Object.hasOwn(payload, 'libraryId')
-
-  Object.assign(owner, normalizedPayload, {
-    libraryId: owner.libraryId || '',
-    libraryName: owner.libraryName || '',
-  })
-
-  if (shouldUpdateLibrary && requestedLibraryId !== owner.libraryId) {
-    assignOwnerToLibrary(owner.id, requestedLibraryId)
+  const body = {}
+  if (Object.hasOwn(payload, 'name')) body.name = payload.name
+  if (Object.hasOwn(payload, 'phone')) body.phone = payload.phone || null
+  if (payload.expectedUpdatedAt) body.expectedUpdatedAt = payload.expectedUpdatedAt
+  const response = await apiClient.patch(`/platform/owners/${ownerId}`, body)
+  return {
+    ...response.data,
+    data: mapPlatformOwner(response.data.data),
   }
-
-  if (owner.libraryId) {
-    const library = findLibrary(owner.libraryId)
-    library.ownerName = owner.name
-  }
-
-  addActivity('owner', `${owner.name} updated`, owner.libraryName)
-
-  return createSuccessResponse('Owner updated successfully.', {
-    owner,
-    owners,
-    libraries,
-  })
 }
 
-export async function setOwnerStatus(ownerId, status) {
-  const owner = findOwner(ownerId)
+export async function assignOwner(ownerId, payload = {}) {
+  const response = await apiClient.patch(
+    `/platform/owners/${ownerId}/assignment`,
+    {
+      libraryId: payload.libraryId,
+      expectedUpdatedAt: payload.expectedUpdatedAt || null,
+    },
+  )
+  return {
+    ...response.data,
+    data: mapPlatformOwner(response.data.data),
+  }
+}
 
-  return updateOwner(ownerId, {
-    ...owner,
-    status,
-  })
+export async function setOwnerStatus(ownerId, payload = {}) {
+  const response = await apiClient.patch(
+    `/platform/owners/${ownerId}/status`,
+    {
+      status: payload.status,
+      reason: payload.reason || null,
+      expectedUpdatedAt: payload.expectedUpdatedAt || null,
+    },
+  )
+  return {
+    ...response.data,
+    data: mapPlatformOwner(response.data.data),
+  }
 }
 
 export async function getAnalytics() {
   await delay()
 
-  const totals = getPlatformTotals()
+  const ownerResponse = await getOwners({ page: 1, pageSize: 100 })
+  const totals = getPlatformTotals(ownerResponse.summary)
   const stateGroups = libraries.reduce((groups, library) => {
     const current = groups.get(library.state) || {
       state: library.state,

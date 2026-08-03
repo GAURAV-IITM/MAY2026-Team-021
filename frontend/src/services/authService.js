@@ -174,7 +174,7 @@ export async function registerLibrary(registrationData = {}) {
   return register(registrationData)
 }
 
-export async function validateStudentInvitation(token) {
+export async function validateAccountInvitation(token) {
   try {
     const response = await apiClient.get('/auth/invitations/validate', {
       params: { token },
@@ -189,7 +189,7 @@ export async function validateStudentInvitation(token) {
   }
 }
 
-export async function acceptStudentInvitation(token, password) {
+export async function acceptAccountInvitation(token, password) {
   try {
     const response = await apiClient.post('/auth/invitations/accept', {
       token,
@@ -198,12 +198,15 @@ export async function acceptStudentInvitation(token, password) {
     return response.data
   } catch (err) {
     throw createAuthError(
-      getApiErrorMessage(err, 'Unable to create the student password.'),
+      getApiErrorMessage(err, 'Unable to create the account password.'),
       err.response?.status || 422,
       'INVITATION_ACCEPT_FAILED',
     )
   }
 }
+
+export const validateStudentInvitation = validateAccountInvitation
+export const acceptStudentInvitation = acceptAccountInvitation
 
 export async function forgotPassword(payload = {}) {
   await delay()

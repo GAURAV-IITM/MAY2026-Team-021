@@ -11,7 +11,14 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import BusinessRuleError, ConflictError, ResourceNotFoundError
-from app.models.enums import LibraryStatus, MembershipStatus, RoleName
+from app.core.security import is_expired
+from app.models.enums import (
+    InvitationStatus,
+    LibraryStatus,
+    MembershipStatus,
+    RoleName,
+)
+from app.models.identity import User
 from app.models.library import Library, LibraryMembership, LibrarySettings
 from app.repositories import platform as repository
 from app.schemas.common import PaginationParams
@@ -22,9 +29,22 @@ from app.schemas.platform import (
     PlatformLibraryStatusUpdate,
     PlatformLibrarySummary,
     PlatformLibraryUpdate,
+    PlatformOwnerAssignmentHistory,
+    PlatformOwnerAssignmentUpdate,
+    PlatformOwnerDetailResponse,
+    PlatformOwnerInvitationResponse,
+    PlatformOwnerInvite,
+    PlatformOwnerLibrarySummary,
+    PlatformOwnerListSummary,
+    PlatformOwnerResponse,
+    PlatformOwnerStatus,
+    PlatformOwnerStatusAction,
+    PlatformOwnerStatusUpdate,
     PlatformOwnerSummary,
+    PlatformOwnerUpdate,
 )
 from app.services.audit import AuditContext, write_audit_log
+from app.services.invitation import create_account_invitation
 
 
 PHONE_ALLOWED = re.compile(r"^[+()\-\s0-9]+$")
@@ -50,6 +70,13 @@ class PlatformLibraryListResult:
     libraries: list[PlatformLibraryResponse]
     total: int
     summary: PlatformLibrarySummary
+
+
+@dataclass(frozen=True, slots=True)
+class PlatformOwnerListResult:
+    owners: list[PlatformOwnerResponse]
+    total: int
+    summary: PlatformOwnerListSummary
 
 
 def _now() -> datetime:
@@ -238,8 +265,13 @@ def _assign_owner(
     owner_id: uuid.UUID,
     *,
     now: datetime,
-) -> tuple[uuid.UUID | None, object]:
-    owner = repository.get_owner_user(db, owner_id, for_update=True)
+    locked_owner: User | None = None,
+) -> tuple[uuid.UUID | None, User]:
+    owner = locked_owner or repository.get_owner_user(
+        db,
+        owner_id,
+        for_update=True,
+    )
     if owner is None or not owner.is_active:
         raise BusinessRuleError(
             "The selected user is not an eligible active library owner.",
@@ -568,6 +600,17 @@ def assign_library_owner(
     audit_context: AuditContext | None = None,
 ) -> PlatformLibraryResponse:
     try:
+        owner = repository.get_owner_user(
+            db,
+            payload.owner_id,
+            for_update=True,
+        )
+        if owner is None or not owner.is_active:
+            raise BusinessRuleError(
+                "The selected user is not an eligible active library owner.",
+                code="PLATFORM_LIBRARY_OWNER_INVALID",
+                details={"ownerId": str(payload.owner_id)},
+            )
         library = repository.get_library(db, library_id, for_update=True)
         if library is None:
             raise _not_found()
@@ -577,6 +620,7 @@ def assign_library_owner(
             library,
             payload.owner_id,
             now=_now(),
+            locked_owner=owner,
         )
         write_audit_log(
             db,
@@ -600,6 +644,733 @@ def assign_library_owner(
             "The owner assignment conflicts with current membership data.",
             code="PLATFORM_LIBRARY_OWNER_CONFLICT",
         ) from exc
+    except Exception:
+        db.rollback()
+        raise
+
+
+def _effective_invitation_status(invitation: object | None) -> InvitationStatus | None:
+    if invitation is None:
+        return None
+    if (
+        invitation.status == InvitationStatus.PENDING
+        and is_expired(invitation.expires_at)
+    ):
+        return InvitationStatus.EXPIRED
+    return invitation.status
+
+
+def _current_owner_memberships(
+    user: User,
+    memberships: tuple[LibraryMembership, ...] | list[LibraryMembership],
+) -> list[LibraryMembership]:
+    return [
+        membership
+        for membership in memberships
+        if membership.status
+        in {MembershipStatus.ACTIVE, MembershipStatus.SUSPENDED}
+        and membership.library.primary_owner_user_id == user.id
+    ]
+
+
+def _owner_record_response(
+    record: repository.OwnerRecord,
+    libraries: dict[uuid.UUID, Library],
+) -> PlatformOwnerResponse:
+    invitation = record.invitation
+    if record.user is None:
+        assert invitation is not None
+        library = libraries.get(invitation.library_id)
+        assignments = (
+            [
+                PlatformOwnerLibrarySummary(
+                    id=library.id,
+                    code=library.code,
+                    name=library.name,
+                    status=library.status,
+                )
+            ]
+            if library is not None
+            else []
+        )
+        return PlatformOwnerResponse(
+            id=invitation.id,
+            invitation_id=invitation.id,
+            name=invitation.invitee_name or invitation.email.split("@", 1)[0],
+            email=invitation.email,
+            phone=invitation.invitee_phone,
+            status=PlatformOwnerStatus.INVITED,
+            invitation_status=_effective_invitation_status(invitation),
+            invitation_expires_at=invitation.expires_at,
+            assignments=assignments,
+            created_at=invitation.created_at,
+            updated_at=invitation.updated_at,
+        )
+
+    user = record.user
+    current_memberships = _current_owner_memberships(user, record.memberships)
+    return PlatformOwnerResponse(
+        id=user.id,
+        user_id=user.id,
+        invitation_id=invitation.id if invitation else None,
+        name=user.full_name,
+        email=user.email,
+        phone=user.phone,
+        status=(
+            PlatformOwnerStatus.ACTIVE
+            if user.is_active
+            else PlatformOwnerStatus.SUSPENDED
+        ),
+        invitation_status=_effective_invitation_status(invitation),
+        invitation_expires_at=invitation.expires_at if invitation else None,
+        assignments=[
+            PlatformOwnerLibrarySummary(
+                id=membership.library.id,
+                code=membership.library.code,
+                name=membership.library.name,
+                status=membership.library.status,
+            )
+            for membership in current_memberships
+        ],
+        last_login_at=user.last_login_at,
+        created_at=user.created_at,
+        updated_at=user.updated_at,
+    )
+
+
+def _owner_libraries(
+    db: Session,
+    records: list[repository.OwnerRecord],
+) -> dict[uuid.UUID, Library]:
+    library_ids = {
+        record.invitation.library_id
+        for record in records
+        if record.invitation is not None
+        and record.invitation.library_id is not None
+    }
+    library_ids.update(
+        membership.library_id
+        for record in records
+        for membership in record.memberships
+    )
+    return repository.get_libraries_by_ids(db, library_ids)
+
+
+def list_owners(
+    db: Session,
+    pagination: PaginationParams,
+    *,
+    status: PlatformOwnerStatus | None = None,
+    library_id: uuid.UUID | None = None,
+    invitation_status: InvitationStatus | None = None,
+) -> PlatformOwnerListResult:
+    records = repository.list_owner_records(db)
+    libraries = _owner_libraries(db, records)
+    all_owners = [
+        _owner_record_response(record, libraries) for record in records
+    ]
+    summary = PlatformOwnerListSummary(
+        total=len(all_owners),
+        active=sum(owner.status == PlatformOwnerStatus.ACTIVE for owner in all_owners),
+        invited=sum(owner.status == PlatformOwnerStatus.INVITED for owner in all_owners),
+        suspended=sum(
+            owner.status == PlatformOwnerStatus.SUSPENDED for owner in all_owners
+        ),
+    )
+
+    search = (pagination.search or "").strip().lower()
+    filtered = [
+        owner
+        for owner in all_owners
+        if (status is None or owner.status == status)
+        and (
+            invitation_status is None
+            or owner.invitation_status == invitation_status
+        )
+        and (
+            library_id is None
+            or any(item.id == library_id for item in owner.assignments)
+        )
+        and (
+            not search
+            or search
+            in " ".join(
+                [
+                    owner.name,
+                    owner.email,
+                    owner.phone or "",
+                    *(item.name for item in owner.assignments),
+                ]
+            ).lower()
+        )
+    ]
+
+    def sort_value(owner: PlatformOwnerResponse) -> object:
+        created_timestamp = _utc(owner.created_at).timestamp()
+        updated_timestamp = _utc(owner.updated_at).timestamp()
+        login_timestamp = (
+            _utc(owner.last_login_at).timestamp()
+            if owner.last_login_at is not None
+            else float("-inf")
+        )
+        values = {
+            "name": owner.name.lower(),
+            "email": owner.email.lower(),
+            "status": owner.status.value,
+            "libraryName": (
+                owner.assignments[0].name.lower() if owner.assignments else ""
+            ),
+            "updatedAt": updated_timestamp,
+            "lastLoginAt": login_timestamp,
+            "createdAt": created_timestamp,
+        }
+        return values.get(pagination.sort_by, created_timestamp)
+
+    filtered.sort(
+        key=lambda owner: (sort_value(owner), str(owner.id)),
+        reverse=pagination.sort_order == "desc",
+    )
+    total = len(filtered)
+    offset = (pagination.page - 1) * pagination.page_size
+    return PlatformOwnerListResult(
+        owners=filtered[offset : offset + pagination.page_size],
+        total=total,
+        summary=summary,
+    )
+
+
+def get_owner(db: Session, owner_id: uuid.UUID) -> PlatformOwnerDetailResponse:
+    record = repository.get_owner_record(db, owner_id)
+    if record is None:
+        raise ResourceNotFoundError(
+            "Library owner not found.",
+            code="PLATFORM_OWNER_NOT_FOUND",
+        )
+    response = _owner_record_response(record, _owner_libraries(db, [record]))
+    return PlatformOwnerDetailResponse(
+        **response.model_dump(),
+        assignment_history=[
+            PlatformOwnerAssignmentHistory(
+                library_id=membership.library_id,
+                library_name=membership.library.name,
+                membership_status=membership.status,
+                joined_at=membership.joined_at or membership.created_at,
+                left_at=membership.left_at,
+            )
+            for membership in record.memberships
+        ],
+    )
+
+
+def _validate_owner_phone(phone: str | None) -> None:
+    if not phone:
+        return
+    digits = "".join(character for character in phone if character.isdigit())
+    if not PHONE_ALLOWED.fullmatch(phone) or not 7 <= len(digits) <= 15:
+        raise BusinessRuleError(
+            "Enter a valid owner phone number.",
+            code="PLATFORM_OWNER_PHONE_INVALID",
+        )
+
+
+def _validate_owner_state(user: User, expected_updated_at: datetime | None) -> None:
+    if expected_updated_at is not None and not _timestamp_equal(
+        user.updated_at,
+        expected_updated_at,
+    ):
+        raise ConflictError(
+            "This owner changed after it was opened. Refresh and try again.",
+            code="PLATFORM_OWNER_STATE_CHANGED",
+            details={
+                "ownerId": str(user.id),
+                "updatedAt": user.updated_at.isoformat(),
+            },
+        )
+
+
+def _owner_response_by_id(db: Session, owner_id: uuid.UUID) -> PlatformOwnerResponse:
+    record = repository.get_owner_record(db, owner_id)
+    if record is None:
+        raise ResourceNotFoundError(
+            "Library owner not found.",
+            code="PLATFORM_OWNER_NOT_FOUND",
+        )
+    return _owner_record_response(record, _owner_libraries(db, [record]))
+
+
+def _expire_pending_invitation(invitation: object | None) -> bool:
+    if (
+        invitation is not None
+        and invitation.status == InvitationStatus.PENDING
+        and is_expired(invitation.expires_at)
+    ):
+        invitation.status = InvitationStatus.EXPIRED
+        return True
+    return False
+
+
+def _assign_owner_to_empty_library(
+    db: Session,
+    user: User,
+    target_library_id: uuid.UUID,
+    *,
+    now: datetime,
+) -> tuple[uuid.UUID | None, Library]:
+    memberships = repository.owner_memberships(db, user.id, for_update=True)
+    current = next(
+        (
+            membership
+            for membership in memberships
+            if membership.status == MembershipStatus.ACTIVE
+        ),
+        None,
+    )
+    source_library_id = current.library_id if current is not None else None
+    libraries = repository.get_libraries_for_update(
+        db,
+        {target_library_id}
+        | ({source_library_id} if source_library_id is not None else set()),
+    )
+    target = libraries.get(target_library_id)
+    if target is None:
+        raise ResourceNotFoundError(
+            "Target library not found.",
+            code="PLATFORM_LIBRARY_NOT_FOUND",
+        )
+    if target.status == LibraryStatus.SUSPENDED:
+        raise BusinessRuleError(
+            "A suspended library cannot receive an owner.",
+            code="PLATFORM_OWNER_LIBRARY_INELIGIBLE",
+        )
+    if target.primary_owner_user_id not in {None, user.id}:
+        raise ConflictError(
+            "The target library already has an assigned owner.",
+            code="PLATFORM_OWNER_ASSIGNMENT_CONFLICT",
+            details={"libraryId": str(target.id)},
+        )
+    if source_library_id == target.id and target.primary_owner_user_id == user.id:
+        raise ConflictError(
+            "This owner is already assigned to the target library.",
+            code="PLATFORM_OWNER_ASSIGNMENT_CONFLICT",
+        )
+
+    if current is not None:
+        source = libraries.get(current.library_id)
+        if source is not None and source.primary_owner_user_id == user.id:
+            source.primary_owner_user_id = None
+            source.last_activity_at = now
+            source.updated_at = now
+        current.status = MembershipStatus.LEFT
+        current.left_at = now
+
+    target_membership = next(
+        (
+            membership
+            for membership in memberships
+            if membership.library_id == target.id
+        ),
+        None,
+    )
+    if target_membership is None:
+        target_membership = LibraryMembership(
+            library_id=target.id,
+            user_id=user.id,
+            role=RoleName.LIBRARY_OWNER,
+            status=MembershipStatus.ACTIVE,
+            joined_at=now,
+        )
+        db.add(target_membership)
+    else:
+        target_membership.role = RoleName.LIBRARY_OWNER
+        target_membership.status = MembershipStatus.ACTIVE
+        target_membership.joined_at = now
+        target_membership.left_at = None
+    target.primary_owner_user_id = user.id
+    target.last_activity_at = now
+    target.updated_at = now
+    user.updated_at = now
+    db.flush()
+    return source_library_id, target
+
+
+def invite_owner(
+    db: Session,
+    payload: PlatformOwnerInvite,
+    actor_user_id: uuid.UUID,
+    *,
+    audit_context: AuditContext | None = None,
+) -> PlatformOwnerInvitationResponse:
+    _validate_owner_phone(payload.phone)
+    email = payload.email.strip().lower()
+    try:
+        existing_user = repository.get_user_by_email(db, email, for_update=True)
+        target = repository.get_library(db, payload.library_id, for_update=True)
+        if target is None:
+            raise ResourceNotFoundError(
+                "Target library not found.",
+                code="PLATFORM_LIBRARY_NOT_FOUND",
+            )
+        if target.status == LibraryStatus.SUSPENDED:
+            raise BusinessRuleError(
+                "A suspended library cannot receive an owner invitation.",
+                code="PLATFORM_OWNER_LIBRARY_INELIGIBLE",
+            )
+        if target.primary_owner_user_id is not None:
+            raise ConflictError(
+                "The target library already has an assigned owner.",
+                code="PLATFORM_OWNER_ASSIGNMENT_CONFLICT",
+            )
+
+        pending_by_email = repository.pending_owner_invitation(
+            db,
+            email=email,
+            for_update=True,
+        )
+        pending_by_library = repository.pending_owner_invitation(
+            db,
+            library_id=target.id,
+            for_update=True,
+        )
+        expired_previous = False
+        for pending in {
+            invitation
+            for invitation in (pending_by_email, pending_by_library)
+            if invitation is not None
+        }:
+            expired_previous = _expire_pending_invitation(pending) or expired_previous
+            if pending.status == InvitationStatus.PENDING:
+                code = (
+                    "PLATFORM_OWNER_INVITATION_EXISTS"
+                    if pending.email.lower() == email
+                    else "PLATFORM_OWNER_ASSIGNMENT_CONFLICT"
+                )
+                raise ConflictError(
+                    "An active owner invitation already conflicts with this request.",
+                    code=code,
+                    details={"invitationId": str(pending.id)},
+                )
+        if expired_previous:
+            db.flush()
+
+        if existing_user is not None:
+            owner = repository.get_owner_user(db, existing_user.id)
+            if (
+                owner is None
+                or owner.deleted_at is not None
+                or not owner.is_active
+            ):
+                raise ConflictError(
+                    "This email belongs to an account that cannot be assigned as an owner.",
+                    code="PLATFORM_OWNER_EMAIL_EXISTS",
+                )
+            existing_membership = repository.get_active_owner_membership(
+                db,
+                owner.id,
+                for_update=True,
+            )
+            if existing_membership is not None:
+                raise ConflictError(
+                    "This owner already manages a library. Use the explicit reassignment action.",
+                    code="PLATFORM_OWNER_ASSIGNMENT_CONFLICT",
+                    details={
+                        "ownerId": str(owner.id),
+                        "assignedLibraryId": str(existing_membership.library_id),
+                    },
+                )
+            source_library_id, assigned_library = _assign_owner_to_empty_library(
+                db,
+                owner,
+                target.id,
+                now=_now(),
+            )
+            write_audit_log(
+                db,
+                library_id=assigned_library.id,
+                actor_user_id=actor_user_id,
+                action="platform.owner.assigned",
+                entity_type="user",
+                entity_id=str(owner.id),
+                old_values={
+                    "libraryId": (
+                        str(source_library_id) if source_library_id else None
+                    )
+                },
+                new_values={"libraryId": str(assigned_library.id)},
+                request_context=audit_context,
+            )
+            db.commit()
+            db.expire_all()
+            return PlatformOwnerInvitationResponse(
+                owner=_owner_response_by_id(db, owner.id),
+                created_invitation=False,
+            )
+
+        created = create_account_invitation(
+            db,
+            library_id=target.id,
+            email=email,
+            role=RoleName.LIBRARY_OWNER,
+            invited_by_user_id=actor_user_id,
+            invitee_name=payload.name,
+            invitee_phone=payload.phone or None,
+        )
+        action = (
+            "platform.owner.invitation_reissued"
+            if expired_previous
+            else "platform.owner.invited"
+        )
+        write_audit_log(
+            db,
+            library_id=target.id,
+            actor_user_id=actor_user_id,
+            action=action,
+            entity_type="account_invitation",
+            entity_id=str(created.invitation.id),
+            new_values={
+                "email": email,
+                "libraryId": str(target.id),
+                "role": RoleName.LIBRARY_OWNER.value,
+            },
+            request_context=audit_context,
+        )
+        db.commit()
+        db.expire_all()
+        record = repository.OwnerRecord(
+            user=None,
+            invitation=created.invitation,
+            memberships=(),
+        )
+        return PlatformOwnerInvitationResponse(
+            owner=_owner_record_response(record, {target.id: target}),
+            created_invitation=True,
+            invitation_setup_url=created.setup_url,
+        )
+    except IntegrityError as exc:
+        db.rollback()
+        raise ConflictError(
+            "An owner invitation already exists for this email or library.",
+            code="PLATFORM_OWNER_INVITATION_EXISTS",
+        ) from exc
+    except Exception:
+        db.rollback()
+        raise
+
+
+def update_owner(
+    db: Session,
+    owner_id: uuid.UUID,
+    payload: PlatformOwnerUpdate,
+    actor_user_id: uuid.UUID,
+    *,
+    audit_context: AuditContext | None = None,
+) -> PlatformOwnerResponse:
+    try:
+        user = repository.get_owner_user(db, owner_id, for_update=True)
+        if user is None:
+            raise ResourceNotFoundError(
+                "Accepted library owner not found.",
+                code="PLATFORM_OWNER_NOT_FOUND",
+            )
+        _validate_owner_state(user, payload.expected_updated_at)
+        fields = payload.model_fields_set - {"expected_updated_at"}
+        if not fields:
+            raise BusinessRuleError(
+                "Provide at least one editable owner field.",
+                code="PLATFORM_OWNER_UPDATE_EMPTY",
+            )
+        if "name" in fields and payload.name is None:
+            raise BusinessRuleError(
+                "Owner name cannot be null.",
+                code="PLATFORM_OWNER_NAME_REQUIRED",
+            )
+        _validate_owner_phone(payload.phone if "phone" in fields else user.phone)
+
+        old_values: dict[str, object] = {}
+        new_values: dict[str, object] = {}
+        updates = {
+            "full_name": payload.name,
+            "phone": payload.phone or None,
+        }
+        requested = {
+            "full_name": "name" in fields,
+            "phone": "phone" in fields,
+        }
+        for field, value in updates.items():
+            if requested[field] and getattr(user, field) != value:
+                old_values[field] = getattr(user, field)
+                new_values[field] = value
+                setattr(user, field, value)
+        if not new_values:
+            raise ConflictError(
+                "The submitted values do not change this owner.",
+                code="PLATFORM_OWNER_STATE_CHANGED",
+            )
+        user.updated_at = _now()
+        membership = repository.get_active_owner_membership(db, user.id)
+        write_audit_log(
+            db,
+            library_id=membership.library_id if membership else None,
+            actor_user_id=actor_user_id,
+            action="platform.owner.edited",
+            entity_type="user",
+            entity_id=str(user.id),
+            old_values=old_values,
+            new_values=new_values,
+            request_context=audit_context,
+        )
+        db.commit()
+        db.expire_all()
+        return _owner_response_by_id(db, user.id)
+    except Exception:
+        db.rollback()
+        raise
+
+
+def assign_owner(
+    db: Session,
+    owner_id: uuid.UUID,
+    payload: PlatformOwnerAssignmentUpdate,
+    actor_user_id: uuid.UUID,
+    *,
+    audit_context: AuditContext | None = None,
+) -> PlatformOwnerResponse:
+    try:
+        user = repository.get_owner_user(db, owner_id, for_update=True)
+        if user is None:
+            raise ResourceNotFoundError(
+                "Accepted library owner not found.",
+                code="PLATFORM_OWNER_NOT_FOUND",
+            )
+        if not user.is_active:
+            raise BusinessRuleError(
+                "A suspended owner cannot be assigned.",
+                code="PLATFORM_OWNER_ASSIGNMENT_CONFLICT",
+            )
+        _validate_owner_state(user, payload.expected_updated_at)
+        source_library_id, target = _assign_owner_to_empty_library(
+            db,
+            user,
+            payload.library_id,
+            now=_now(),
+        )
+        write_audit_log(
+            db,
+            library_id=target.id,
+            actor_user_id=actor_user_id,
+            action=(
+                "platform.owner.reassigned"
+                if source_library_id is not None
+                else "platform.owner.assigned"
+            ),
+            entity_type="user",
+            entity_id=str(user.id),
+            old_values={
+                "libraryId": str(source_library_id) if source_library_id else None
+            },
+            new_values={"libraryId": str(target.id)},
+            request_context=audit_context,
+        )
+        db.commit()
+        db.expire_all()
+        return _owner_response_by_id(db, user.id)
+    except IntegrityError as exc:
+        db.rollback()
+        raise ConflictError(
+            "The owner assignment conflicts with current membership data.",
+            code="PLATFORM_OWNER_ASSIGNMENT_CONFLICT",
+        ) from exc
+    except Exception:
+        db.rollback()
+        raise
+
+
+def change_owner_status(
+    db: Session,
+    owner_id: uuid.UUID,
+    payload: PlatformOwnerStatusUpdate,
+    actor_user_id: uuid.UUID,
+    *,
+    audit_context: AuditContext | None = None,
+) -> PlatformOwnerResponse:
+    try:
+        user = repository.get_owner_user(db, owner_id, for_update=True)
+        if user is None:
+            raise ResourceNotFoundError(
+                "Accepted library owner not found.",
+                code="PLATFORM_OWNER_NOT_FOUND",
+            )
+        _validate_owner_state(user, payload.expected_updated_at)
+        current_status = (
+            PlatformOwnerStatusAction.ACTIVE
+            if user.is_active
+            else PlatformOwnerStatusAction.SUSPENDED
+        )
+        if payload.status == current_status:
+            raise ConflictError(
+                f"This owner is already {current_status.value}.",
+                code="PLATFORM_OWNER_INVALID_STATUS",
+            )
+        if (
+            payload.status == PlatformOwnerStatusAction.SUSPENDED
+            and not payload.reason
+        ):
+            raise BusinessRuleError(
+                "A suspension reason is required.",
+                code="PLATFORM_OWNER_SUSPENSION_REASON_REQUIRED",
+            )
+
+        now = _now()
+        memberships = repository.owner_memberships(db, user.id, for_update=True)
+        sessions_revoked = 0
+        if payload.status == PlatformOwnerStatusAction.SUSPENDED:
+            user.is_active = False
+            for membership in memberships:
+                if membership.status == MembershipStatus.ACTIVE:
+                    membership.status = MembershipStatus.SUSPENDED
+            sessions_revoked = repository.revoke_user_sessions(
+                db,
+                user.id,
+                revoked_at=now,
+            )
+        else:
+            user.is_active = True
+            for membership in memberships:
+                if membership.status == MembershipStatus.SUSPENDED:
+                    membership.status = MembershipStatus.ACTIVE
+        user.updated_at = now
+        current_membership = next(
+            (
+                membership
+                for membership in memberships
+                if membership.status
+                in {MembershipStatus.ACTIVE, MembershipStatus.SUSPENDED}
+            ),
+            None,
+        )
+        write_audit_log(
+            db,
+            library_id=(
+                current_membership.library_id if current_membership else None
+            ),
+            actor_user_id=actor_user_id,
+            action=(
+                "platform.owner.suspended"
+                if payload.status == PlatformOwnerStatusAction.SUSPENDED
+                else "platform.owner.activated"
+            ),
+            entity_type="user",
+            entity_id=str(user.id),
+            old_values={"status": current_status.value},
+            new_values={"status": payload.status.value},
+            context={
+                "reason": payload.reason,
+                "sessionsRevoked": sessions_revoked,
+            },
+            request_context=audit_context,
+        )
+        db.commit()
+        db.expire_all()
+        return _owner_response_by_id(db, user.id)
     except Exception:
         db.rollback()
         raise

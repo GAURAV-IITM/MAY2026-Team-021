@@ -1,23 +1,19 @@
 """Student management, status, and account invitation use cases."""
 from __future__ import annotations
 
-import secrets
 import uuid
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timezone
 from decimal import Decimal
-from urllib.parse import quote
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.core.config import settings
 from app.core.exceptions import (
     BusinessRuleError,
     ConflictError,
     ResourceNotFoundError,
 )
-from app.core.security import hash_token
 from app.models.enums import (
     AllocationStatus,
     InvitationStatus,
@@ -25,11 +21,12 @@ from app.models.enums import (
     RoleName,
     StudentStatus,
 )
-from app.models.identity import AccountInvitation, User
+from app.models.identity import User
 from app.models.library import LibraryMembership
 from app.models.student import Student
 from app.repositories import student as repository
 from app.services import allocation as allocation_service
+from app.services.invitation import create_account_invitation
 from app.schemas.common import PaginationParams
 from app.schemas.student import (
     StudentCreate,
@@ -43,10 +40,6 @@ from app.schemas.student import (
 def _clean(value: str | None) -> str | None:
     cleaned = value.strip() if value else None
     return cleaned or None
-
-
-def _setup_url(token: str) -> str:
-    return f"{settings.frontend_base_url}/accept-invitation?token={quote(token)}"
 
 
 def _student_response(
@@ -203,25 +196,20 @@ def _create_invitation(
         pending.status = InvitationStatus.REVOKED
         db.flush()
 
-    raw_token = secrets.token_urlsafe(48)
-    invitation = AccountInvitation(
+    created = create_account_invitation(
+        db,
         library_id=student.library_id,
         email=student.email,
         role=RoleName.STUDENT,
-        token_hash=hash_token(raw_token),
-        status=InvitationStatus.PENDING,
-        expires_at=datetime.now(timezone.utc)
-        + timedelta(hours=settings.account_invitation_expire_hours),
         invited_by_user_id=invited_by_user_id,
     )
-    db.add(invitation)
-    db.flush()
+    invitation = created.invitation
     return StudentInvitationResponse(
         student_id=student.id,
         email=student.email,
         status=invitation.status,
         expires_at=invitation.expires_at,
-        setup_url=_setup_url(raw_token),
+        setup_url=created.setup_url,
     )
 
 

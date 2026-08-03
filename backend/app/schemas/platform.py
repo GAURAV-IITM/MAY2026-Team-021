@@ -3,14 +3,26 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from enum import StrEnum
 
 from pydantic import ConfigDict, Field, field_validator
 
-from app.models.enums import LibraryStatus
+from app.models.enums import InvitationStatus, LibraryStatus, MembershipStatus
 from app.schemas.common import APIModel, PaginationMeta
 
 
 EMAIL_PATTERN = r"^[^\s@]+@[^\s@]+\.[^\s@]+$"
+
+
+class PlatformOwnerStatus(StrEnum):
+    INVITED = "invited"
+    ACTIVE = "active"
+    SUSPENDED = "suspended"
+
+
+class PlatformOwnerStatusAction(StrEnum):
+    ACTIVE = "active"
+    SUSPENDED = "suspended"
 
 
 class PlatformOwnerSummary(APIModel):
@@ -18,6 +30,149 @@ class PlatformOwnerSummary(APIModel):
     name: str
     email: str
     phone: str | None = None
+
+
+class PlatformOwnerLibrarySummary(APIModel):
+    id: uuid.UUID
+    code: str
+    name: str
+    status: LibraryStatus
+
+
+class PlatformOwnerAssignmentHistory(APIModel):
+    library_id: uuid.UUID
+    library_name: str
+    membership_status: MembershipStatus
+    joined_at: datetime
+    left_at: datetime | None = None
+
+
+class PlatformOwnerResponse(APIModel):
+    id: uuid.UUID
+    user_id: uuid.UUID | None = None
+    invitation_id: uuid.UUID | None = None
+    name: str
+    email: str
+    phone: str | None = None
+    status: PlatformOwnerStatus
+    invitation_status: InvitationStatus | None = None
+    invitation_expires_at: datetime | None = None
+    assignments: list[PlatformOwnerLibrarySummary] = Field(default_factory=list)
+    last_login_at: datetime | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class PlatformOwnerDetailResponse(PlatformOwnerResponse):
+    assignment_history: list[PlatformOwnerAssignmentHistory] = Field(
+        default_factory=list
+    )
+
+
+class PlatformOwnerListSummary(APIModel):
+    total: int = Field(ge=0)
+    active: int = Field(ge=0)
+    invited: int = Field(ge=0)
+    suspended: int = Field(ge=0)
+
+
+class PlatformOwnerListResponse(APIModel):
+    message: str
+    data: list[PlatformOwnerResponse]
+    meta: PaginationMeta
+    summary: PlatformOwnerListSummary
+
+
+class PlatformOwnerSuccessResponse(APIModel):
+    message: str
+    data: PlatformOwnerResponse
+
+
+class PlatformOwnerDetailSuccessResponse(APIModel):
+    message: str
+    data: PlatformOwnerDetailResponse
+
+
+class PlatformOwnerInvite(APIModel):
+    model_config = ConfigDict(
+        alias_generator=APIModel.model_config["alias_generator"],
+        populate_by_name=True,
+        serialize_by_alias=True,
+        extra="forbid",
+    )
+
+    name: str = Field(min_length=2, max_length=160)
+    email: str = Field(pattern=EMAIL_PATTERN, max_length=320)
+    phone: str | None = Field(default=None, max_length=32)
+    library_id: uuid.UUID
+
+    @field_validator("name", "email", "phone", mode="before")
+    @classmethod
+    def trim_invite_fields(cls, value: object) -> object:
+        if not isinstance(value, str):
+            return value
+        return value.strip()
+
+
+class PlatformOwnerInvitationResponse(APIModel):
+    owner: PlatformOwnerResponse
+    created_invitation: bool
+    invitation_setup_url: str | None = None
+
+
+class PlatformOwnerInvitationSuccessResponse(APIModel):
+    message: str
+    data: PlatformOwnerInvitationResponse
+
+
+class PlatformOwnerUpdate(APIModel):
+    model_config = ConfigDict(
+        alias_generator=APIModel.model_config["alias_generator"],
+        populate_by_name=True,
+        serialize_by_alias=True,
+        extra="forbid",
+    )
+
+    name: str | None = Field(default=None, min_length=2, max_length=160)
+    phone: str | None = Field(default=None, max_length=32)
+    expected_updated_at: datetime | None = None
+
+    @field_validator("name", "phone", mode="before")
+    @classmethod
+    def trim_update_fields(cls, value: object) -> object:
+        return value.strip() if isinstance(value, str) else value
+
+
+class PlatformOwnerAssignmentUpdate(APIModel):
+    model_config = ConfigDict(
+        alias_generator=APIModel.model_config["alias_generator"],
+        populate_by_name=True,
+        serialize_by_alias=True,
+        extra="forbid",
+    )
+
+    library_id: uuid.UUID
+    expected_updated_at: datetime | None = None
+
+
+class PlatformOwnerStatusUpdate(APIModel):
+    model_config = ConfigDict(
+        alias_generator=APIModel.model_config["alias_generator"],
+        populate_by_name=True,
+        serialize_by_alias=True,
+        extra="forbid",
+    )
+
+    status: PlatformOwnerStatusAction
+    reason: str | None = Field(default=None, max_length=500)
+    expected_updated_at: datetime | None = None
+
+    @field_validator("reason", mode="before")
+    @classmethod
+    def trim_owner_status_reason(cls, value: object) -> object:
+        if not isinstance(value, str):
+            return value
+        return value.strip() or None
 
 
 class PlatformLibraryBase(APIModel):

@@ -7,7 +7,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Path, Query, Request, status
 
 from app.api.deps import CurrentUser, DatabaseSession, Pagination, require_super_admin
-from app.models.enums import LibraryStatus
+from app.models.enums import InvitationStatus, LibraryStatus
 from app.schemas.common import PaginationMeta, error_responses
 from app.schemas.platform import (
     PlatformLibraryCreate,
@@ -16,7 +16,16 @@ from app.schemas.platform import (
     PlatformLibraryStatusUpdate,
     PlatformLibrarySuccessResponse,
     PlatformLibraryUpdate,
+    PlatformOwnerAssignmentUpdate,
+    PlatformOwnerDetailSuccessResponse,
+    PlatformOwnerInvitationSuccessResponse,
+    PlatformOwnerInvite,
+    PlatformOwnerListResponse,
     PlatformOwnerOptionListResponse,
+    PlatformOwnerStatus,
+    PlatformOwnerStatusUpdate,
+    PlatformOwnerSuccessResponse,
+    PlatformOwnerUpdate,
 )
 from app.services import platform as platform_service
 from app.services.audit import AuditContext
@@ -37,6 +46,7 @@ def _audit_context(request: Request) -> AuditContext:
 
 
 LibraryId = Annotated[uuid.UUID, Path(alias="libraryId")]
+OwnerId = Annotated[uuid.UUID, Path(alias="ownerId")]
 
 
 @router.get(
@@ -252,4 +262,206 @@ def assign_library_owner(
     return PlatformLibrarySuccessResponse(
         message="Library owner assigned successfully.",
         data=library,
+    )
+
+
+@router.get(
+    "/owners",
+    response_model=PlatformOwnerListResponse,
+    operation_id="listPlatformOwners",
+    summary="List platform owners",
+    description=(
+        "Returns accepted owners and invitation records with platform-wide "
+        "search, filters, sorting, and pagination for Super Admin users only."
+    ),
+    responses=error_responses(422),
+    openapi_extra={"x-user-stories": ["PLATFORM-OWNER-LIST"]},
+)
+def list_owners(
+    db: DatabaseSession,
+    pagination: Pagination,
+    owner_status: Annotated[
+        PlatformOwnerStatus | None,
+        Query(alias="status"),
+    ] = None,
+    library_id: Annotated[
+        uuid.UUID | None,
+        Query(alias="libraryId"),
+    ] = None,
+    invitation_status: Annotated[
+        InvitationStatus | None,
+        Query(alias="invitationStatus"),
+    ] = None,
+) -> PlatformOwnerListResponse:
+    result = platform_service.list_owners(
+        db,
+        pagination,
+        status=owner_status,
+        library_id=library_id,
+        invitation_status=invitation_status,
+    )
+    return PlatformOwnerListResponse(
+        message="Library owners fetched successfully.",
+        data=result.owners,
+        meta=PaginationMeta(
+            page=pagination.page,
+            pageSize=pagination.page_size,
+            totalItems=result.total,
+            totalPages=(
+                math.ceil(result.total / pagination.page_size)
+                if result.total
+                else 0
+            ),
+        ),
+        summary=result.summary,
+    )
+
+
+@router.post(
+    "/owners/invitations",
+    response_model=PlatformOwnerInvitationSuccessResponse,
+    status_code=status.HTTP_201_CREATED,
+    operation_id="invitePlatformOwner",
+    summary="Invite a platform owner",
+    description=(
+        "Creates a secure owner invitation through the shared account flow, "
+        "or assigns an eligible existing owner account."
+    ),
+    responses=error_responses(404, 409, 422),
+    openapi_extra={"x-user-stories": ["PLATFORM-OWNER-INVITE"]},
+)
+def invite_owner(
+    payload: PlatformOwnerInvite,
+    request: Request,
+    db: DatabaseSession,
+    current_user: CurrentUser,
+) -> PlatformOwnerInvitationSuccessResponse:
+    result = platform_service.invite_owner(
+        db,
+        payload,
+        current_user.id,
+        audit_context=_audit_context(request),
+    )
+    return PlatformOwnerInvitationSuccessResponse(
+        message=(
+            "Owner invitation created successfully."
+            if result.created_invitation
+            else "Existing owner assigned successfully."
+        ),
+        data=result,
+    )
+
+
+@router.get(
+    "/owners/{ownerId}",
+    response_model=PlatformOwnerDetailSuccessResponse,
+    operation_id="getPlatformOwner",
+    summary="Get platform owner details",
+    description=(
+        "Returns a safe owner profile with invitation state and preserved "
+        "assignment history."
+    ),
+    responses=error_responses(404),
+    openapi_extra={"x-user-stories": ["PLATFORM-OWNER-DETAIL"]},
+)
+def get_owner(
+    owner_id: OwnerId,
+    db: DatabaseSession,
+) -> PlatformOwnerDetailSuccessResponse:
+    return PlatformOwnerDetailSuccessResponse(
+        message="Library owner fetched successfully.",
+        data=platform_service.get_owner(db, owner_id),
+    )
+
+
+@router.patch(
+    "/owners/{ownerId}",
+    response_model=PlatformOwnerSuccessResponse,
+    operation_id="updatePlatformOwner",
+    summary="Edit a platform owner",
+    description=(
+        "Updates only an accepted owner's approved non-security profile "
+        "fields; email, password, role, and assignment remain immutable here."
+    ),
+    responses=error_responses(404, 409, 422),
+    openapi_extra={"x-user-stories": ["PLATFORM-OWNER-EDIT"]},
+)
+def update_owner(
+    owner_id: OwnerId,
+    payload: PlatformOwnerUpdate,
+    request: Request,
+    db: DatabaseSession,
+    current_user: CurrentUser,
+) -> PlatformOwnerSuccessResponse:
+    return PlatformOwnerSuccessResponse(
+        message="Library owner updated successfully.",
+        data=platform_service.update_owner(
+            db,
+            owner_id,
+            payload,
+            current_user.id,
+            audit_context=_audit_context(request),
+        ),
+    )
+
+
+@router.patch(
+    "/owners/{ownerId}/assignment",
+    response_model=PlatformOwnerSuccessResponse,
+    operation_id="assignPlatformOwner",
+    summary="Assign or reassign a platform owner",
+    description=(
+        "Moves an eligible accepted owner to an unowned eligible library and "
+        "retains the previous membership as history."
+    ),
+    responses=error_responses(404, 409, 422),
+    openapi_extra={"x-user-stories": ["PLATFORM-OWNER-ASSIGN"]},
+)
+def assign_owner(
+    owner_id: OwnerId,
+    payload: PlatformOwnerAssignmentUpdate,
+    request: Request,
+    db: DatabaseSession,
+    current_user: CurrentUser,
+) -> PlatformOwnerSuccessResponse:
+    return PlatformOwnerSuccessResponse(
+        message="Library owner assignment updated successfully.",
+        data=platform_service.assign_owner(
+            db,
+            owner_id,
+            payload,
+            current_user.id,
+            audit_context=_audit_context(request),
+        ),
+    )
+
+
+@router.patch(
+    "/owners/{ownerId}/status",
+    response_model=PlatformOwnerSuccessResponse,
+    operation_id="changePlatformOwnerStatus",
+    summary="Change a platform owner status",
+    description=(
+        "Activates or suspends an accepted owner. Suspension updates owner "
+        "memberships and revokes all active sessions in the same transaction."
+    ),
+    responses=error_responses(404, 409, 422),
+    openapi_extra={"x-user-stories": ["PLATFORM-OWNER-STATUS"]},
+)
+def change_owner_status(
+    owner_id: OwnerId,
+    payload: PlatformOwnerStatusUpdate,
+    request: Request,
+    db: DatabaseSession,
+    current_user: CurrentUser,
+) -> PlatformOwnerSuccessResponse:
+    return PlatformOwnerSuccessResponse(
+        message="Library owner status updated successfully.",
+        data=platform_service.change_owner_status(
+            db,
+            owner_id,
+            payload,
+            current_user.id,
+            audit_context=_audit_context(request),
+        ),
     )
