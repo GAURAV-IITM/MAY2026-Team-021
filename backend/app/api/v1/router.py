@@ -9,6 +9,7 @@ from app.api.v1.endpoints import (
     payments,
     reports,
     seats,
+    seat_requests,
     settings,
     shifts,
     students,
@@ -24,6 +25,7 @@ api_router.include_router(floors.router, prefix="/floors", tags=["Floors"])
 api_router.include_router(seats.router, prefix="/seats", tags=["Seats"])
 api_router.include_router(shifts.router, prefix="/shifts", tags=["Shifts"])
 api_router.include_router(allocations.router, prefix="/seat-allocations", tags=["Seat allocations"])
+api_router.include_router(seat_requests.router, prefix="/seat-requests", tags=["Seat requests"])
 api_router.include_router(payments.router, prefix="/payments", tags=["Payments"])
 api_router.include_router(announcements.router, prefix="/announcements", tags=["Announcements"])
 api_router.include_router(reports.router, prefix="/reports", tags=["Reports"])

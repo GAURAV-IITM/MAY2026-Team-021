@@ -5,81 +5,65 @@
     title-id="whatsapp-reminder-dialog-title"
     @close="handleClose"
   >
-    <form
-      class="whatsapp-reminder-dialog"
-      novalidate
-      @submit.prevent="handleGenerate"
-    >
-      <section
-        v-if="payment"
-        class="whatsapp-reminder-dialog__payment card"
-      >
+    <form class="whatsapp-reminder-dialog" novalidate @submit.prevent="handleSubmit">
+      <section v-if="payment" class="whatsapp-reminder-dialog__payment">
         <div>
           <p class="text-label text-muted m-0">Student</p>
           <h3 class="text-h5 m-0">{{ payment.studentName }}</h3>
         </div>
-
-        <span class="badge badge--pending">
-          {{ formatStatus(payment.status) }}
-        </span>
+        <span class="badge badge--pending">{{ formatStatus(payment.status) }}</span>
 
         <dl class="whatsapp-reminder-dialog__details">
           <div>
-            <dt>Payment Month</dt>
+            <dt>Billing Month</dt>
             <dd>{{ formatMonth(payment.month) }}</dd>
           </div>
-
           <div>
-            <dt>Pending Amount</dt>
-            <dd>{{ formatCurrency(payment.amount) }}</dd>
+            <dt>Outstanding Balance</dt>
+            <dd>{{ formatCurrency(payment.balanceAmount) }}</dd>
           </div>
-
+          <div>
+            <dt>Due Date</dt>
+            <dd>{{ formatDate(payment.dueDate) }}</dd>
+          </div>
           <div>
             <dt>Phone Number</dt>
-            <dd>{{ payment.studentPhone || '—' }}</dd>
+            <dd>{{ payment.studentPhone || 'Not available' }}</dd>
           </div>
         </dl>
       </section>
 
-      <div
-        class="form-field"
-        :class="{ 'form-field--error': messageError }"
-      >
+      <div class="form-field">
         <label class="form-label" for="whatsapp-reminder-message">
           Message Preview
         </label>
-
         <textarea
           id="whatsapp-reminder-message"
           v-model="message"
           class="form-textarea whatsapp-reminder-dialog__message"
-          rows="7"
+          rows="8"
+          maxlength="2000"
           :disabled="isSubmitting"
-          :aria-invalid="Boolean(messageError)"
         ></textarea>
-
-        <p v-if="messageError" class="form-help">
-          {{ messageError }}
-        </p>
-
-        <p v-else class="form-help text-muted">
-          You can edit the reminder before generating the WhatsApp link.
+        <p class="form-help text-muted">
+          The server rechecks the balance and records the attempt before
+          WhatsApp opens.
         </p>
       </div>
 
-      <section
-        v-if="reminder"
-        class="whatsapp-reminder-dialog__generated alert alert--success"
-        aria-live="polite"
-      >
+      <div v-if="submissionError" class="alert alert--danger" role="alert">
         <div>
-          <p class="text-label m-0">WhatsApp Link Ready</p>
-          <p class="text-small m-0">
-            The reminder link has been generated. Open WhatsApp to review and
-            send the message.
+          <strong>Unable to create the reminder link.</strong>
+          <p class="m-0">{{ submissionError.message }}</p>
+          <p v-if="submissionError.requestId" class="text-caption m-0">
+            Request ID: {{ submissionError.requestId }}
           </p>
         </div>
-      </section>
+      </div>
+
+      <p class="text-small text-muted m-0">
+        Opening a WhatsApp link does not mean the message was sent or delivered.
+      </p>
     </form>
 
     <template #footer>
@@ -91,140 +75,99 @@
       >
         Cancel
       </button>
-
       <button
-        v-if="!reminder"
         class="btn btn--primary"
         type="button"
-        :disabled="isSubmitting || !payment"
-        @click="handleGenerate"
+        :disabled="isSubmitting || !payment || payment.balanceAmount <= 0"
+        @click="handleSubmit"
       >
-        <span
-          v-if="isSubmitting"
-          class="btn__loader"
-          aria-hidden="true"
-        ></span>
-        <span>
-          {{ isSubmitting ? 'Generating' : 'Generate WhatsApp Link' }}
-        </span>
-      </button>
-
-      <button
-        v-else
-        class="btn btn--primary"
-        type="button"
-        @click="handleOpenWhatsApp"
-      >
-        Open WhatsApp
+        <span v-if="isSubmitting" class="btn__loader" aria-hidden="true"></span>
+        <MessageCircle v-else :size="17" aria-hidden="true" />
+        {{ isSubmitting ? 'Recording attempt...' : 'Open WhatsApp' }}
       </button>
     </template>
   </Modal>
 </template>
 
 <script setup>
+import { MessageCircle } from '@lucide/vue'
 import { ref, watch } from 'vue'
 
 import Modal from '../common/Modal.vue'
 
 const props = defineProps({
-  isOpen: {
-    type: Boolean,
-    default: false,
-  },
-  payment: {
-    type: Object,
-    default: null,
-  },
-  reminder: {
-    type: Object,
-    default: null,
-  },
-  isSubmitting: {
-    type: Boolean,
-    default: false,
-  },
+  isOpen: { type: Boolean, default: false },
+  payment: { type: Object, default: null },
+  isSubmitting: { type: Boolean, default: false },
+  submissionError: { type: Object, default: null },
 })
 
-const emit = defineEmits(['close', 'generate', 'open-whatsapp'])
-
+const emit = defineEmits(['close', 'submit'])
 const message = ref('')
-const messageError = ref('')
+const initialMessage = ref('')
 
 watch(
   () => [props.isOpen, props.payment?.id],
   ([isOpen]) => {
     if (!isOpen) return
-
-    message.value = buildDefaultMessage(props.payment)
-    messageError.value = ''
+    initialMessage.value = buildDefaultMessage(props.payment)
+    message.value = initialMessage.value
   },
 )
 
 function buildDefaultMessage(payment) {
   if (!payment) return ''
-
   return (
-    `Hello ${payment.studentName}, this is a reminder that your library fee ` +
-    `of ₹${payment.amount} for ${payment.month} is pending. ` +
-    'Please complete the payment at your earliest convenience.'
+    `Hello ${payment.studentName},\n\n` +
+    `This is a reminder that your library fee for ${formatMonth(payment.month)} ` +
+    `has an outstanding balance of ${formatCurrency(payment.balanceAmount)}.\n\n` +
+    `Due date: ${formatDate(payment.dueDate)}.\n\n` +
+    'Please contact the library if you have already paid or need assistance.'
   )
 }
 
-function validateMessage() {
-  messageError.value = ''
-
-  if (!message.value.trim()) {
-    messageError.value = 'Enter a reminder message.'
-  }
-
-  return !messageError.value
-}
-
-function handleGenerate() {
-  if (!props.payment || props.isSubmitting) return
-  if (!validateMessage()) return
-
-  emit('generate', {
-    message: message.value.trim(),
+function handleSubmit() {
+  if (!props.payment || props.isSubmitting || props.payment.balanceAmount <= 0) return
+  const editedMessage = message.value.trim()
+  emit('submit', {
+    message:
+      editedMessage && editedMessage !== initialMessage.value.trim()
+        ? editedMessage
+        : undefined,
   })
 }
 
-function handleOpenWhatsApp() {
-  if (!props.reminder?.whatsappUrl) return
-
-  emit('open-whatsapp', props.reminder.whatsappUrl)
-}
-
 function handleClose() {
-  if (props.isSubmitting) return
-
-  emit('close')
+  if (!props.isSubmitting) emit('close')
 }
 
 function formatCurrency(amount) {
   return new Intl.NumberFormat('en-IN', {
     style: 'currency',
     currency: 'INR',
-    maximumFractionDigits: 0,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   }).format(Number(amount || 0))
 }
 
 function formatMonth(month) {
-  if (!month) return '—'
-
-  const [year, monthNumber] = month.split('-')
-  const date = new Date(Number(year), Number(monthNumber) - 1, 1)
-
+  if (!month) return 'Not available'
+  const [year, monthNumber] = month.split('-').map(Number)
   return new Intl.DateTimeFormat('en-IN', {
     month: 'long',
     year: 'numeric',
-  }).format(date)
+  }).format(new Date(year, monthNumber - 1, 1))
+}
+
+function formatDate(value) {
+  if (!value) return 'Not available'
+  return new Intl.DateTimeFormat('en-IN', {
+    dateStyle: 'medium',
+  }).format(new Date(`${value}T00:00:00`))
 }
 
 function formatStatus(status) {
-  if (!status) return 'Pending'
-
-  return String(status)
+  return String(status || 'pending')
     .replace(/[-_]/g, ' ')
     .replace(/\b\w/g, (character) => character.toUpperCase())
 }
@@ -241,12 +184,15 @@ function formatStatus(status) {
   grid-template-columns: 1fr auto;
   gap: var(--space-4);
   padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-secondary);
 }
 
 .whatsapp-reminder-dialog__details {
   grid-column: 1 / -1;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-3);
   margin: 0;
 }
@@ -264,20 +210,12 @@ function formatStatus(status) {
 .whatsapp-reminder-dialog__details dd {
   margin: 0;
   font-weight: var(--font-weight-medium);
+  overflow-wrap: anywhere;
 }
 
 .whatsapp-reminder-dialog__message {
-  min-height: 160px;
+  min-height: 180px;
   resize: vertical;
-}
-
-.whatsapp-reminder-dialog__generated {
-  display: grid;
-  gap: var(--space-1);
-}
-
-.form-field--error .form-help {
-  color: var(--color-danger);
 }
 
 @media (max-width: 640px) {
@@ -286,11 +224,3 @@ function formatStatus(status) {
   }
 }
 </style>
-
-<!--
-src/components/payment: Reusable WhatsApp fee reminder preview dialog.
-
-TODO:
-- Replace mock WhatsApp link generation with backend-owned reminder delivery
-  and audit logging in Milestone 3.
--->

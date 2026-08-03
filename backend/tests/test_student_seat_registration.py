@@ -89,7 +89,8 @@ def test_registration_creates_student_invitation_and_allocations_atomically(
     assert student["seatNumber"] == seat["seatNumber"]
     assert student["activeShifts"] == [morning["id"]]
     assert student["activeShiftNames"] == ["Morning"]
-    assert student["seatAssignments"][0] == {
+    assignment = student["seatAssignments"][0]
+    assert assignment == {
         "seatId": seat["id"],
         "seatNumber": seat["seatNumber"],
         "floorId": seat["floorId"],
@@ -101,8 +102,9 @@ def test_registration_creates_student_invitation_and_allocations_atomically(
         "status": "active",
         "closeReason": None,
         "previousAllocationId": None,
-        "transferGroupId": None,
+        "transferGroupId": assignment["transferGroupId"],
     }
+    assert assignment["transferGroupId"] is not None
     assert student["invitationSetupUrl"]
 
     after = client.get(

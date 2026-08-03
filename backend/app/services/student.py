@@ -36,6 +36,7 @@ from app.schemas.student import (
     StudentInvitationResponse,
     StudentResponse,
     StudentUpdate,
+    StudentSelfUpdate,
 )
 
 
@@ -413,6 +414,66 @@ def update_student(
     except Exception:
         db.rollback()
         raise
+
+
+def update_student_profile(
+    db: Session,
+    library_id: uuid.UUID,
+    student_id: uuid.UUID,
+    payload: StudentSelfUpdate,
+    updated_by_user_id: uuid.UUID,
+    audit_context: AuditContext | None = None,
+) -> StudentResponse:
+    student = repository.get_student(db, library_id, student_id)
+    if student is None:
+        raise ResourceNotFoundError("Student not found.", code="STUDENT_NOT_FOUND")
+
+    changes = payload.model_dump(exclude_unset=True)
+    old_values = {}
+    new_values = {}
+
+    mapping = {
+        "phone": "phone",
+        "address": "address",
+        "guardian_name": "guardian_name",
+        "guardian_phone": "guardian_phone",
+        "preferred_language": "preferred_language",
+    }
+
+    for schema_field, attr_name in mapping.items():
+        if schema_field in changes:
+            val = changes[schema_field]
+            if isinstance(val, str):
+                val = val.strip()
+            old_val = getattr(student, attr_name)
+            if old_val != val:
+                old_values[schema_field] = old_val
+                new_values[schema_field] = val
+                setattr(student, attr_name, val)
+
+    if "phone" in changes and student.user_id:
+        linked_user = db.get(User, student.user_id)
+        if linked_user:
+            linked_user.phone = student.phone
+
+    db.commit()
+    db.refresh(student)
+
+    if new_values:
+        from app.services.audit import write_audit_log
+        write_audit_log(
+            db,
+            library_id=library_id,
+            actor_user_id=updated_by_user_id,
+            action="student.profile_updated",
+            entity_type="student",
+            entity_id=str(student.id),
+            old_values=old_values,
+            new_values=new_values,
+            request_context=audit_context,
+        )
+
+    return _student_response(db, student)
 
 
 def _apply_status_side_effects(

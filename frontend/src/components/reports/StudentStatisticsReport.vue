@@ -56,7 +56,7 @@ const joiningData = computed(() => ({
 const joiningOptions = { plugins: { legend: { display: false } } }
 const statusData = computed(() => ({
   labels: props.students.statusDistribution.map((item) => item.label),
-  datasets: [{ data: props.students.statusDistribution.map((item) => item.count), backgroundColor: ['#16a34a', '#94a3b8'], borderWidth: 0, hoverOffset: 4 }],
+  datasets: [{ data: props.students.statusDistribution.map((item) => item.count), backgroundColor: ['#16a34a', '#94a3b8', '#dc2626', '#d97706'], borderWidth: 0, hoverOffset: 4 }],
 }))
 const doughnutOptions = { cutout: '68%' }
 const shiftRows = computed(() => {
@@ -97,4 +97,3 @@ function getShare(count) { return props.students.totals.totalStudents ? Math.rou
 @media (max-width: 900px) { .student-report { grid-template-columns: 1fr; } .student-report__shifts { grid-column: auto; } .student-report__shift-list { grid-template-columns: 1fr; } }
 @media (max-width: 560px) { .report-panel__header, .report-panel__body { padding: var(--space-4); } .student-report__shift-list article { grid-template-columns: minmax(100px, 1fr) auto; } .student-report__track { grid-column: 1 / -1; grid-row: 2; } }
 </style>
-

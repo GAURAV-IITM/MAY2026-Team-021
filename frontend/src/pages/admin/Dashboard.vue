@@ -35,6 +35,7 @@
       <div>
         <strong>Unable to load the dashboard.</strong>
         <p class="m-0">{{ errorMessage }}</p>
+        <small v-if="requestId">Request ID: {{ requestId }}</small>
       </div>
       <button class="btn btn--secondary btn--sm" type="button" @click="loadDashboard">
         Retry
@@ -262,6 +263,9 @@
           </header>
 
           <div class="admin-dashboard__activity-list">
+            <p v-if="recentActivity.length === 0" class="dashboard-panel__empty">
+              No recent activity has been recorded yet.
+            </p>
             <article
               v-for="activity in recentActivity"
               :key="activity.id"
@@ -298,23 +302,30 @@
           </header>
 
           <div class="admin-dashboard__attention-list">
+            <p
+              v-if="studentsRequiringAttention.length === 0"
+              class="dashboard-panel__empty"
+            >
+              No students need attention right now.
+            </p>
             <RouterLink
-              v-for="item in attentionItems"
+              v-for="item in studentsRequiringAttention"
               :key="item.id"
               class="admin-dashboard__attention-item"
-              :to="{ name: item.routeName }"
+              :to="{
+                name: item.routeName,
+                params: { studentId: item.studentId },
+              }"
             >
               <span
                 class="admin-dashboard__attention-value"
-                :class="`admin-dashboard__attention-value--${item.tone}`"
+                :class="`admin-dashboard__attention-value--${item.severity}`"
               >
-                {{ item.value }}
+                {{ getInitials(item.studentName) }}
               </span>
               <span class="admin-dashboard__attention-copy">
-                <strong>{{ item.label }}</strong>
-                <small>
-                  {{ item.id === 'pending-payments' ? formatPendingDetail(item.detail) : item.detail }}
-                </small>
+                <strong>{{ item.studentName }}</strong>
+                <small>{{ item.message }}</small>
               </span>
               <ChevronRight class="admin-dashboard__action-arrow" :size="18" aria-hidden="true" />
             </RouterLink>
@@ -394,9 +405,10 @@ const {
   seatStatus,
   monthlyCollection,
   shiftAvailability,
-  attentionItems,
+  studentsRequiringAttention,
   recentActivity,
   errorMessage,
+  requestId,
 } = storeToRefs(dashboardStore)
 
 const ownerName = computed(() => currentUser.value?.name || 'Library Owner')
@@ -472,10 +484,13 @@ function formatLabel(value) {
     .replace(/\b\w/g, (character) => character.toUpperCase())
 }
 
-function formatPendingDetail(detail) {
-  const [amount, ...rest] = String(detail || '').split(' ')
-
-  return `${formatCurrency(amount)} ${rest.join(' ')}`
+function getInitials(name) {
+  return String(name || '')
+    .split(' ')
+    .filter(Boolean)
+    .map((part) => part[0])
+    .slice(0, 2)
+    .join('')
 }
 
 function getSeatStatusWidth(count) {
@@ -625,6 +640,13 @@ onMounted(loadDashboard)
 
 .dashboard-panel__body {
   padding: var(--space-5);
+}
+
+.dashboard-panel__empty {
+  padding: var(--space-6);
+  margin: 0;
+  color: var(--color-text-muted);
+  text-align: center;
 }
 
 .admin-dashboard__collection-total {
@@ -883,6 +905,22 @@ onMounted(loadDashboard)
 }
 
 .admin-dashboard__attention-value--info {
+  background: var(--color-info-light);
+  color: var(--color-info);
+}
+
+.admin-dashboard__attention-value--critical,
+.admin-dashboard__attention-value--high {
+  background: var(--color-danger-light);
+  color: var(--color-danger);
+}
+
+.admin-dashboard__attention-value--medium {
+  background: var(--color-warning-light);
+  color: var(--color-warning);
+}
+
+.admin-dashboard__attention-value--low {
   background: var(--color-info-light);
   color: var(--color-info);
 }

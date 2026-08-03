@@ -5,7 +5,7 @@
       <div><button class="btn btn--secondary btn--icon" type="button" :disabled="isLoading" title="Refresh announcements" aria-label="Refresh announcements" @click="loadAnnouncements"><RefreshCw :size="18" :class="{ 'admin-announcements__spin': isLoading }" /></button><button class="btn btn--primary" type="button" @click="openCreate"><Plus :size="18" /> Create Announcement</button></div>
     </header>
 
-    <div v-if="errorMessage" class="alert alert--danger admin-announcements__error" role="alert"><div><strong>Announcement action failed.</strong><p class="m-0">{{ errorMessage }}</p></div><button class="btn btn--secondary btn--sm" type="button" @click="loadAnnouncements"><RefreshCw :size="16" aria-hidden="true" /> Retry</button></div>
+    <div v-if="errorMessage && !isFormOpen" class="alert alert--danger admin-announcements__error" role="alert"><div><strong>Announcement action failed.</strong><p class="m-0">{{ errorMessage }}<small v-if="errorRequestId"> Request ID: {{ errorRequestId }}</small></p></div><button class="btn btn--secondary btn--sm" type="button" @click="loadAnnouncements"><RefreshCw :size="16" aria-hidden="true" /> Retry</button></div>
 
     <div v-if="isLoading && !hasLoaded" class="admin-announcements__loading"><LoadingSpinner label="Loading announcements" /></div>
 
@@ -14,14 +14,18 @@
       <AnnouncementFilters :filters="filters" :categories="categories" @update:filters="updateFilters" @clear="clearFilters" />
 
       <section class="admin-announcements__records" aria-labelledby="announcement-list-title">
-        <header><div><h2 id="announcement-list-title">Announcement List</h2><p>{{ announcements.length }} matching record{{ announcements.length === 1 ? '' : 's' }}</p></div></header>
+        <header><div><h2 id="announcement-list-title">Announcement List</h2><p>{{ pagination.totalItems }} matching record{{ pagination.totalItems === 1 ? '' : 's' }}</p></div></header>
         <AnnouncementTable :announcements="announcements" :categories="categories" :audiences="audiences" @action="handleRowAction">
           <template #empty><EmptyState title="No announcements found" description="Create an announcement or clear the current filters."><template #icon><Megaphone :size="28" /></template><template #primary-action><button class="btn btn--primary" type="button" @click="openCreate"><Plus :size="17" aria-hidden="true" /> Create Announcement</button></template><template #secondary-action><button v-if="hasFilters" class="btn btn--secondary" type="button" @click="clearFilters"><RotateCcw :size="16" aria-hidden="true" /> Clear Filters</button></template></EmptyState></template>
         </AnnouncementTable>
+        <footer v-if="pagination.totalItems" class="admin-announcements__pagination">
+          <span>Showing {{ paginationStart }}–{{ paginationEnd }} of {{ pagination.totalItems }}</span>
+          <Pagination :current-page="pagination.page" :total-pages="Math.max(1, pagination.totalPages)" @update:current-page="changePage" />
+        </footer>
       </section>
     </template>
 
-    <AnnouncementFormModal :is-open="isFormOpen" :mode="formMode" :announcement="selectedAnnouncement" :categories="categories" :audiences="audiences" :is-submitting="isSaving" @close="closeForm" @save="saveAnnouncement" />
+    <AnnouncementFormModal :is-open="isFormOpen" :mode="formMode" :announcement="selectedAnnouncement" :categories="categories" :audiences="audiences" :is-submitting="isSaving" :server-error="isFormOpen ? errorMessage : ''" @close="closeForm" @save="saveAnnouncement" />
     <ConfirmDialog :is-open="Boolean(pendingConfirmation)" :title="confirmationTitle" :message="confirmationMessage" :confirm-label="pendingConfirmation?.action === 'delete' ? 'Delete' : 'Archive'" :confirming-label="pendingConfirmation?.action === 'delete' ? 'Deleting' : 'Archiving'" :is-confirming="isSaving" @cancel="pendingConfirmation = null" @confirm="confirmAction" />
     <Toast v-if="toastMessage" :type="toastType">{{ toastMessage }}</Toast>
   </section>
@@ -39,14 +43,12 @@ import AnnouncementTable from '../../components/announcement/AnnouncementTable.v
 import ConfirmDialog from '../../components/common/ConfirmDialog.vue'
 import EmptyState from '../../components/common/EmptyState.vue'
 import LoadingSpinner from '../../components/common/LoadingSpinner.vue'
+import Pagination from '../../components/common/Pagination.vue'
 import Toast from '../../components/common/Toast.vue'
 import { useAnnouncementStore } from '../../stores/announcementStore.js'
-import { useAuthStore } from '../../stores/authStore.js'
 
 const store = useAnnouncementStore()
-const authStore = useAuthStore()
-const { announcements, summary, categories, audiences, filters, isLoading, isSaving, errorMessage } = storeToRefs(store)
-const { currentUser } = storeToRefs(authStore)
+const { announcements, summary, pagination, categories, audiences, filters, isLoading, isSaving, errorMessage, errorRequestId } = storeToRefs(store)
 const hasLoaded = ref(false)
 const isFormOpen = ref(false)
 const formMode = ref('create')
@@ -57,8 +59,9 @@ const toastType = ref('success')
 let filterTimer
 let toastTimer
 
-const admin = computed(() => currentUser.value || {})
-const hasFilters = computed(() => Object.values(filters.value).some(Boolean))
+const hasFilters = computed(() => Boolean(filters.value.search || filters.value.status || filters.value.category || filters.value.priority))
+const paginationStart = computed(() => pagination.value.totalItems ? (pagination.value.page - 1) * pagination.value.pageSize + 1 : 0)
+const paginationEnd = computed(() => Math.min(pagination.value.page * pagination.value.pageSize, pagination.value.totalItems))
 const summaryItems = computed(() => [
   { label: 'Published', value: summary.value.published, detail: 'Visible in Student Portal', icon: Send, tone: 'success' },
   { label: 'Drafts', value: summary.value.drafts, detail: 'Not visible to students', icon: FileText, tone: 'warning' },
@@ -66,11 +69,11 @@ const summaryItems = computed(() => [
   { label: 'Important', value: summary.value.important, detail: 'Active priority notices', icon: Megaphone, tone: 'primary' },
 ])
 const confirmationTitle = computed(() => pendingConfirmation.value?.action === 'delete' ? `Delete ${pendingConfirmation.value?.announcement.title}?` : `Archive ${pendingConfirmation.value?.announcement.title}?`)
-const confirmationMessage = computed(() => pendingConfirmation.value?.action === 'delete' ? 'This draft or archived announcement will be permanently removed.' : 'Students will no longer see this announcement in their portal.')
+const confirmationMessage = computed(() => pendingConfirmation.value?.action === 'delete' ? 'This draft or archived announcement will be removed from active records and retained in the audit history.' : 'Students will no longer see this announcement in their portal.')
 
 function showToast(message, type = 'success') { globalThis.clearTimeout(toastTimer); toastMessage.value = message; toastType.value = type; toastTimer = globalThis.setTimeout(() => { toastMessage.value = '' }, 3200) }
 async function loadAnnouncements() {
-  try { await store.fetchAnnouncements(admin.value); hasLoaded.value = true } catch { showToast(errorMessage.value, 'error') }
+  try { await store.fetchAnnouncements(); hasLoaded.value = true } catch { showToast(errorMessage.value, 'error') }
 }
 function updateFilters(nextFilters) {
   filters.value = nextFilters
@@ -78,21 +81,26 @@ function updateFilters(nextFilters) {
   filterTimer = globalThis.setTimeout(loadAnnouncements, nextFilters.search ? 300 : 0)
 }
 function clearFilters() { store.clearFilters(); loadAnnouncements() }
-function openCreate() { formMode.value = 'create'; selectedAnnouncement.value = null; isFormOpen.value = true }
-function openEdit(announcement) { formMode.value = 'edit'; selectedAnnouncement.value = announcement; isFormOpen.value = true }
+function openCreate() { store.clearError(); formMode.value = 'create'; selectedAnnouncement.value = null; isFormOpen.value = true }
+function openEdit(announcement) { store.clearError(); formMode.value = 'edit'; selectedAnnouncement.value = announcement; isFormOpen.value = true }
 function closeForm() { if (!isSaving.value) isFormOpen.value = false }
 async function saveAnnouncement(payload) {
   try {
-    if (formMode.value === 'edit') await store.updateAnnouncement(admin.value, selectedAnnouncement.value.id, payload)
-    else await store.createAnnouncement(admin.value, payload)
+    if (formMode.value === 'edit') await store.updateAnnouncement(selectedAnnouncement.value.id, payload)
+    else await store.createAnnouncement(payload)
     isFormOpen.value = false
-    showToast(formMode.value === 'edit' ? 'Announcement updated successfully.' : payload.status === 'draft' ? 'Draft saved successfully.' : 'Announcement created successfully.')
+    const createMessage = payload.status === 'draft'
+      ? 'Draft announcement created.'
+      : payload.status === 'scheduled'
+        ? `Announcement scheduled for ${new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(payload.scheduledAt))}.`
+        : 'Announcement published successfully.'
+    showToast(formMode.value === 'edit' ? 'Announcement updated successfully.' : createMessage)
   } catch { showToast(errorMessage.value, 'error') }
 }
 async function handleRowAction(announcement, action) {
   if (action === 'edit') return openEdit(announcement)
   if (action === 'publish') {
-    try { await store.publishAnnouncement(admin.value, announcement.id); showToast('Announcement published successfully.') } catch { showToast(errorMessage.value, 'error') }
+    try { await store.publishAnnouncement(announcement.id); showToast('Announcement published successfully.') } catch { showToast(errorMessage.value, 'error') }
     return
   }
   pendingConfirmation.value = { announcement, action }
@@ -101,11 +109,14 @@ async function confirmAction() {
   const pending = pendingConfirmation.value
   if (!pending) return
   try {
-    if (pending.action === 'delete') await store.deleteAnnouncement(admin.value, pending.announcement.id)
-    else await store.archiveAnnouncement(admin.value, pending.announcement.id)
+    if (pending.action === 'delete') await store.deleteAnnouncement(pending.announcement.id)
+    else await store.archiveAnnouncement(pending.announcement.id)
     showToast(pending.action === 'delete' ? 'Announcement deleted.' : 'Announcement archived.')
     pendingConfirmation.value = null
   } catch { showToast(errorMessage.value, 'error') }
+}
+async function changePage(page) {
+  try { await store.setPage(page) } catch { showToast(errorMessage.value, 'error') }
 }
 
 onMounted(loadAnnouncements)
@@ -125,8 +136,10 @@ onBeforeUnmount(() => { globalThis.clearTimeout(filterTimer); globalThis.clearTi
 .admin-announcements__records > header h2, .admin-announcements__records > header p { margin: 0; }
 .admin-announcements__records > header h2 { font-size: var(--font-size-h5); }
 .admin-announcements__records > header p { margin-top: 2px; color: var(--color-text-muted); font-size: var(--font-size-sm); }
+.admin-announcements__pagination { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); padding: var(--space-4); border: 1px solid var(--color-border); border-top: 0; border-radius: 0 0 var(--radius-md) var(--radius-md); background: var(--color-surface-elevated); color: var(--color-text-muted); font-size: var(--font-size-sm); }
 .admin-announcements__spin { animation: announcements-spin 700ms linear infinite; }
 @keyframes announcements-spin { to { transform: rotate(360deg); } }
 @media (max-width: 700px) { .admin-announcements__header { align-items: stretch; flex-direction: column; } .admin-announcements__header > div:last-child { display: grid; grid-template-columns: 40px minmax(0, 1fr); } .admin-announcements__records > header { border-bottom: 1px solid var(--color-border); border-radius: var(--radius-md); margin-bottom: var(--space-3); } }
+@media (max-width: 700px) { .admin-announcements__pagination { align-items: stretch; flex-direction: column; border-top: 1px solid var(--color-border); border-radius: var(--radius-md); margin-top: var(--space-3); } }
 @media (max-width: 480px) { .admin-announcements__header h1 { font-size: var(--font-size-h3); } .admin-announcements__header .btn--icon { width: 40px; } .admin-announcements__error { align-items: stretch; flex-direction: column; } }
 </style>

@@ -80,12 +80,32 @@ const summaryItems = computed(() => [
   { label: 'Latest Payment', value: formatDate(receipts.value[0]?.paidAt), detail: receipts.value[0] ? formatCurrency(receipts.value[0].amount) : 'No payment', icon: CalendarCheck, tone: 'success' },
 ])
 
+import apiClient from '../../api/axios.js'
+
 function formatCurrency(value) { return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(Number(value || 0)) }
 function formatLabel(value) { return String(value || '-').replace(/[-_]/g, ' ').replace(/\b\w/g, (character) => character.toUpperCase()) }
 function formatMonth(value) { if (!value) return 'Not available'; const [year, month] = value.split('-').map(Number); return new Intl.DateTimeFormat('en-IN', { month: 'long', year: 'numeric' }).format(new Date(year, month - 1, 1)) }
 function formatDate(value) { return value ? new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(value)) : 'Not available' }
 async function loadReceipts() { try { await portalStore.fetchReceipts(currentUser.value?.id) } catch { /* Store-owned errors are rendered above. */ } }
-function handleDownload() { notice.value = 'Receipt downloads will be enabled when the backend receipt API is connected.'; window.clearTimeout(noticeTimer); noticeTimer = window.setTimeout(() => { notice.value = '' }, 4000) }
+async function handleDownload() {
+  if (!selectedReceipt.value) return
+  try {
+    const receiptId = selectedReceipt.value.id
+    const response = await apiClient.get(`/payments/receipts/${receiptId}/download`, {
+      responseType: 'blob'
+    })
+    const blob = new Blob([response.data], { type: 'application/pdf' })
+    const link = document.createElement('a')
+    link.href = URL.createObjectURL(blob)
+    link.download = `receipt-${selectedReceipt.value.receiptNumber}.pdf`
+    link.click()
+    URL.revokeObjectURL(link.href)
+  } catch {
+    notice.value = 'Failed to download receipt PDF.'
+    window.clearTimeout(noticeTimer)
+    noticeTimer = window.setTimeout(() => { notice.value = '' }, 4000)
+  }
+}
 
 onMounted(loadReceipts)
 onBeforeUnmount(() => { window.clearTimeout(noticeTimer); portalStore.clearSelectedReceipt() })

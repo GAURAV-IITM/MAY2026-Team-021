@@ -122,3 +122,17 @@ The checked-in contract now includes the following real vertical slices:
 
 Every protected operation derives its library from `CurrentTenant`. Client
 payloads do not contain an authorization-level `libraryId`.
+
+## Phase 3 Payment Routes
+
+The contract includes the real owner/staff payment vertical slice:
+
+- `GET /payments` lists tenant-scoped fee records with server-calculated
+  totals, balances, statuses, transactions, summary totals, and pagination.
+- `POST /payments/monthly-generation` idempotently generates one monthly fee
+  record per eligible active student.
+- `POST /payments/{feeRecordId}/transactions` records an append-only full or
+  partial payment after locking and recalculating the current balance.
+
+See [`../payments.md`](../payments.md) for eligibility, calculation,
+concurrency, frontend mapping, and test details.

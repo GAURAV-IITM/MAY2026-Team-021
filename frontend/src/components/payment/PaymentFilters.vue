@@ -12,22 +12,13 @@
     <div class="payment-filters__field">
       <label class="form-label" for="payment-month-filter">Month</label>
 
-      <select
+      <input
         id="payment-month-filter"
-        class="form-select"
+        class="form-control"
+        type="month"
         :value="month"
-        @change="$emit('update:month', $event.target.value)"
-      >
-        <option value="">All months</option>
-
-        <option
-          v-for="monthOption in months"
-          :key="monthOption"
-          :value="monthOption"
-        >
-          {{ formatMonth(monthOption) }}
-        </option>
-      </select>
+        @input="$emit('update:month', $event.target.value)"
+      />
     </div>
 
     <div
@@ -44,6 +35,7 @@
       >
         <option value="">All statuses</option>
         <option value="paid">Paid</option>
+        <option value="partially_paid">Partially Paid</option>
         <option value="unpaid">Unpaid</option>
       </select>
     </div>
@@ -75,18 +67,14 @@ defineProps({
     type: String,
     default: '',
   },
-  months: {
-    type: Array,
-    default: () => [],
-  },
   hasActiveFilters: {
     type: Boolean,
     default: false,
   },
   hideStatus: {
-  type: Boolean,
-  default: false,
-},
+    type: Boolean,
+    default: false,
+  },
 })
 
 defineEmits([
@@ -96,17 +84,6 @@ defineEmits([
   'clear',
 ])
 
-function formatMonth(month) {
-  if (!month) return '—'
-
-  const [year, monthNumber] = month.split('-')
-  const date = new Date(Number(year), Number(monthNumber) - 1, 1)
-
-  return new Intl.DateTimeFormat('en-IN', {
-    month: 'long',
-    year: 'numeric',
-  }).format(date)
-}
 </script>
 
 <style scoped>
@@ -163,10 +140,3 @@ function formatMonth(month) {
   }
 }
 </style>
-
-<!--
-src/components/payment: Reusable payment search and filter controls.
-
-TODO:
-- Replace mock-backed filter requests with FastAPI query parameters in Milestone 3.
--->

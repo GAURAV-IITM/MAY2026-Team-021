@@ -107,7 +107,7 @@ def update_floor(
     floor = repository.get_floor(db, library_id, floor_id)
     if floor is None:
         raise ResourceNotFoundError("Floor not found.", code="FLOOR_NOT_FOUND")
-    changes = payload.model_dump(exclude_unset=True)
+    changes = payload.model_dump(exclude_unset=True, by_alias=False)
     if "code" in changes:
         changes["code"] = changes["code"].strip().upper()
         _ensure_floor_code(
@@ -421,7 +421,7 @@ def update_seat(
     seat = repository.get_seat(db, library_id, seat_id)
     if seat is None:
         raise ResourceNotFoundError("Seat not found.", code="SEAT_NOT_FOUND")
-    changes = payload.model_dump(exclude_unset=True)
+    changes = payload.model_dump(exclude_unset=True, by_alias=False)
     if "seat_number" in changes:
         changes["seat_number"] = changes["seat_number"].strip().upper()
         _ensure_seat_number(
@@ -615,7 +615,7 @@ def update_shift(
     shift = repository.get_shift(db, library_id, shift_id)
     if shift is None:
         raise ResourceNotFoundError("Shift not found.", code="SHIFT_NOT_FOUND")
-    changes = payload.model_dump(exclude_unset=True)
+    changes = payload.model_dump(exclude_unset=True, by_alias=False)
     if "name" in changes:
         changes["name"] = changes["name"].strip()
         _ensure_shift_name(

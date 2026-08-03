@@ -8,8 +8,8 @@
         <template #cell-category="{ value }">{{ labelFor(categories, value) }}</template>
         <template #cell-audience="{ value }">{{ labelFor(audiences, value) }}</template>
         <template #cell-status="{ value }"><span class="badge" :class="statusClass(value)">{{ formatLabel(value) }}</span></template>
-        <template #cell-publishedAt="{ row }"><div class="announcement-records__date"><span>{{ formatDate(row.publishedAt || row.updatedAt) }}</span><small v-if="row.expiresAt">Expires {{ formatDate(row.expiresAt) }}</small></div></template>
-        <template #cell-reach="{ row }"><div class="announcement-records__reach"><strong>{{ row.readBy.length }}</strong><small>read</small></div></template>
+        <template #cell-timeline="{ row }"><div class="announcement-records__date"><span>{{ timelineLabel(row) }}</span><small>{{ formatDate(timelineDate(row)) }}</small><small v-if="row.expiresAt">Expires {{ formatDate(row.expiresAt) }}</small></div></template>
+        <template #cell-createdBy="{ row }">{{ row.createdBy?.name || 'Unknown' }}</template>
         <template #actions="{ row }"><AnnouncementActionMenu :announcement="row" @action="$emit('action', row, $event)" /></template>
         <template #empty><slot name="empty">No announcements match the selected filters.</slot></template>
       </DataTable>
@@ -21,7 +21,7 @@
         <header><div class="announcement-records__badges"><span class="badge" :class="statusClass(announcement.status)">{{ formatLabel(announcement.status) }}</span><span class="badge announcement-records__category">{{ labelFor(categories, announcement.category) }}</span></div><AnnouncementActionMenu :announcement="announcement" @action="$emit('action', announcement, $event)" /></header>
         <h2>{{ announcement.title }}</h2>
         <p>{{ truncate(announcement.body, 150) }}</p>
-        <dl><div><dt>Audience</dt><dd>{{ labelFor(audiences, announcement.audience) }}</dd></div><div><dt>Published</dt><dd>{{ formatDate(announcement.publishedAt || announcement.updatedAt) }}</dd></div><div><dt>Reads</dt><dd>{{ announcement.readBy.length }}</dd></div><div><dt>Priority</dt><dd>{{ formatLabel(announcement.priority) }}</dd></div></dl>
+        <dl><div><dt>Audience</dt><dd>{{ labelFor(audiences, announcement.audience) }}</dd></div><div><dt>{{ timelineLabel(announcement) }}</dt><dd>{{ formatDate(timelineDate(announcement)) }}</dd></div><div><dt>Created by</dt><dd>{{ announcement.createdBy?.name || 'Unknown' }}</dd></div><div><dt>Priority</dt><dd>{{ formatLabel(announcement.priority) }}</dd></div></dl>
       </article>
     </div>
   </div>
@@ -42,13 +42,25 @@ const columns = [
   { key: 'category', label: 'Category' },
   { key: 'audience', label: 'Audience' },
   { key: 'status', label: 'Status' },
-  { key: 'publishedAt', label: 'Published / Updated' },
-  { key: 'reach', label: 'Reach' },
+  { key: 'timeline', label: 'Timeline' },
+  { key: 'createdBy', label: 'Created by' },
 ]
 function labelFor(options, value) { return options.find((item) => item.value === value)?.label || formatLabel(value) }
 function formatLabel(value) { return String(value || 'Not set').replace(/[-_]/g, ' ').replace(/\b\w/g, (character) => character.toUpperCase()) }
 function truncate(value, length) { const text = String(value || ''); return text.length > length ? `${text.slice(0, length).trim()}...` : text }
-function formatDate(value) { return value ? new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(value)) : 'Not published' }
+function formatDate(value) { return value ? new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(value)) : 'Not set' }
+function timelineDate(announcement) {
+  if (announcement.status === 'scheduled') return announcement.scheduledAt
+  if (announcement.status === 'published' || announcement.status === 'expired') return announcement.publishedAt
+  if (announcement.status === 'archived') return announcement.archivedAt
+  return announcement.updatedAt
+}
+function timelineLabel(announcement) {
+  if (announcement.status === 'scheduled') return 'Scheduled'
+  if (announcement.status === 'published' || announcement.status === 'expired') return 'Published'
+  if (announcement.status === 'archived') return 'Archived'
+  return 'Updated'
+}
 function statusClass(status) {
   if (status === 'published') return 'badge--success'
   if (status === 'scheduled') return 'announcement-records__scheduled'
@@ -59,11 +71,11 @@ function statusClass(status) {
 </script>
 
 <style scoped>
-.announcement-records__title, .announcement-records__date, .announcement-records__reach { display: grid; gap: 2px; }
+.announcement-records__title, .announcement-records__date { display: grid; gap: 2px; }
 .announcement-records__title { min-width: 250px; }
 .announcement-records__title > strong { display: flex; align-items: center; gap: var(--space-2); }
 .announcement-records__title .badge { width: max-content; margin-top: var(--space-1); }
-.announcement-records__title small, .announcement-records__date small, .announcement-records__reach small { color: var(--color-text-muted); }
+.announcement-records__title small, .announcement-records__date small { color: var(--color-text-muted); }
 .announcement-records__scheduled { background: var(--color-info-light); color: var(--color-info); }
 .announcement-records__expired { background: var(--color-warning-light); color: var(--color-warning); }
 .announcement-records__mobile { display: none; }

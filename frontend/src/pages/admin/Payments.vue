@@ -2,17 +2,21 @@
   <section class="payments-page" aria-labelledby="payments-title">
     <header class="payments-page__header">
       <div>
-        <p class="text-label text-muted payments-page__eyebrow">Payment Management</p>
-
+        <p class="text-label text-muted payments-page__eyebrow">
+          Payment Management
+        </p>
         <h1 id="payments-title" class="text-h2 payments-page__title">
-          {{ pageTitle }}
+          {{ activeView === 'monthly' ? 'Monthly Payments' : 'Payment History' }}
         </h1>
-
         <p class="text-body payments-page__description">
-          {{ pageDescription }}
+          Generate monthly fees and record full or partial payments.
         </p>
       </div>
     </header>
+
+    <Toast v-if="successMessage" type="success">
+      {{ successMessage }}
+    </Toast>
 
     <nav class="payments-page__views" aria-label="Payment views">
       <button
@@ -22,9 +26,9 @@
         :aria-pressed="activeView === 'monthly'"
         @click="setActiveView('monthly')"
       >
-        <CalendarDays :size="17" aria-hidden="true" /> Monthly Payments
+        <CalendarDays :size="17" aria-hidden="true" />
+        Monthly Payments
       </button>
-
       <button
         class="btn"
         :class="activeView === 'history' ? 'btn--primary' : 'btn--secondary'"
@@ -32,122 +36,108 @@
         :aria-pressed="activeView === 'history'"
         @click="setActiveView('history')"
       >
-        <History :size="17" aria-hidden="true" /> Payment History
-      </button>
-
-      <button
-        class="btn"
-        :class="activeView === 'reminders' ? 'btn--primary' : 'btn--secondary'"
-        type="button"
-        :aria-pressed="activeView === 'reminders'"
-        @click="setActiveView('reminders')"
-      >
-        <MessageCircleMore :size="17" aria-hidden="true" /> Fee Reminders
+        <History :size="17" aria-hidden="true" />
+        Payment History
       </button>
     </nav>
 
-    <div v-if="activeView === 'monthly'" class="payments-page__generation">
+    <section
+      v-if="activeView === 'monthly'"
+      class="payments-page__generation card"
+      aria-label="Monthly fee generation"
+    >
+      <div>
+        <strong>{{ formatMonth(paymentFilters.month) }}</strong>
+        <p class="text-small text-muted m-0">
+          Creates one fee record for each eligible active student. Existing
+          records are kept unchanged.
+        </p>
+      </div>
       <button
         class="btn btn--primary"
         type="button"
-        :disabled="!paymentFilters.month || isGeneratingMonthlyPayments || isLoading"
-        @click="handleGenerateMonthlyPayments"
+        :disabled="!paymentFilters.month || isGenerating || isLoading"
+        @click="handleGenerate"
       >
         <FilePlus2 :size="17" aria-hidden="true" />
-        {{ isGeneratingMonthlyPayments ? 'Generating Payments...' : 'Generate Monthly Payments' }}
+        {{ isGenerating ? 'Generating...' : 'Generate Monthly Fees' }}
       </button>
-
-      <p class="text-small text-muted m-0">
-        Generate unpaid payment records for active students for
-        {{ formatMonth(paymentFilters.month) }}.
-      </p>
-    </div>
-    <div
-      v-if="activeView === 'monthly' && generationResult"
-      class="alert alert--info"
-      role="status"
-    >
-      <div>
-        <strong>Monthly payment generation completed.</strong>
-
-        <p class="m-0">
-          {{ generationResult.createdCount }} created, {{ generationResult.skippedCount }} skipped
-          from {{ generationResult.activeStudentCount }} active students for
-          {{ formatMonth(generationResult.month) }}.
-        </p>
-      </div>
-    </div>
+    </section>
 
     <section
-      class="payments-page__summary"
-      :aria-label="activeView === 'reminders' ? 'Fee reminder summary' : 'Payment summary'"
+      v-if="generationResult"
+      class="generation-result"
+      aria-label="Generation result"
     >
+      <div>
+        <span class="text-label text-muted">Created</span>
+        <strong>{{ generationResult.createdCount }}</strong>
+      </div>
+      <div>
+        <span class="text-label text-muted">Already Existed</span>
+        <strong>{{ generationResult.existingCount }}</strong>
+      </div>
+      <div>
+        <span class="text-label text-muted">Skipped</span>
+        <strong>{{ generationResult.skippedCount }}</strong>
+      </div>
+      <div>
+        <span class="text-label text-muted">Eligible Students</span>
+        <strong>{{ generationResult.eligibleStudentCount }}</strong>
+      </div>
+      <details
+        v-if="generationResult.skippedStudents?.length"
+        class="generation-result__details"
+      >
+        <summary>Why students were skipped</summary>
+        <p
+          v-for="student in generationResult.skippedStudents"
+          :key="student.studentId"
+          class="text-small m-0"
+        >
+          <strong>{{ student.studentName }}:</strong> {{ student.message }}
+        </p>
+      </details>
+    </section>
+
+    <section class="payments-page__summary" aria-label="Payment summary">
       <article class="stat-card stat-card--dashboard">
         <div class="stat-card__header">
-          <span class="text-label text-muted">
-            {{ activeView === 'reminders' ? 'Pending Payments' : 'Total Payments' }}
-          </span>
-
-          <span class="stat-card__icon" aria-hidden="true">
-            <ClockAlert v-if="activeView === 'reminders'" :size="20" />
-            <CreditCard v-else :size="20" />
-          </span>
+          <span class="text-label text-muted">Fee Records</span>
+          <CreditCard :size="20" aria-hidden="true" />
         </div>
-
+        <strong class="stat-card__value">{{ paymentCount }}</strong>
+        <span class="text-caption text-muted">
+          {{ paidPaymentCount }} paid ·
+          {{ partiallyPaidPaymentCount }} partial ·
+          {{ unpaidPaymentCount }} unpaid
+        </span>
+      </article>
+      <article class="stat-card stat-card--dashboard">
+        <div class="stat-card__header">
+          <span class="text-label text-muted">Total Billed</span>
+          <ReceiptIndianRupee :size="20" aria-hidden="true" />
+        </div>
         <strong class="stat-card__value">
-          {{ activeView === 'reminders' ? reminderPaymentCount : paymentCount }}
+          {{ formatCurrency(totalBilledAmount) }}
         </strong>
       </article>
-
       <article class="stat-card stat-card--dashboard">
         <div class="stat-card__header">
-          <span class="text-label text-muted">
-            {{ activeView === 'reminders' ? 'Students Pending' : 'Paid' }}
-          </span>
-
-          <span class="stat-card__icon" aria-hidden="true">
-            <UsersRound v-if="activeView === 'reminders'" :size="20" />
-            <CircleCheckBig v-else :size="20" />
-          </span>
+          <span class="text-label text-muted">Collected</span>
+          <CircleCheckBig :size="20" aria-hidden="true" />
         </div>
-
         <strong class="stat-card__value">
-          {{ activeView === 'reminders' ? reminderStudentCount : paidPaymentCount }}
+          {{ formatCurrency(totalCollectedAmount) }}
         </strong>
       </article>
-
       <article class="stat-card stat-card--dashboard">
         <div class="stat-card__header">
-          <span class="text-label text-muted">
-            {{ activeView === 'reminders' ? 'Months Pending' : 'Unpaid' }}
-          </span>
-
-          <span class="stat-card__icon" aria-hidden="true">
-            <CalendarClock v-if="activeView === 'reminders'" :size="20" />
-            <CircleAlert v-else :size="20" />
-          </span>
+          <span class="text-label text-muted">Pending</span>
+          <ClockAlert :size="20" aria-hidden="true" />
         </div>
-
         <strong class="stat-card__value">
-          {{ activeView === 'reminders' ? reminderMonthCount : unpaidPaymentCount }}
-        </strong>
-      </article>
-
-      <article class="stat-card stat-card--dashboard">
-        <div class="stat-card__header">
-          <span class="text-label text-muted">
-            {{ activeView === 'reminders' ? 'Total Due' : 'Collected' }}
-          </span>
-
-          <span class="stat-card__icon" aria-hidden="true"><IndianRupee :size="20" /></span>
-        </div>
-
-        <strong class="stat-card__value">
-          {{
-            formatCurrency(
-              activeView === 'reminders' ? reminderTotalDueAmount : totalCollectedAmount,
-            )
-          }}
+          {{ formatCurrency(totalPendingAmount) }}
         </strong>
       </article>
     </section>
@@ -156,9 +146,7 @@
       :search="paymentFilters.search"
       :month="paymentFilters.month"
       :status="paymentFilters.status"
-      :months="availableMonths"
-      :has-active-filters="hasActivePaymentFilters"
-      :hide-status="activeView === 'reminders' || activeView === 'history'"
+      :has-active-filters="pageHasActiveFilters"
       @update:search="updateFilter('search', $event)"
       @update:month="updateFilter('month', $event)"
       @update:status="updateFilter('status', $event)"
@@ -167,510 +155,411 @@
 
     <div v-if="errorMessage" class="alert alert--danger" role="alert">
       <div>
-        <strong>Unable to load payments.</strong>
+        <strong>Unable to complete the payment request.</strong>
         <p class="m-0">{{ errorMessage }}</p>
+        <p v-if="errorRequestId" class="text-caption m-0">
+          Request ID: {{ errorRequestId }}
+        </p>
       </div>
-
-      <button class="btn btn--secondary btn--sm" type="button" @click="loadPayments">Retry</button>
+      <button class="btn btn--secondary btn--sm" type="button" @click="loadPayments">
+        Retry
+      </button>
     </div>
 
-    <div v-if="isLoading && activePayments.length === 0" class="payments-page__loading">
+    <div v-if="isLoading && payments.length === 0" class="payments-page__loading">
       <LoadingSpinner label="Loading payments" />
     </div>
 
     <template v-else-if="!errorMessage">
       <EmptyState
-        v-if="activePayments.length === 0"
-        title="No payments found"
+        v-if="payments.length === 0"
+        title="No payment records found"
         :description="emptyStateDescription"
       >
         <template #icon><WalletCards :size="26" /></template>
         <template #primary-action>
           <button
-            v-if="hasActivePaymentFilters"
+            v-if="activeView === 'monthly' && paymentFilters.month"
             class="btn btn--primary"
             type="button"
-            @click="clearFilters"
+            @click="handleGenerate"
           >
-            <RotateCcw :size="16" aria-hidden="true" /> Clear Filters
+            <FilePlus2 :size="16" aria-hidden="true" />
+            Generate Monthly Fees
           </button>
-
           <span v-else></span>
         </template>
-
-        <template #secondary-action>
-          <span></span>
-        </template>
+        <template #secondary-action><span></span></template>
       </EmptyState>
 
       <template v-else>
-        <DataTable :columns="columns" :rows="paginatedPayments" :aria-label="tableAriaLabel">
+        <DataTable
+          class="payments-page__table"
+          :columns="columns"
+          :rows="payments"
+          :aria-label="activeView === 'monthly' ? 'Monthly fee records' : 'Payment history'"
+        >
           <template #cell-studentName="{ row }">
             <div class="payments-page__student">
               <strong>{{ row.studentName }}</strong>
               <span class="text-caption text-muted">
-                {{ row.studentEmail }}
+                {{ row.enrollmentNumber }} · {{ row.studentEmail }}
               </span>
             </div>
           </template>
-
-          <template #cell-month="{ value }">
-            {{ formatMonth(value) }}
-          </template>
-
-          <template #cell-amount="{ value }">
+          <template #cell-month="{ value }">{{ formatMonth(value) }}</template>
+          <template #cell-dueDate="{ value }">{{ formatDate(value) }}</template>
+          <template #cell-totalAmount="{ value }">
             {{ formatCurrency(value) }}
           </template>
-
+          <template #cell-paidAmount="{ value }">
+            {{ formatCurrency(value) }}
+          </template>
+          <template #cell-balanceAmount="{ value }">
+            {{ formatCurrency(value) }}
+          </template>
           <template #cell-status="{ value }">
-            <span class="badge" :class="getStatusBadgeClass(value)">
+            <span class="badge" :class="statusClass(value)">
               {{ formatLabel(value) }}
             </span>
           </template>
-
           <template #cell-paymentMethod="{ value }">
             {{ formatLabel(value) }}
           </template>
-
-          <template #cell-transactionId="{ value }">
-            {{ value || '—' }}
-          </template>
-
-          <template #cell-paidAt="{ value }">
-            {{ formatDateTime(value) }}
-          </template>
-
+          <template #cell-transactionId="{ value }">{{ value || '—' }}</template>
+          <template #cell-paidAt="{ value }">{{ formatDateTime(value) }}</template>
           <template #actions="{ row }">
             <div class="payments-page__actions">
               <button
-                v-if="activeView === 'monthly'"
-                class="btn btn--secondary btn--sm"
-                type="button"
-                @click="openStatusDialog(row)"
-              >
-                <CircleCheckBig :size="15" aria-hidden="true" /> Update Status
-              </button>
-
-              <button
-                v-if="activeView !== 'reminders' && row.status === 'paid'"
-                class="btn btn--secondary btn--sm"
-                type="button"
-                :disabled="isLoadingReceipt"
-                @click="openReceiptDialog(row)"
-              >
-                <ReceiptText :size="15" aria-hidden="true" /> View Receipt
-              </button>
-
-              <button
-                v-if="activeView === 'reminders'"
+                v-if="row.balanceAmount > 0"
                 class="btn btn--primary btn--sm"
+                type="button"
+                @click="openRecordDialog(row)"
+              >
+                <CircleDollarSign :size="15" aria-hidden="true" />
+                Record Payment
+              </button>
+              <button
+                v-if="row.balanceAmount > 0"
+                class="btn btn--secondary btn--sm"
                 type="button"
                 @click="openReminderDialog(row)"
               >
-                <MessageCircleMore :size="15" aria-hidden="true" /> Send Reminder
+                <MessageCircle :size="15" aria-hidden="true" />
+                Remind
+              </button>
+              <button
+                v-if="row.transactions.length"
+                class="btn btn--secondary btn--sm"
+                type="button"
+                @click="openHistoryDialog(row)"
+              >
+                <History :size="15" aria-hidden="true" />
+                History
               </button>
             </div>
           </template>
         </DataTable>
 
+        <div class="payments-page__mobile-list">
+          <article
+            v-for="payment in payments"
+            :key="payment.id"
+            class="payment-card"
+          >
+            <header>
+              <div>
+                <strong>{{ payment.studentName }}</strong>
+                <span class="text-caption text-muted">
+                  {{ formatMonth(payment.month) }}
+                </span>
+              </div>
+              <span class="badge" :class="statusClass(payment.status)">
+                {{ formatLabel(payment.status) }}
+              </span>
+            </header>
+            <dl>
+              <div><dt>Total</dt><dd>{{ formatCurrency(payment.totalAmount) }}</dd></div>
+              <div><dt>Paid</dt><dd>{{ formatCurrency(payment.paidAmount) }}</dd></div>
+              <div><dt>Balance</dt><dd>{{ formatCurrency(payment.balanceAmount) }}</dd></div>
+              <div><dt>Due</dt><dd>{{ formatDate(payment.dueDate) }}</dd></div>
+            </dl>
+            <button
+              v-if="payment.balanceAmount > 0"
+              class="btn btn--primary"
+              type="button"
+              @click="openRecordDialog(payment)"
+            >
+              <CircleDollarSign :size="16" aria-hidden="true" />
+              Record Payment
+            </button>
+            <button
+              v-if="payment.balanceAmount > 0"
+              class="btn btn--secondary"
+              type="button"
+              @click="openReminderDialog(payment)"
+            >
+              <MessageCircle :size="16" aria-hidden="true" />
+              WhatsApp Reminder
+            </button>
+            <button
+              v-if="payment.transactions.length"
+              class="btn btn--secondary"
+              type="button"
+              @click="openHistoryDialog(payment)"
+            >
+              <History :size="16" aria-hidden="true" />
+              Transaction History
+            </button>
+          </article>
+        </div>
+
         <footer class="payments-page__pagination">
           <p class="text-small text-muted m-0">
             Showing {{ paginationStart }}–{{ paginationEnd }} of
-            {{ activePayments.length }} payments
+            {{ pagination.totalItems }} records
           </p>
-
-          <Pagination v-model:current-page="currentPage" :total-pages="totalPages" />
+          <Pagination
+            :current-page="pagination.page"
+            :total-pages="Math.max(1, pagination.totalPages)"
+            @update:current-page="changePage"
+          />
         </footer>
       </template>
     </template>
 
-    <PaymentStatusDialog
-      :is-open="isStatusDialogOpen"
+    <RecordPaymentDialog
+      :is-open="isRecordDialogOpen"
       :payment="selectedPayment"
-      :is-submitting="isUpdatingStatus"
-      @close="closeStatusDialog"
-      @confirm="handleStatusUpdate"
+      :is-submitting="isRecording"
+      :submission-error="paymentSubmissionError"
+      @close="closeRecordDialog"
+      @confirm="handleRecordPayment"
     />
-    <ReceiptPreviewDialog
-      :is-open="isReceiptDialogOpen"
-      :receipt="selectedReceipt"
-      @close="closeReceiptDialog"
-      @download="handleReceiptDownload"
+    <PaymentHistoryDialog
+      :is-open="isHistoryDialogOpen"
+      :payment="historyPayment"
+      @close="closeHistoryDialog"
     />
     <WhatsAppReminderDialog
       :is-open="isReminderDialogOpen"
-      :payment="selectedPayment"
-      :reminder="selectedReminder"
-      :is-submitting="isGeneratingReminder"
+      :payment="reminderPayment"
+      :is-submitting="isReminderSubmitting"
+      :submission-error="reminderSubmissionError"
       @close="closeReminderDialog"
-      @generate="handleGenerateReminder"
-      @open-whatsapp="handleOpenWhatsApp"
+      @submit="handleReminder"
+    />
+    <ReceiptPreviewDialog
+      :is-open="isReceiptPreviewOpen"
+      :receipt="selectedReceipt"
+      :is-loading="isReceiptPreviewLoading"
+      :is-downloading="isReceiptDownloading"
+      :error-message="isReceiptPreviewOpen ? receiptErrorMessage : ''"
+      :request-id="receiptRequestId"
+      @close="closeReceiptPreview"
+      @retry="loadRecordedReceipt"
+      @download="downloadRecordedReceipt"
     />
   </section>
 </template>
 
 <script setup>
 import {
-  CalendarClock,
   CalendarDays,
-  CircleAlert,
   CircleCheckBig,
+  CircleDollarSign,
   ClockAlert,
   CreditCard,
   FilePlus2,
   History,
-  IndianRupee,
-  MessageCircleMore,
-  ReceiptText,
-  RotateCcw,
-  UsersRound,
+  MessageCircle,
+  ReceiptIndianRupee,
   WalletCards,
 } from '@lucide/vue'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 import DataTable from '../../components/common/DataTable.vue'
 import EmptyState from '../../components/common/EmptyState.vue'
 import LoadingSpinner from '../../components/common/LoadingSpinner.vue'
 import Pagination from '../../components/common/Pagination.vue'
+import Toast from '../../components/common/Toast.vue'
 import PaymentFilters from '../../components/payment/PaymentFilters.vue'
-import PaymentStatusDialog from '../../components/payment/PaymentStatusDialog.vue'
+import PaymentHistoryDialog from '../../components/payment/PaymentHistoryDialog.vue'
 import ReceiptPreviewDialog from '../../components/payment/ReceiptPreviewDialog.vue'
+import RecordPaymentDialog from '../../components/payment/RecordPaymentDialog.vue'
 import WhatsAppReminderDialog from '../../components/payment/WhatsAppReminderDialog.vue'
 import { usePaymentStore } from '../../stores/paymentStore'
-import { useStudentStore } from '../../stores/studentStore'
 
-const PAGE_SIZE = 5
+const paymentStore = usePaymentStore()
+const {
+  payments,
+  selectedPayment,
+  selectedReceipt,
+  pagination,
+  paymentFilters,
+  isLoading,
+  error,
+  errorMessage,
+  isReminderSubmitting,
+  reminderError,
+  isReceiptPreviewLoading,
+  isReceiptDownloading,
+  receiptError,
+  receiptErrorMessage,
+  paymentCount,
+  paidPaymentCount,
+  unpaidPaymentCount,
+  partiallyPaidPaymentCount,
+  totalCollectedAmount,
+  totalPendingAmount,
+  totalBilledAmount,
+} = storeToRefs(paymentStore)
 
-function getCurrentMonth() {
-  const now = new Date()
-  const year = now.getFullYear()
-  const month = String(now.getMonth() + 1).padStart(2, '0')
-
-  return `${year}-${month}`
-}
+const activeView = ref('monthly')
+const isGenerating = ref(false)
+const generationResult = ref(null)
+const isRecordDialogOpen = ref(false)
+const isRecording = ref(false)
+const isHistoryDialogOpen = ref(false)
+const historyPayment = ref(null)
+const isReminderDialogOpen = ref(false)
+const reminderPayment = ref(null)
+const isReceiptPreviewOpen = ref(false)
+const recordedReceiptId = ref(null)
+const successMessage = ref('')
+let filterTimer = null
+let toastTimer = null
 
 const columns = computed(() => {
   if (activeView.value === 'history') {
     return [
       { key: 'studentName', label: 'Student' },
       { key: 'month', label: 'Month' },
-      { key: 'amount', label: 'Amount' },
-      { key: 'paymentMethod', label: 'Payment Method' },
-      { key: 'transactionId', label: 'Transaction ID' },
-      { key: 'paidAt', label: 'Paid Date' },
+      { key: 'paidAmount', label: 'Paid' },
+      { key: 'paymentMethod', label: 'Latest Method' },
+      { key: 'transactionId', label: 'Latest Reference' },
+      { key: 'paidAt', label: 'Latest Payment' },
+      { key: 'status', label: 'Status' },
     ]
   }
-
   return [
     { key: 'studentName', label: 'Student' },
     { key: 'month', label: 'Month' },
-    { key: 'amount', label: 'Amount' },
+    { key: 'dueDate', label: 'Due Date' },
+    { key: 'totalAmount', label: 'Total' },
+    { key: 'paidAmount', label: 'Paid' },
+    { key: 'balanceAmount', label: 'Balance' },
     { key: 'status', label: 'Status' },
-    { key: 'paymentMethod', label: 'Payment Method' },
   ]
 })
 
-const paymentStore = usePaymentStore()
-const studentStore = useStudentStore()
-
-const {
-  payments,
-  pendingPayments,
-  selectedPayment,
-  selectedReceipt,
-  selectedReminder,
-  paymentFilters,
-  isLoading,
-  errorMessage,
-  paymentCount,
-  paidPaymentCount,
-  unpaidPaymentCount,
-  totalCollectedAmount,
-  availableMonths,
-  hasActivePaymentFilters,
-} = storeToRefs(paymentStore)
-
-const { students } = storeToRefs(studentStore)
-
-const currentPage = ref(1)
-const isGeneratingMonthlyPayments = ref(false)
-const generationResult = ref(null)
-const activeView = ref('monthly')
-
-paymentStore.updatePaymentFilter('month', getCurrentMonth())
-
-const isStatusDialogOpen = ref(false)
-const isUpdatingStatus = ref(false)
-const isReceiptDialogOpen = ref(false)
-const isLoadingReceipt = ref(false)
-const isReminderDialogOpen = ref(false)
-const isGeneratingReminder = ref(false)
-
-const activePayments = computed(() => {
-  return activeView.value === 'reminders' ? pendingPayments.value : payments.value
-})
-
-const reminderPaymentCount = computed(() => {
-  return pendingPayments.value.length
-})
-
-const reminderTotalDueAmount = computed(() => {
-  return pendingPayments.value.reduce((total, payment) => {
-    return total + Number(payment.amount || 0)
-  }, 0)
-})
-
-const reminderStudentCount = computed(() => {
-  return new Set(pendingPayments.value.map((payment) => payment.studentId)).size
-})
-
-const reminderMonthCount = computed(() => {
-  return new Set(pendingPayments.value.map((payment) => payment.month)).size
-})
-
-const totalPages = computed(() => {
-  return Math.max(1, Math.ceil(activePayments.value.length / PAGE_SIZE))
-})
-
-const paginatedPayments = computed(() => {
-  const startIndex = (currentPage.value - 1) * PAGE_SIZE
-
-  return activePayments.value.slice(startIndex, startIndex + PAGE_SIZE)
-})
-
 const paginationStart = computed(() => {
-  if (activePayments.value.length === 0) return 0
-
-  return (currentPage.value - 1) * PAGE_SIZE + 1
+  if (!pagination.value.totalItems) return 0
+  return (pagination.value.page - 1) * pagination.value.pageSize + 1
 })
-
-const paginationEnd = computed(() => {
-  return Math.min(currentPage.value * PAGE_SIZE, activePayments.value.length)
-})
-
+const paginationEnd = computed(() =>
+  Math.min(
+    pagination.value.page * pagination.value.pageSize,
+    pagination.value.totalItems,
+  ),
+)
 const emptyStateDescription = computed(() => {
-  if (hasActivePaymentFilters.value) {
-    if (activeView.value === 'history') {
-      return 'No payment history records match the current search and filters.'
-    }
-
-    if (activeView.value === 'reminders') {
-      return 'No pending payments match the current search and filters.'
-    }
-
-    return 'No payment records match the current search and filters.'
+  if (pageHasActiveFilters.value) {
+    return 'No fee records match the selected month, status, or student.'
   }
-
-  if (activeView.value === 'history') {
-    return 'Previous payment transactions will appear here when they are available.'
-  }
-
-  if (activeView.value === 'reminders') {
-    return 'Students with pending fees will appear here when reminders are needed.'
-  }
-
-  return 'Monthly payment records will appear here when they are available.'
+  return activeView.value === 'monthly'
+    ? 'Generate fee records for the selected month to begin collecting payments.'
+    : 'Recorded payment transactions will appear here.'
 })
-
-const pageTitle = computed(() => {
-  if (activeView.value === 'history') return 'Payment History'
-  if (activeView.value === 'reminders') return 'Fee Reminders'
-
-  return 'Monthly Payments'
+const pageHasActiveFilters = computed(() => {
+  return Boolean(
+    paymentFilters.value.search ||
+    paymentFilters.value.status ||
+    (
+      activeView.value === 'monthly'
+        ? paymentFilters.value.month !== getCurrentMonth()
+        : paymentFilters.value.month
+    ),
+  )
 })
-
-const pageDescription = computed(() => {
-  if (activeView.value === 'history') {
-    return 'Review previous payment transactions using student, month, and status filters.'
+const errorRequestId = computed(
+  () => error.value?.response?.data?.requestId || '',
+)
+const paymentSubmissionError = computed(() => {
+  if (!isRecordDialogOpen.value || !error.value) return null
+  const response = error.value.response?.data
+  return {
+    message: response?.error?.message || error.value.message,
+    requestId: response?.requestId,
+    remainingBalance: response?.error?.details?.remainingBalance,
   }
-
-  if (activeView.value === 'reminders') {
-    return 'Review pending student fees, preview reminder messages, and open WhatsApp reminders.'
-  }
-
-  return 'Track monthly fees, review payment status, and manage student payments.'
 })
-
-const tableAriaLabel = computed(() => {
-  if (activeView.value === 'history') return 'Payment history records'
-  if (activeView.value === 'reminders') {
-    return 'Pending payment reminder records'
+const reminderSubmissionError = computed(() => {
+  if (!isReminderDialogOpen.value || !reminderError.value) return null
+  const response = reminderError.value.response?.data
+  return {
+    message:
+      response?.error?.message ||
+      reminderError.value.message ||
+      'Unable to create the WhatsApp reminder link.',
+    requestId: response?.requestId,
   }
-
-  return 'Monthly payment records'
 })
+const receiptRequestId = computed(
+  () => receiptError.value?.response?.data?.requestId || '',
+)
 
 watch(
-  () => [paymentFilters.value.search, paymentFilters.value.month, paymentFilters.value.status],
+  () => [
+    paymentFilters.value.search,
+    paymentFilters.value.month,
+    paymentFilters.value.status,
+  ],
   () => {
-    currentPage.value = 1
-    loadPayments()
+    window.clearTimeout(filterTimer)
+    filterTimer = window.setTimeout(loadPayments, 250)
   },
 )
 
-watch(totalPages, (pageCount) => {
-  if (currentPage.value > pageCount) {
-    currentPage.value = pageCount
-  }
+onMounted(loadPayments)
+onBeforeUnmount(() => {
+  window.clearTimeout(filterTimer)
+  window.clearTimeout(toastTimer)
 })
 
 function setActiveView(view) {
-  if (!['monthly', 'history', 'reminders'].includes(view)) return
   if (activeView.value === view) return
-
   activeView.value = view
-  currentPage.value = 1
-
-  if (view === 'monthly') {
-    paymentStore.setPaymentFilters({
-      month: getCurrentMonth(),
-      status: '',
-    })
-    return
-  }
-
-  if (view === 'history') {
-    paymentStore.setPaymentFilters({
-      month: '',
-      status: '',
-    })
-    return
-  }
-
-  if (view === 'reminders') {
-    paymentStore.setPaymentFilters({
-      month: '',
-      status: '',
-    })
-  }
+  generationResult.value = null
+  paymentStore.setPaymentFilters({
+    month: view === 'monthly' ? getCurrentMonth() : '',
+    status: '',
+    page: 1,
+  })
 }
 
-function updateFilter(filterName, value) {
-  paymentStore.updatePaymentFilter(filterName, value)
+function getCurrentMonth() {
+  const now = new Date()
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+}
+
+function updateFilter(name, value) {
+  paymentStore.updatePaymentFilter(name, value)
 }
 
 function clearFilters() {
-  paymentStore.resetPaymentFilters()
+  paymentStore.setPaymentFilters({
+    search: '',
+    month: activeView.value === 'monthly' ? getCurrentMonth() : '',
+    status: '',
+    page: 1,
+  })
 }
 
-async function handleGenerateMonthlyPayments() {
-  const month = paymentFilters.value.month
-
-  if (!month || isGeneratingMonthlyPayments.value) return
-
-  isGeneratingMonthlyPayments.value = true
-  generationResult.value = null
-
-  try {
-    await studentStore.fetchStudents()
-
-    const response = await paymentStore.generateMonthlyPayments(month, students.value)
-
-    generationResult.value = {
-      month,
-      createdCount: response.meta?.createdCount || 0,
-      skippedCount: response.meta?.skippedCount || 0,
-      activeStudentCount: response.meta?.activeStudentCount || 0,
-    }
-
-    currentPage.value = 1
-    await paymentStore.fetchPayments()
-  } catch {
-    // Store-owned error state is rendered by the page.
-  } finally {
-    isGeneratingMonthlyPayments.value = false
-  }
-}
-
-function openStatusDialog(payment) {
-  paymentStore.selectedPayment = payment
-  isStatusDialogOpen.value = true
-}
-
-function closeStatusDialog() {
-  if (isUpdatingStatus.value) return
-
-  isStatusDialogOpen.value = false
-  paymentStore.clearSelectedPayment()
-}
-
-async function openReceiptDialog(payment) {
-  if (!payment || payment.status !== 'paid' || isLoadingReceipt.value) return
-
-  paymentStore.clearSelectedReceipt()
-  isLoadingReceipt.value = true
-
-  try {
-    await paymentStore.generateReceipt(payment.id)
-    isReceiptDialogOpen.value = true
-  } catch {
-    // Store-owned error state is rendered by the page.
-  } finally {
-    isLoadingReceipt.value = false
-  }
-}
-
-function closeReceiptDialog() {
-  isReceiptDialogOpen.value = false
-  paymentStore.clearSelectedReceipt()
-}
-
-function handleReceiptDownload(receipt) {
-  if (!receipt) return
-
-  // Milestone 2 placeholder until backend receipt download is available.
-}
-
-function openReminderDialog(payment) {
-  paymentStore.selectedPayment = payment
-  paymentStore.clearSelectedReminder()
-  isReminderDialogOpen.value = true
-}
-
-function closeReminderDialog() {
-  if (isGeneratingReminder.value) return
-
-  isReminderDialogOpen.value = false
-  paymentStore.clearSelectedPayment()
-  paymentStore.clearSelectedReminder()
-}
-
-async function handleGenerateReminder(reminderPayload) {
-  if (!selectedPayment.value) return
-
-  isGeneratingReminder.value = true
-
-  try {
-    await paymentStore.generateWhatsAppReminder(selectedPayment.value.id, reminderPayload)
-  } catch {
-    // Store-owned error state is rendered by the page.
-  } finally {
-    isGeneratingReminder.value = false
-  }
-}
-
-function handleOpenWhatsApp(whatsappUrl) {
-  if (!whatsappUrl) return
-
-  window.open(whatsappUrl, '_blank', 'noopener,noreferrer')
-}
-
-async function handleStatusUpdate(statusPayload) {
-  if (!selectedPayment.value) return
-
-  isUpdatingStatus.value = true
-
-  try {
-    await paymentStore.updatePaymentStatus(selectedPayment.value.id, statusPayload)
-
-    isStatusDialogOpen.value = false
-    paymentStore.clearSelectedPayment()
-  } catch {
-    // Store-owned error state is rendered by the page.
-  } finally {
-    isUpdatingStatus.value = false
-  }
+function changePage(page) {
+  paymentStore.updatePaymentFilter('page', page)
+  loadPayments()
 }
 
 async function loadPayments() {
@@ -679,94 +568,216 @@ async function loadPayments() {
       await paymentStore.fetchPaymentHistory()
       return
     }
-
-    if (activeView.value === 'reminders') {
-      await paymentStore.fetchPendingPayments({
-        search: paymentFilters.value.search,
-        month: paymentFilters.value.month,
-      })
-      return
-    }
-
     await paymentStore.fetchPayments()
   } catch {
-    // Store-owned error state is rendered above the table.
+    // Store-owned errors are rendered above the table.
   }
+}
+
+async function handleGenerate() {
+  if (!paymentFilters.value.month || isGenerating.value) return
+  isGenerating.value = true
+  generationResult.value = null
+  try {
+    const response = await paymentStore.generateMonthlyPayments(
+      paymentFilters.value.month,
+    )
+    generationResult.value = response.data
+    showSuccess(
+      `${response.data.createdCount} fee records created; ` +
+        `${response.data.existingCount} already existed.`,
+    )
+  } catch {
+    // Store-owned errors are rendered above the table.
+  } finally {
+    isGenerating.value = false
+  }
+}
+
+function openRecordDialog(payment) {
+  paymentStore.clearError()
+  paymentStore.selectedPayment = payment
+  isRecordDialogOpen.value = true
+}
+
+function closeRecordDialog() {
+  if (isRecording.value) return
+  isRecordDialogOpen.value = false
+  paymentStore.clearSelectedPayment()
+  paymentStore.clearError()
+}
+
+function openHistoryDialog(payment) {
+  historyPayment.value = payment
+  isHistoryDialogOpen.value = true
+}
+
+function closeHistoryDialog() {
+  isHistoryDialogOpen.value = false
+  historyPayment.value = null
+}
+
+function openReminderDialog(payment) {
+  paymentStore.clearSelectedReminder()
+  reminderPayment.value = payment
+  isReminderDialogOpen.value = true
+}
+
+function closeReminderDialog() {
+  if (isReminderSubmitting.value) return
+  isReminderDialogOpen.value = false
+  reminderPayment.value = null
+  paymentStore.clearSelectedReminder()
+}
+
+async function handleRecordPayment(payload) {
+  if (!selectedPayment.value || isRecording.value) return
+  isRecording.value = true
+  try {
+    const response = await paymentStore.recordPayment(
+      selectedPayment.value.id,
+      payload,
+    )
+    isRecordDialogOpen.value = false
+    paymentStore.clearSelectedPayment()
+    showSuccess(
+      `${formatCurrency(response.data.transaction.amount)} recorded. Receipt ` +
+        `${response.data.receipt.receiptNumber} is ready.`,
+    )
+    recordedReceiptId.value = response.data.receipt.id
+    isReceiptPreviewOpen.value = true
+    await loadRecordedReceipt()
+  } catch {
+    // The dialog remains open so the administrator can correct the input.
+  } finally {
+    isRecording.value = false
+  }
+}
+
+async function loadRecordedReceipt() {
+  if (!recordedReceiptId.value) return
+  try {
+    await paymentStore.fetchReceiptDetail(recordedReceiptId.value)
+  } catch {
+    // Receipt dialog renders the structured API error and retry action.
+  }
+}
+
+function closeReceiptPreview() {
+  isReceiptPreviewOpen.value = false
+  recordedReceiptId.value = null
+  paymentStore.clearSelectedReceipt()
+}
+
+async function downloadRecordedReceipt() {
+  if (!recordedReceiptId.value || isReceiptDownloading.value) return
+  try {
+    const { blob, filename } = await paymentStore.downloadReceipt(
+      recordedReceiptId.value,
+    )
+    const objectUrl = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = objectUrl
+    link.download = filename
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    URL.revokeObjectURL(objectUrl)
+    showSuccess('Receipt PDF downloaded.')
+  } catch {
+    // Receipt dialog displays the download error and request ID.
+  }
+}
+
+async function handleReminder(payload) {
+  if (!reminderPayment.value || isReminderSubmitting.value) return
+  const pendingTab = window.open('about:blank', '_blank')
+  if (pendingTab) {
+    pendingTab.opener = null
+  }
+  try {
+    const response = await paymentStore.createWhatsAppReminder(
+      reminderPayment.value.id,
+      payload,
+    )
+    const whatsappUrl = response.data.whatsappUrl
+    if (pendingTab) {
+      pendingTab.location.replace(whatsappUrl)
+      showSuccess('Reminder attempt recorded and WhatsApp link opened.')
+    } else {
+      showSuccess(
+        'Reminder attempt recorded. Allow popups to open the WhatsApp link.',
+      )
+    }
+    isReminderDialogOpen.value = false
+    reminderPayment.value = null
+  } catch {
+    pendingTab?.close()
+    // The dialog stays open with the server's actionable error.
+  }
+}
+
+function showSuccess(message) {
+  successMessage.value = message
+  window.clearTimeout(toastTimer)
+  toastTimer = window.setTimeout(() => {
+    successMessage.value = ''
+  }, 4000)
 }
 
 function formatCurrency(amount) {
   return new Intl.NumberFormat('en-IN', {
     style: 'currency',
     currency: 'INR',
-    maximumFractionDigits: 0,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   }).format(Number(amount || 0))
 }
 
 function formatMonth(month) {
-  if (!month) return '—'
-
-  const [year, monthNumber] = month.split('-')
-  const date = new Date(Number(year), Number(monthNumber) - 1, 1)
-
+  if (!month) return 'All months'
+  const [year, monthNumber] = month.split('-').map(Number)
   return new Intl.DateTimeFormat('en-IN', {
     month: 'long',
     year: 'numeric',
-  }).format(date)
+  }).format(new Date(year, monthNumber - 1, 1))
+}
+
+function formatDate(value) {
+  if (!value) return '—'
+  return new Intl.DateTimeFormat('en-IN', {
+    dateStyle: 'medium',
+  }).format(new Date(`${value}T00:00:00`))
 }
 
 function formatDateTime(value) {
   if (!value) return '—'
-
-  const date = new Date(value)
-
-  if (Number.isNaN(date.getTime())) return value
-
   return new Intl.DateTimeFormat('en-IN', {
     dateStyle: 'medium',
     timeStyle: 'short',
-  }).format(date)
+  }).format(new Date(value))
 }
 
 function formatLabel(value) {
   if (!value) return '—'
-
   return String(value)
     .replace(/[-_]/g, ' ')
     .replace(/\b\w/g, (character) => character.toUpperCase())
 }
 
-function getStatusBadgeClass(status) {
-  return status === 'paid' ? 'badge--paid' : 'badge--pending'
+function statusClass(status) {
+  return {
+    paid: 'badge--paid',
+    partially_paid: 'badge--warning',
+    unpaid: 'badge--pending',
+  }[status]
 }
-
-onMounted(loadPayments)
 </script>
 
 <style scoped>
 .payments-page {
   display: grid;
   gap: var(--space-6);
-}
-
-.payments-page__header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-5);
-}
-
-.payments-page__views {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--space-3);
-}
-
-.payments-page__generation {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--space-3);
 }
 
 .payments-page__eyebrow,
@@ -782,6 +793,46 @@ onMounted(loadPayments)
 .payments-page__description {
   margin-top: var(--space-2);
   color: var(--color-text-muted);
+}
+
+.payments-page__views,
+.payments-page__generation,
+.payments-page__pagination {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.payments-page__views {
+  flex-wrap: wrap;
+}
+
+.payments-page__generation {
+  justify-content: space-between;
+  padding: var(--space-4);
+}
+
+.generation-result {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-elevated);
+}
+
+.generation-result > div {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.generation-result__details {
+  grid-column: 1 / -1;
+}
+
+.generation-result__details p {
+  margin-top: var(--space-2);
 }
 
 .payments-page__summary {
@@ -802,7 +853,7 @@ onMounted(loadPayments)
 .payments-page__student {
   display: grid;
   gap: var(--space-1);
-  min-width: 180px;
+  min-width: 190px;
 }
 
 .payments-page__actions {
@@ -813,35 +864,89 @@ onMounted(loadPayments)
 }
 
 .payments-page__pagination {
-  display: flex;
-  align-items: center;
   justify-content: space-between;
+}
+
+.payments-page__mobile-list {
+  display: none;
+}
+
+.payment-card {
+  display: grid;
   gap: var(--space-4);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-elevated);
+}
+
+.payment-card header,
+.payment-card header > div {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.payment-card header > div {
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.payment-card dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.payment-card dl > div {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.payment-card dt {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-caption);
+}
+
+.payment-card dd {
+  margin: 0;
+  font-weight: var(--font-weight-semibold);
 }
 
 @media (max-width: 1000px) {
-  .payments-page__summary {
+  .payments-page__summary,
+  .generation-result {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
-@media (max-width: 640px) {
-  .payments-page__summary {
-    grid-template-columns: 1fr;
+@media (max-width: 720px) {
+  .payments-page__generation,
+  .payments-page__pagination {
+    align-items: stretch;
+    flex-direction: column;
   }
 
-  .payments-page__pagination {
-    align-items: flex-start;
-    flex-direction: column;
+  .payments-page__generation .btn {
+    width: 100%;
+  }
+
+  .payments-page__table {
+    display: none;
+  }
+
+  .payments-page__mobile-list {
+    display: grid;
+    gap: var(--space-3);
+  }
+}
+
+@media (max-width: 560px) {
+  .payments-page__summary,
+  .generation-result {
+    grid-template-columns: 1fr;
   }
 }
 </style>
-
-<!--
-src/pages/admin: Library owner payment management page.
-
-TODO:
-- Add receipt preview and generation workflow.
-- Add WhatsApp pending fee reminder workflow.
-- Replace mock-backed payment operations with FastAPI integration in Milestone 3.
--->

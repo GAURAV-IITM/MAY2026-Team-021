@@ -19,9 +19,24 @@
     </header>
 
     <div v-if="errorMessage" class="alert alert--danger reports-page__error" role="alert">
-      <div><strong>Unable to load reports.</strong><p class="m-0">{{ errorMessage }}</p></div>
+      <div>
+        <strong>Unable to load reports.</strong>
+        <p class="m-0">{{ errorMessage }}</p>
+        <small v-if="requestId">Request ID: {{ requestId }}</small>
+      </div>
       <button class="btn btn--secondary btn--sm" type="button" @click="refreshReports"><RefreshCw :size="16" aria-hidden="true" /> Retry</button>
     </div>
+
+    <section class="reports-page__print-meta" aria-label="Printed report details">
+      <h2>{{ activeReportLabel }}</h2>
+      <p>{{ libraryName }}</p>
+      <dl>
+        <div><dt>Period</dt><dd>{{ printPeriod }}</dd></div>
+        <div><dt>Floor</dt><dd>{{ appliedFloorLabel }}</dd></div>
+        <div><dt>Shift</dt><dd>{{ appliedShiftLabel }}</dd></div>
+        <div><dt>Generated</dt><dd>{{ printGeneratedAt }}</dd></div>
+      </dl>
+    </section>
 
     <ReportFilters
       v-if="options.months.length"
@@ -110,11 +125,22 @@ import ReportsOverview from '../../components/reports/ReportsOverview.vue'
 import RevenueReport from '../../components/reports/RevenueReport.vue'
 import SeatOccupancyReport from '../../components/reports/SeatOccupancyReport.vue'
 import StudentStatisticsReport from '../../components/reports/StudentStatisticsReport.vue'
-import { REPORT_TABS } from '../../mocks/analyticsMock.js'
+import { REPORT_TABS } from '../../constants/reports.js'
 import { useAnalyticsStore } from '../../stores/analyticsStore.js'
+import { useAuthStore } from '../../stores/authStore.js'
 
 const store = useAnalyticsStore()
-const { reports, options, filters, isLoading, isExporting, errorMessage } = storeToRefs(store)
+const authStore = useAuthStore()
+const {
+  reports,
+  options,
+  filters,
+  isLoading,
+  isExporting,
+  errorMessage,
+  requestId,
+} = storeToRefs(store)
+const { currentUser } = storeToRefs(authStore)
 const route = useRoute()
 const router = useRouter()
 const reportTabs = REPORT_TABS
@@ -127,6 +153,34 @@ let toastTimer
 const currencyFormatter = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })
 const numberFormatter = new Intl.NumberFormat('en-IN')
 const tabIcons = { overview: LayoutDashboard, revenue: TrendingUp, occupancy: Armchair, students: Users, pending: ClockAlert }
+const activeReportLabel = computed(
+  () => reportTabs.find((tab) => tab.id === activeTab.value)?.label || 'Reports',
+)
+const libraryName = computed(
+  () => currentUser.value?.libraryName || 'Smart Library',
+)
+const appliedFloorLabel = computed(() => {
+  const selected = options.value.floors.find(
+    (floor) => floor.value === reports.value?.filters?.floorId,
+  )
+  return selected?.label || 'All floors'
+})
+const appliedShiftLabel = computed(() => {
+  const selected = options.value.shifts.find(
+    (shift) => shift.value === reports.value?.filters?.shiftId,
+  )
+  return selected?.label || 'All shifts'
+})
+const printPeriod = computed(() => {
+  const start = reports.value?.filters?.startMonth
+  const end = reports.value?.filters?.endMonth
+  return start && end ? `${start} to ${end}` : 'Current reporting period'
+})
+const printGeneratedAt = computed(() =>
+  reports.value?.generatedAt
+    ? new Date(reports.value.generatedAt).toLocaleString('en-IN')
+    : new Date().toLocaleString('en-IN'),
+)
 
 const metricItems = computed(() => {
   if (!reports.value) return []
@@ -198,7 +252,7 @@ async function loadReports(nextFilters) {
 
 async function refreshReports() {
   await loadReports(filters.value)
-  if (!errorMessage.value) showToast('Reports refreshed with the latest mock data.')
+  if (!errorMessage.value) showToast('Reports refreshed with the latest data.')
 }
 
 async function applyFilters(nextFilters) {
@@ -253,6 +307,7 @@ onBeforeUnmount(() => globalThis.clearTimeout(toastTimer))
 .reports-page__header p:not(.text-label) { margin: var(--space-2) 0 0; color: var(--color-text-muted); }
 .reports-page__header-actions { display: flex; align-items: center; justify-content: flex-end; gap: var(--space-2); flex-wrap: wrap; }
 .reports-page__updated { margin-right: var(--space-2); color: var(--color-text-muted); font-size: var(--font-size-caption); white-space: nowrap; }
+.reports-page__print-meta { display: none; }
 .reports-page__error { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); }
 .reports-page__loading { display: grid; min-height: 430px; place-items: center; align-content: center; gap: var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface-elevated); }
 .reports-page__loading p { margin: 0; color: var(--color-text-muted); }
@@ -285,6 +340,12 @@ onBeforeUnmount(() => globalThis.clearTimeout(toastTimer))
   .reports-page__header-actions, .reports-page__tabs, :deep(.report-filters) { display: none !important; }
   :global(.app-layout__main) { margin: 0 !important; padding: 0 !important; }
   .reports-page { gap: 16px; }
+  .reports-page__print-meta { display: block; padding-bottom: 16px; border-bottom: 1px solid #d1d5db; }
+  .reports-page__print-meta h2, .reports-page__print-meta p { margin: 0 0 6px; }
+  .reports-page__print-meta dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 18px; margin: 12px 0 0; }
+  .reports-page__print-meta dl div { display: flex; gap: 6px; }
+  .reports-page__print-meta dt { font-weight: 700; }
+  .reports-page__print-meta dd { margin: 0; }
   .reports-page__content { break-inside: avoid; }
 }
 </style>
