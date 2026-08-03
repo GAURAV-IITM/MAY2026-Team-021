@@ -156,10 +156,11 @@
   <section class="cover">
     <div class="kicker">Software Engineering Team Project</div>
     <h1>Milestone 3</h1>
-    <h2>API Sprint 1 Consolidated Report</h2>
+    <h2>Milestone 3 - API Sprint 1 Consolidated Report</h2>
     <div class="project">
       <strong>Project:</strong> Community Services Platform<br>
-      <strong>System:</strong> Smart Library Management System<br>
+      <strong>System:</strong> Library Management System for Study Libraries<br>
+      <strong>Product:</strong> Smart Library App<br>
       <strong>Team:</strong> MAY2026-Team-021<br>
       <strong>Submission date:</strong> 2 August 2026
     </div>
@@ -178,7 +179,8 @@
   <section>
     <h2>1. Sprint Summary</h2>
     <p class="lead">
-      Sprint 1 replaced the frontend-only mock foundation with working FastAPI,
+      Milestone 3 API Sprint 1 (Project Sprint 7) replaced the frontend-only mock
+      foundation with working FastAPI,
       SQLAlchemy, JWT, tenant isolation, and PostgreSQL-compatible domain APIs.
       The result is an integrated owner workflow for registering a library,
       managing students and physical resources, allocating seats, recording fees,
@@ -190,6 +192,25 @@
       <div><strong>87</strong><span>backend application Python files</span></div>
       <div><strong>26</strong><span>backend test modules</span></div>
     </div>
+    <h3>Continuity from Milestones 1 and 2</h3>
+    <p>
+      Milestone 1 identified Library Owners/Managers as primary users and documented
+      their need for secure access, digital student records, shift-aware seats,
+      conflict-free allocations, fees, receipts, reminders, and reports. Milestone 2
+      translated those needs into Vue, Pinia, service, FastAPI, repository, and database
+      components. This sprint implemented and tested the backend contracts behind that
+      design.
+    </p>
+    <table>
+      <thead><tr><th>Milestone 1 need</th><th>Milestone 2 design</th><th>Milestone 3 evidence</th></tr></thead>
+      <tbody>
+        <tr><td>Library registration and secure login</td><td>Authentication and library-registration components</td><td>13 authentication operations, JWT session tests, and library bootstrap test</td></tr>
+        <tr><td>Students, shifts, seat visibility, and conflict prevention</td><td>Core library, seat availability, and allocation components</td><td>32 student/floor/seat/shift/allocation operations with overlap and tenant tests</td></tr>
+        <tr><td>Monthly fees, receipts, reminders, and pending dues</td><td>Fee record, transaction, receipt, and reminder components</td><td>9 payment/receipt operations with partial-payment and balance tests</td></tr>
+        <tr><td>Announcements and seat-change requests</td><td>Owner lifecycle and student self-service components</td><td>13 announcement/request operations with role and lifecycle tests</td></tr>
+        <tr><td>Dashboard and operational reports</td><td>Dashboard, reports, and analytics components</td><td>Database-backed report and dashboard APIs with reconciliation tests</td></tr>
+      </tbody>
+    </table>
     <h3>Sprint goals</h3>
     <ol>
       <li>Establish a secure authentication, role, tenant, error, and API-contract foundation.</li>
@@ -208,7 +229,7 @@
     </ul>
   </section>
 
-  <section class="page">
+  <section>
     <h2>2. Architecture and Functional Delivery</h2>
     <pre>Vue page/component
     -> Pinia store
@@ -449,7 +470,7 @@
       expiry scenario revealed that revoked or expired sessions could remain usable.
       The regression test now prevents recurrence.
     </div>
-    <h3>Other defects found and resolved during Sprint 1</h3>
+    <h3>Other defects found and resolved during Milestone 3 API Sprint 1</h3>
     <table>
       <thead><tr><th>Defect</th><th>Resolution</th><th>Evidence</th></tr></thead>
       <tbody>
@@ -514,11 +535,12 @@
   </section>
 
   <section class="page">
-    <h2>9. Plan for Sprint 2</h2>
+    <h2>9. Plan for Milestone 3 API Sprint 2 (Project Sprint 8)</h2>
     <p>
       Several Milestone 4 vertical slices were completed early, including student
       self-service, seat-request review, receipts/reminders, and owner reports.
-      Sprint 2 will focus on the remaining platform scope and release hardening.
+      The next API sprint will focus on the remaining platform scope and release
+      hardening while continuing the project schedule documented in Milestone 2.
     </p>
     <table>
       <thead><tr><th>Priority</th><th>Planned work</th><th>Exit evidence</th></tr></thead>
@@ -531,7 +553,7 @@
         <tr><td>6</td><td>Prepare Milestone 4 submission and final demonstration.</td><td>Updated PDF, Swagger YAML, executable code ZIP, test evidence, tagged release.</td></tr>
       </tbody>
     </table>
-    <h3>Known Sprint 2 risks</h3>
+    <h3>Known next-sprint risks</h3>
     <ul>
       <li>A dedicated disposable test database is required for destructive locking and performance evidence.</li>
       <li>Super Admin frontend currently has mock-backed areas and must not silently fall back after API integration.</li>
