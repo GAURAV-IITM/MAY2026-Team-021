@@ -21,7 +21,9 @@
       </div>
 
       <div class="form-field" :class="{ 'form-field--error': validationErrors.email }">
-        <label class="form-label" for="email">Email address</label>
+        <label class="form-label" for="email">
+          Email address <span class="required-mark" aria-hidden="true">*</span>
+        </label>
         <div class="login-page__input-wrap">
           <Mail :size="18" aria-hidden="true" />
           <input
@@ -31,6 +33,8 @@
             type="email"
             autocomplete="email"
             placeholder="you@example.com"
+            required
+            aria-required="true"
             :aria-invalid="Boolean(validationErrors.email)"
             :aria-describedby="validationErrors.email ? 'email-error' : undefined"
             @blur="validateEmailField"
@@ -44,7 +48,9 @@
 
       <div class="form-field" :class="{ 'form-field--error': validationErrors.password }">
         <div class="login-page__label-row">
-          <label class="form-label" for="password">Password</label>
+          <label class="form-label" for="password">
+            Password <span class="required-mark" aria-hidden="true">*</span>
+          </label>
           <RouterLink class="login-page__link" :to="{ name: 'forgotPassword' }"
             >Forgot password?</RouterLink
           >
@@ -58,6 +64,8 @@
             :type="showPassword ? 'text' : 'password'"
             autocomplete="current-password"
             placeholder="Enter your password"
+            required
+            aria-required="true"
             :aria-invalid="Boolean(validationErrors.password)"
             :aria-describedby="validationErrors.password ? 'password-error' : undefined"
             @blur="validatePasswordField"

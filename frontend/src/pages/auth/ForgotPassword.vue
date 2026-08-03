@@ -21,7 +21,9 @@
 
     <form class="forgot-page__form" novalidate @submit.prevent="handleSubmit">
       <div class="form-field" :class="{ 'form-field--error': emailError }">
-        <label class="form-label" for="forgot-email">Email field</label>
+        <label class="form-label" for="forgot-email">
+          Email address <span class="required-mark" aria-hidden="true">*</span>
+        </label>
         <input
           id="forgot-email"
           v-model.trim="email"
@@ -30,6 +32,7 @@
           autocomplete="email"
           placeholder="you@example.com"
           required
+          aria-required="true"
         />
         <p class="form-help">
           {{ emailError || 'Use the email connected to your Smart Library account.' }}

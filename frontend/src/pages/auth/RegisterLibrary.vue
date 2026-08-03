@@ -27,7 +27,9 @@
             class="form-field register-section__full"
             :class="{ 'form-field--error': visibleError('libraryName') }"
           >
-            <label class="form-label" for="library-name">Library name</label>
+            <label class="form-label" for="library-name">
+              Library name <span class="required-mark" aria-hidden="true">*</span>
+            </label>
             <div class="register-page__input-wrap">
               <Building2 :size="18" /><input
                 id="library-name"
@@ -36,6 +38,8 @@
                 type="text"
                 autocomplete="organization"
                 placeholder="Central Study Library"
+                required
+                aria-required="true"
               />
             </div>
             <p v-if="visibleError('libraryName')" class="form-error">
@@ -44,7 +48,9 @@
           </div>
 
           <div class="form-field" :class="{ 'form-field--error': visibleError('phone') }">
-            <label class="form-label" for="phone">Library phone</label>
+            <label class="form-label" for="phone">
+              Library phone <span class="required-mark" aria-hidden="true">*</span>
+            </label>
             <div class="register-page__input-wrap">
               <Phone :size="18" /><input
                 id="phone"
@@ -53,13 +59,17 @@
                 type="tel"
                 autocomplete="tel"
                 placeholder="98765 43210"
+                required
+                aria-required="true"
               />
             </div>
             <p v-if="visibleError('phone')" class="form-error">{{ validation.phone }}</p>
           </div>
 
           <div class="form-field" :class="{ 'form-field--error': visibleError('seatCount') }">
-            <label class="form-label" for="seat-count">Current physical seats</label>
+            <label class="form-label" for="seat-count">
+              Current physical seats <span class="required-mark" aria-hidden="true">*</span>
+            </label>
             <div class="register-page__input-wrap">
               <Armchair :size="18" /><input
                 id="seat-count"
@@ -71,6 +81,8 @@
                 max="1000"
                 step="1"
                 placeholder="Example: 120"
+                required
+                aria-required="true"
               />
             </div>
             <p v-if="visibleError('seatCount')" class="form-error">{{ validation.seatCount }}</p>
@@ -83,7 +95,9 @@
             class="form-field register-section__full"
             :class="{ 'form-field--error': visibleError('address') }"
           >
-            <label class="form-label" for="address">Library address</label>
+            <label class="form-label" for="address">
+              Library address <span class="required-mark" aria-hidden="true">*</span>
+            </label>
             <div class="register-page__input-wrap register-page__input-wrap--textarea">
               <MapPin :size="18" /><textarea
                 id="address"
@@ -92,6 +106,8 @@
                 rows="3"
                 autocomplete="street-address"
                 placeholder="Full operating address"
+                required
+                aria-required="true"
               ></textarea>
             </div>
             <p v-if="visibleError('address')" class="form-error">{{ validation.address }}</p>
@@ -111,7 +127,9 @@
         </header>
         <div class="register-section__fields">
           <div class="form-field" :class="{ 'form-field--error': visibleError('ownerName') }">
-            <label class="form-label" for="owner-name">Owner name</label>
+            <label class="form-label" for="owner-name">
+              Owner name <span class="required-mark" aria-hidden="true">*</span>
+            </label>
             <div class="register-page__input-wrap">
               <UserRound :size="18" /><input
                 id="owner-name"
@@ -120,13 +138,17 @@
                 type="text"
                 autocomplete="name"
                 placeholder="Full name"
+                required
+                aria-required="true"
               />
             </div>
             <p v-if="visibleError('ownerName')" class="form-error">{{ validation.ownerName }}</p>
           </div>
 
           <div class="form-field" :class="{ 'form-field--error': visibleError('email') }">
-            <label class="form-label" for="register-email">Owner email</label>
+            <label class="form-label" for="register-email">
+              Owner email <span class="required-mark" aria-hidden="true">*</span>
+            </label>
             <div class="register-page__input-wrap">
               <Mail :size="18" /><input
                 id="register-email"
@@ -135,13 +157,17 @@
                 type="email"
                 autocomplete="email"
                 placeholder="owner@example.com"
+                required
+                aria-required="true"
               />
             </div>
             <p v-if="visibleError('email')" class="form-error">{{ validation.email }}</p>
           </div>
 
           <div class="form-field" :class="{ 'form-field--error': visibleError('password') }">
-            <label class="form-label" for="register-password">Password</label>
+            <label class="form-label" for="register-password">
+              Password <span class="required-mark" aria-hidden="true">*</span>
+            </label>
             <div class="register-page__input-wrap register-page__input-wrap--password">
               <LockKeyhole :size="18" /><input
                 id="register-password"
@@ -150,6 +176,8 @@
                 :type="showPassword ? 'text' : 'password'"
                 autocomplete="new-password"
                 placeholder="Minimum 8 characters"
+                required
+                aria-required="true"
               />
               <button
                 class="register-page__password-toggle"
@@ -165,7 +193,9 @@
           </div>
 
           <div class="form-field" :class="{ 'form-field--error': visibleError('confirmPassword') }">
-            <label class="form-label" for="confirm-password">Confirm password</label>
+            <label class="form-label" for="confirm-password">
+              Confirm password <span class="required-mark" aria-hidden="true">*</span>
+            </label>
             <div class="register-page__input-wrap register-page__input-wrap--password">
               <LockKeyhole :size="18" /><input
                 id="confirm-password"
@@ -174,6 +204,8 @@
                 :type="showConfirmPassword ? 'text' : 'password'"
                 autocomplete="new-password"
                 placeholder="Repeat your password"
+                required
+                aria-required="true"
               />
               <button
                 class="register-page__password-toggle"
@@ -194,8 +226,8 @@
 
       <div class="form-field" :class="{ 'form-field--error': visibleError('acceptTerms') }">
         <label class="checkbox register-page__terms"
-          ><input v-model="form.acceptTerms" type="checkbox" /><span
-            >I agree to the platform terms and privacy policy.</span
+          ><input v-model="form.acceptTerms" type="checkbox" required aria-required="true" /><span
+            >I agree to the platform terms and privacy policy. <span class="required-mark" aria-hidden="true">*</span></span
           ></label
         >
         <p v-if="visibleError('acceptTerms')" class="form-error">{{ validation.acceptTerms }}</p>
