@@ -25,6 +25,81 @@ class PlatformOwnerStatusAction(StrEnum):
     SUSPENDED = "suspended"
 
 
+class PlatformDashboardMetrics(APIModel):
+    total_libraries: int = Field(ge=0)
+    active_libraries: int = Field(ge=0)
+    pending_libraries: int = Field(ge=0)
+    suspended_libraries: int = Field(ge=0)
+    total_owners: int = Field(ge=0)
+    active_owners: int = Field(ge=0)
+    suspended_owners: int = Field(ge=0)
+    invited_owners: int = Field(ge=0)
+    total_students: int = Field(ge=0)
+    total_seats: int = Field(ge=0)
+    average_occupancy: int = Field(ge=0, le=100)
+
+
+class PlatformDashboardRange(APIModel):
+    start_month: str = Field(pattern=r"^\d{4}-(0[1-9]|1[0-2])$")
+    end_month: str = Field(pattern=r"^\d{4}-(0[1-9]|1[0-2])$")
+    timezone: str = "UTC"
+
+
+class PlatformDashboardStatusCount(APIModel):
+    status: LibraryStatus
+    count: int = Field(ge=0)
+
+
+class PlatformDashboardTrendPoint(APIModel):
+    month: str = Field(pattern=r"^\d{4}-(0[1-9]|1[0-2])$")
+    libraries: int = Field(ge=0)
+    owners: int = Field(ge=0)
+    students: int = Field(ge=0)
+
+
+class PlatformDashboardTopLibrary(APIModel):
+    id: uuid.UUID
+    code: str
+    name: str
+    city: str | None = None
+    state: str | None = None
+    student_count: int = Field(ge=0)
+    seat_count: int = Field(ge=0)
+    occupied_seat_count: int = Field(ge=0)
+    occupancy_rate: int = Field(ge=0, le=100)
+
+
+class PlatformDashboardActivityActor(APIModel):
+    id: uuid.UUID
+    name: str
+
+
+class PlatformDashboardActivity(APIModel):
+    id: uuid.UUID
+    action: str
+    entity_type: str
+    entity_id: str | None = None
+    description: str
+    category: str
+    actor: PlatformDashboardActivityActor | None = None
+    created_at: datetime
+
+
+class PlatformDashboardResponse(APIModel):
+    totals: PlatformDashboardMetrics
+    library_status: list[PlatformDashboardStatusCount]
+    trend: list[PlatformDashboardTrendPoint]
+    top_libraries: list[PlatformDashboardTopLibrary]
+    recent_activity: list[PlatformDashboardActivity]
+    range: PlatformDashboardRange
+    last_updated: datetime
+
+
+class PlatformDashboardSuccessResponse(APIModel):
+    message: str
+    data: PlatformDashboardResponse
+
+
 class PlatformOwnerSummary(APIModel):
     id: uuid.UUID
     name: str

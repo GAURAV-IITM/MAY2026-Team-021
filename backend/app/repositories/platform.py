@@ -3,17 +3,19 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 from sqlalchemy import case, func, or_, select, update
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.models.enums import (
+    AllocationStatus,
     InvitationStatus,
     LibraryStatus,
     MembershipStatus,
     RoleName,
 )
+from app.models.audit import AuditLog
 from app.models.identity import (
     AccountInvitation,
     Role,
@@ -22,7 +24,7 @@ from app.models.identity import (
     UserSession,
 )
 from app.models.library import Library, LibraryMembership
-from app.models.seat import Seat
+from app.models.seat import Seat, SeatAllocation
 from app.models.student import Student
 from app.schemas.common import PaginationParams
 from app.schemas.platform import PlatformLibrarySummary
@@ -53,6 +55,35 @@ class OwnerRecord:
     user: User | None
     invitation: AccountInvitation | None
     memberships: tuple[LibraryMembership, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class DashboardMetricRecord:
+    total_libraries: int
+    active_libraries: int
+    pending_libraries: int
+    suspended_libraries: int
+    total_owners: int
+    active_owners: int
+    suspended_owners: int
+    invited_owners: int
+    total_students: int
+    total_seats: int
+    occupied_seats: int
+
+
+@dataclass(frozen=True, slots=True)
+class DashboardTopLibraryRecord:
+    library: Library
+    student_count: int
+    seat_count: int
+    occupied_seat_count: int
+
+
+@dataclass(frozen=True, slots=True)
+class DashboardActivityRecord:
+    audit_log: AuditLog
+    actor_name: str | None
 
 
 def _list_conditions(
@@ -549,3 +580,245 @@ def revoke_user_sessions(
         .values(revoked_at=revoked_at or datetime.now(timezone.utc))
     )
     return result.rowcount or 0
+
+
+def get_dashboard_metrics(
+    db: Session,
+    *,
+    today: date,
+    now: datetime,
+) -> DashboardMetricRecord:
+    library_values = db.execute(
+        select(
+            func.count(func.distinct(Library.id)),
+            func.count(
+                func.distinct(
+                    case((Library.status == LibraryStatus.ACTIVE, Library.id))
+                )
+            ),
+            func.count(
+                func.distinct(
+                    case((Library.status == LibraryStatus.PENDING, Library.id))
+                )
+            ),
+            func.count(
+                func.distinct(
+                    case((Library.status == LibraryStatus.SUSPENDED, Library.id))
+                )
+            ),
+        ).where(Library.deleted_at.is_(None))
+    ).one()
+
+    owner_values = db.execute(
+        select(
+            func.count(func.distinct(User.id)),
+            func.count(
+                func.distinct(case((User.is_active.is_(True), User.id)))
+            ),
+            func.count(
+                func.distinct(case((User.is_active.is_(False), User.id)))
+            ),
+        )
+        .join(UserRole, UserRole.user_id == User.id)
+        .join(Role, Role.id == UserRole.role_id)
+        .where(
+            Role.name == RoleName.LIBRARY_OWNER,
+            User.deleted_at.is_(None),
+        )
+    ).one()
+
+    invited_owners = db.scalar(
+        select(func.count(func.distinct(AccountInvitation.id))).where(
+            AccountInvitation.role == RoleName.LIBRARY_OWNER,
+            AccountInvitation.status == InvitationStatus.PENDING,
+            AccountInvitation.expires_at >= now,
+        )
+    ) or 0
+
+    total_students = db.scalar(
+        select(func.count(func.distinct(Student.id)))
+        .join(Library, Library.id == Student.library_id)
+        .where(
+            Student.deleted_at.is_(None),
+            Library.deleted_at.is_(None),
+        )
+    ) or 0
+
+    total_seats = db.scalar(
+        select(func.count(func.distinct(Seat.id)))
+        .join(Library, Library.id == Seat.library_id)
+        .where(
+            Seat.deleted_at.is_(None),
+            Library.deleted_at.is_(None),
+        )
+    ) or 0
+
+    occupied_seats = db.scalar(
+        select(func.count(func.distinct(SeatAllocation.seat_id)))
+        .join(Seat, Seat.id == SeatAllocation.seat_id)
+        .join(Library, Library.id == Seat.library_id)
+        .where(
+            Library.deleted_at.is_(None),
+            Library.status == LibraryStatus.ACTIVE,
+            Seat.deleted_at.is_(None),
+            SeatAllocation.status == AllocationStatus.ACTIVE,
+            SeatAllocation.start_date <= today,
+            SeatAllocation.end_date >= today,
+        )
+    ) or 0
+
+    return DashboardMetricRecord(
+        total_libraries=library_values[0] or 0,
+        active_libraries=library_values[1] or 0,
+        pending_libraries=library_values[2] or 0,
+        suspended_libraries=library_values[3] or 0,
+        total_owners=owner_values[0] or 0,
+        active_owners=owner_values[1] or 0,
+        suspended_owners=owner_values[2] or 0,
+        invited_owners=invited_owners,
+        total_students=total_students,
+        total_seats=total_seats,
+        occupied_seats=occupied_seats,
+    )
+
+
+def get_active_library_seat_count(db: Session) -> int:
+    return db.scalar(
+        select(func.count(func.distinct(Seat.id)))
+        .join(Library, Library.id == Seat.library_id)
+        .where(
+            Library.deleted_at.is_(None),
+            Library.status == LibraryStatus.ACTIVE,
+            Seat.deleted_at.is_(None),
+        )
+    ) or 0
+
+
+def _month_expression(db: Session, column, *, date_only: bool = False):
+    dialect = db.get_bind().dialect.name
+    if dialect == "postgresql":
+        value = column if date_only else func.timezone("UTC", column)
+        return func.to_char(func.date_trunc("month", value), "YYYY-MM")
+    return func.strftime("%Y-%m", column)
+
+
+def get_dashboard_monthly_counts(
+    db: Session,
+    *,
+    end_exclusive: datetime,
+    end_date_exclusive: date,
+) -> tuple[dict[str, int], dict[str, int], dict[str, int]]:
+    library_month = _month_expression(db, Library.created_at)
+    library_rows = db.execute(
+        select(library_month, func.count(func.distinct(Library.id)))
+        .where(
+            Library.deleted_at.is_(None),
+            Library.created_at < end_exclusive,
+        )
+        .group_by(library_month)
+    ).all()
+
+    student_month = _month_expression(db, Student.joined_on, date_only=True)
+    student_rows = db.execute(
+        select(student_month, func.count(func.distinct(Student.id)))
+        .join(Library, Library.id == Student.library_id)
+        .where(
+            Student.deleted_at.is_(None),
+            Library.deleted_at.is_(None),
+            Student.joined_on < end_date_exclusive,
+        )
+        .group_by(student_month)
+    ).all()
+
+    owner_month = _month_expression(db, UserRole.assigned_at)
+    owner_rows = db.execute(
+        select(owner_month, func.count(func.distinct(User.id)))
+        .join(UserRole, UserRole.user_id == User.id)
+        .join(Role, Role.id == UserRole.role_id)
+        .where(
+            Role.name == RoleName.LIBRARY_OWNER,
+            User.deleted_at.is_(None),
+            UserRole.assigned_at < end_exclusive,
+        )
+        .group_by(owner_month)
+    ).all()
+
+    def to_counts(rows) -> dict[str, int]:
+        return {str(month): count or 0 for month, count in rows if month is not None}
+
+    return to_counts(library_rows), to_counts(student_rows), to_counts(owner_rows)
+
+
+def list_dashboard_top_libraries(
+    db: Session,
+    *,
+    today: date,
+    limit: int = 5,
+) -> list[DashboardTopLibraryRecord]:
+    student_count = (
+        select(func.count(func.distinct(Student.id)))
+        .where(
+            Student.library_id == Library.id,
+            Student.deleted_at.is_(None),
+        )
+        .correlate(Library)
+        .scalar_subquery()
+    )
+    seat_count = (
+        select(func.count(func.distinct(Seat.id)))
+        .where(
+            Seat.library_id == Library.id,
+            Seat.deleted_at.is_(None),
+        )
+        .correlate(Library)
+        .scalar_subquery()
+    )
+    occupied_seat_count = (
+        select(func.count(func.distinct(SeatAllocation.seat_id)))
+        .join(Seat, Seat.id == SeatAllocation.seat_id)
+        .where(
+            Seat.library_id == Library.id,
+            Seat.deleted_at.is_(None),
+            SeatAllocation.status == AllocationStatus.ACTIVE,
+            SeatAllocation.start_date <= today,
+            SeatAllocation.end_date >= today,
+        )
+        .correlate(Library)
+        .scalar_subquery()
+    )
+    rows = db.execute(
+        select(Library, student_count, seat_count, occupied_seat_count)
+        .where(
+            Library.deleted_at.is_(None),
+            Library.status == LibraryStatus.ACTIVE,
+        )
+        .order_by(student_count.desc(), Library.name.asc(), Library.id.asc())
+        .limit(limit)
+    ).all()
+    return [
+        DashboardTopLibraryRecord(
+            library=row[0],
+            student_count=row[1] or 0,
+            seat_count=row[2] or 0,
+            occupied_seat_count=row[3] or 0,
+        )
+        for row in rows
+    ]
+
+
+def list_recent_platform_activity(
+    db: Session,
+    *,
+    limit: int = 6,
+) -> list[DashboardActivityRecord]:
+    rows = db.execute(
+        select(AuditLog, User.full_name)
+        .outerjoin(User, User.id == AuditLog.actor_user_id)
+        .where(AuditLog.action.like("platform.%"))
+        .order_by(AuditLog.created_at.desc(), AuditLog.id.desc())
+        .limit(limit)
+    ).all()
+    return [
+        DashboardActivityRecord(audit_log=row[0], actor_name=row[1])
+        for row in rows
+    ]

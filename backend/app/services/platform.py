@@ -4,7 +4,7 @@ from __future__ import annotations
 import re
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from sqlalchemy.exc import IntegrityError
@@ -23,6 +23,14 @@ from app.models.library import Library, LibraryMembership, LibrarySettings
 from app.repositories import platform as repository
 from app.schemas.common import PaginationParams
 from app.schemas.platform import (
+    PlatformDashboardActivity,
+    PlatformDashboardActivityActor,
+    PlatformDashboardMetrics,
+    PlatformDashboardRange,
+    PlatformDashboardResponse,
+    PlatformDashboardStatusCount,
+    PlatformDashboardTopLibrary,
+    PlatformDashboardTrendPoint,
     PlatformLibraryCreate,
     PlatformLibraryOwnerAssign,
     PlatformLibraryResponse,
@@ -63,6 +71,24 @@ EDITABLE_FIELDS = {
     "postal_code",
     "timezone",
 }
+MONTH_PATTERN = re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
+MAX_DASHBOARD_MONTHS = 24
+DEFAULT_DASHBOARD_MONTHS = 7
+
+ACTIVITY_LABELS = {
+    "platform.library.created": "Library created",
+    "platform.library.edited": "Library profile updated",
+    "platform.library.suspended": "Library suspended",
+    "platform.library.activated": "Library activated",
+    "platform.library.owner_assigned": "Library owner assigned",
+    "platform.owner.invited": "Library owner invited",
+    "platform.owner.invitation_reissued": "Owner invitation reissued",
+    "platform.owner.assigned": "Library owner assigned",
+    "platform.owner.reassigned": "Library owner reassigned",
+    "platform.owner.edited": "Owner profile updated",
+    "platform.owner.suspended": "Library owner suspended",
+    "platform.owner.activated": "Library owner activated",
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -81,6 +107,231 @@ class PlatformOwnerListResult:
 
 def _now() -> datetime:
     return datetime.now(timezone.utc)
+
+
+def _add_months(value: date, amount: int) -> date:
+    month_index = value.year * 12 + value.month - 1 + amount
+    return date(month_index // 12, month_index % 12 + 1, 1)
+
+
+def _parse_dashboard_range(
+    start_month: str | None,
+    end_month: str | None,
+    *,
+    now: datetime,
+) -> tuple[date, date]:
+    if (start_month is None) != (end_month is None):
+        raise BusinessRuleError(
+            "Provide both startMonth and endMonth, or omit both.",
+            code="PLATFORM_DASHBOARD_MONTH_RANGE_REQUIRED",
+        )
+
+    current_month = date(now.year, now.month, 1)
+    if start_month is None:
+        return _add_months(current_month, -(DEFAULT_DASHBOARD_MONTHS - 1)), current_month
+
+    if not MONTH_PATTERN.fullmatch(start_month) or not MONTH_PATTERN.fullmatch(end_month or ""):
+        raise BusinessRuleError(
+            "Dashboard months must use YYYY-MM format.",
+            code="PLATFORM_DASHBOARD_MONTH_INVALID",
+        )
+
+    start = date.fromisoformat(f"{start_month}-01")
+    end = date.fromisoformat(f"{end_month}-01")
+    if start > end:
+        raise BusinessRuleError(
+            "startMonth cannot be later than endMonth.",
+            code="PLATFORM_DASHBOARD_MONTH_RANGE_INVALID",
+        )
+    if end > current_month:
+        raise BusinessRuleError(
+            "Dashboard trends cannot include future months.",
+            code="PLATFORM_DASHBOARD_FUTURE_RANGE",
+        )
+    month_count = (end.year - start.year) * 12 + end.month - start.month + 1
+    if month_count > MAX_DASHBOARD_MONTHS:
+        raise BusinessRuleError(
+            f"Dashboard trends are limited to {MAX_DASHBOARD_MONTHS} months.",
+            code="PLATFORM_DASHBOARD_RANGE_TOO_LARGE",
+        )
+    return start, end
+
+
+def _month_key(value: date) -> str:
+    return value.strftime("%Y-%m")
+
+
+def _compose_trend(
+    start: date,
+    end: date,
+    library_counts: dict[str, int],
+    student_counts: dict[str, int],
+    owner_counts: dict[str, int],
+) -> list[PlatformDashboardTrendPoint]:
+    library_total = sum(
+        count for month, count in library_counts.items() if month < _month_key(start)
+    )
+    student_total = sum(
+        count for month, count in student_counts.items() if month < _month_key(start)
+    )
+    owner_total = sum(
+        count for month, count in owner_counts.items() if month < _month_key(start)
+    )
+
+    points: list[PlatformDashboardTrendPoint] = []
+    month = start
+    while month <= end:
+        key = _month_key(month)
+        library_total += library_counts.get(key, 0)
+        student_total += student_counts.get(key, 0)
+        owner_total += owner_counts.get(key, 0)
+        points.append(
+            PlatformDashboardTrendPoint(
+                month=key,
+                libraries=library_total,
+                owners=owner_total,
+                students=student_total,
+            )
+        )
+        month = _add_months(month, 1)
+    return points
+
+
+def _activity_category(action: str, entity_type: str) -> str:
+    if action.startswith("platform.library."):
+        return "library"
+    if action.startswith("platform.owner."):
+        return "owner"
+    return entity_type.strip().lower() or "platform"
+
+
+def get_dashboard(
+    db: Session,
+    *,
+    start_month: str | None = None,
+    end_month: str | None = None,
+) -> PlatformDashboardResponse:
+    now = _now()
+    today = now.date()
+    range_start, range_end = _parse_dashboard_range(
+        start_month,
+        end_month,
+        now=now,
+    )
+    end_exclusive_date = _add_months(range_end, 1)
+    end_exclusive = datetime(
+        end_exclusive_date.year,
+        end_exclusive_date.month,
+        1,
+        tzinfo=timezone.utc,
+    )
+
+    metrics = repository.get_dashboard_metrics(db, today=today, now=now)
+    active_seat_count = repository.get_active_library_seat_count(db)
+    monthly_counts = repository.get_dashboard_monthly_counts(
+        db,
+        end_exclusive=end_exclusive,
+        end_date_exclusive=end_exclusive_date,
+    )
+    top_records = repository.list_dashboard_top_libraries(db, today=today)
+    activity_records = repository.list_recent_platform_activity(db)
+
+    occupancy = (
+        round(metrics.occupied_seats * 100 / active_seat_count)
+        if active_seat_count
+        else 0
+    )
+    totals = PlatformDashboardMetrics(
+        total_libraries=metrics.total_libraries,
+        active_libraries=metrics.active_libraries,
+        pending_libraries=metrics.pending_libraries,
+        suspended_libraries=metrics.suspended_libraries,
+        total_owners=metrics.total_owners,
+        active_owners=metrics.active_owners,
+        suspended_owners=metrics.suspended_owners,
+        invited_owners=metrics.invited_owners,
+        total_students=metrics.total_students,
+        total_seats=metrics.total_seats,
+        average_occupancy=occupancy,
+    )
+
+    return PlatformDashboardResponse(
+        totals=totals,
+        library_status=[
+            PlatformDashboardStatusCount(
+                status=LibraryStatus.PENDING,
+                count=metrics.pending_libraries,
+            ),
+            PlatformDashboardStatusCount(
+                status=LibraryStatus.ACTIVE,
+                count=metrics.active_libraries,
+            ),
+            PlatformDashboardStatusCount(
+                status=LibraryStatus.SUSPENDED,
+                count=metrics.suspended_libraries,
+            ),
+        ],
+        trend=_compose_trend(
+            range_start,
+            range_end,
+            monthly_counts[0],
+            monthly_counts[1],
+            monthly_counts[2],
+        ),
+        top_libraries=[
+            PlatformDashboardTopLibrary(
+                id=record.library.id,
+                code=record.library.code,
+                name=record.library.name,
+                city=record.library.city,
+                state=record.library.state,
+                student_count=record.student_count,
+                seat_count=record.seat_count,
+                occupied_seat_count=record.occupied_seat_count,
+                occupancy_rate=(
+                    round(record.occupied_seat_count * 100 / record.seat_count)
+                    if record.seat_count
+                    else 0
+                ),
+            )
+            for record in top_records
+        ],
+        recent_activity=[
+            PlatformDashboardActivity(
+                id=record.audit_log.id,
+                action=record.audit_log.action,
+                entity_type=record.audit_log.entity_type,
+                entity_id=record.audit_log.entity_id,
+                description=ACTIVITY_LABELS.get(
+                    record.audit_log.action,
+                    record.audit_log.action.rsplit(".", 1)[-1]
+                    .replace("_", " ")
+                    .capitalize(),
+                ),
+                category=_activity_category(
+                    record.audit_log.action,
+                    record.audit_log.entity_type,
+                ),
+                actor=(
+                    PlatformDashboardActivityActor(
+                        id=record.audit_log.actor_user_id,
+                        name=record.actor_name,
+                    )
+                    if record.audit_log.actor_user_id is not None
+                    and record.actor_name is not None
+                    else None
+                ),
+                created_at=record.audit_log.created_at,
+            )
+            for record in activity_records
+        ],
+        range=PlatformDashboardRange(
+            start_month=_month_key(range_start),
+            end_month=_month_key(range_end),
+            timezone="UTC",
+        ),
+        last_updated=now,
+    )
 
 
 def _utc(value: datetime | None) -> datetime | None:

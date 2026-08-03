@@ -10,6 +10,7 @@ from app.api.deps import CurrentUser, DatabaseSession, Pagination, require_super
 from app.models.enums import InvitationStatus, LibraryStatus
 from app.schemas.common import PaginationMeta, error_responses
 from app.schemas.platform import (
+    PlatformDashboardSuccessResponse,
     PlatformLibraryCreate,
     PlatformLibraryListResponse,
     PlatformLibraryOwnerAssign,
@@ -47,6 +48,39 @@ def _audit_context(request: Request) -> AuditContext:
 
 LibraryId = Annotated[uuid.UUID, Path(alias="libraryId")]
 OwnerId = Annotated[uuid.UUID, Path(alias="ownerId")]
+
+
+@router.get(
+    "/dashboard",
+    response_model=PlatformDashboardSuccessResponse,
+    operation_id="getPlatformDashboard",
+    summary="Get the Super Admin platform dashboard",
+    description=(
+        "Returns source-derived platform metrics, cumulative monthly trends, "
+        "top active libraries, and a bounded safe view of platform audit events."
+    ),
+    responses=error_responses(422),
+    openapi_extra={"x-user-stories": ["PLATFORM-DASHBOARD-VIEW"]},
+)
+def get_dashboard(
+    db: DatabaseSession,
+    start_month: Annotated[
+        str | None,
+        Query(alias="startMonth", pattern=r"^\d{4}-(0[1-9]|1[0-2])$"),
+    ] = None,
+    end_month: Annotated[
+        str | None,
+        Query(alias="endMonth", pattern=r"^\d{4}-(0[1-9]|1[0-2])$"),
+    ] = None,
+) -> PlatformDashboardSuccessResponse:
+    return PlatformDashboardSuccessResponse(
+        message="Super Admin dashboard fetched successfully.",
+        data=platform_service.get_dashboard(
+            db,
+            start_month=start_month,
+            end_month=end_month,
+        ),
+    )
 
 
 @router.get(

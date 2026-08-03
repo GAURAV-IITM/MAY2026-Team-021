@@ -5601,6 +5601,83 @@ paths:
       - LIBRARY-SETTINGS-UPDATE
       description: Updates validated settings for the authenticated staff member's current library without
         accepting a client-supplied tenant identifier.
+  /api/v1/platform/dashboard:
+    get:
+      tags:
+      - Super admin
+      summary: Get the Super Admin platform dashboard
+      description: Returns source-derived platform metrics, cumulative monthly trends, top active libraries,
+        and a bounded safe view of platform audit events.
+      operationId: getPlatformDashboard
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: startMonth
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            pattern: ^\d{4}-(0[1-9]|1[0-2])$
+          - type: 'null'
+          title: Startmonth
+      - name: endMonth
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            pattern: ^\d{4}-(0[1-9]|1[0-2])$
+          - type: 'null'
+          title: Endmonth
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformDashboardSuccessResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '401':
+          description: Authentication is required or the session is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '403':
+          description: The authenticated user does not have permission.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '500':
+          description: An unexpected server error occurred.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+        '422':
+          description: Request validation or a business rule failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestId'
+      x-user-stories:
+      - PLATFORM-DASHBOARD-VIEW
   /api/v1/platform/libraries:
     get:
       tags:
@@ -8887,6 +8964,279 @@ components:
       - unpaidCount
       - partiallyPaidCount
       title: PendingTotals
+    PlatformDashboardActivity:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        action:
+          type: string
+          title: Action
+        entityType:
+          type: string
+          title: Entitytype
+        entityId:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Entityid
+        description:
+          type: string
+          title: Description
+        category:
+          type: string
+          title: Category
+        actor:
+          anyOf:
+          - $ref: '#/components/schemas/PlatformDashboardActivityActor'
+          - type: 'null'
+        createdAt:
+          type: string
+          format: date-time
+          title: Createdat
+      type: object
+      required:
+      - id
+      - action
+      - entityType
+      - description
+      - category
+      - createdAt
+      title: PlatformDashboardActivity
+    PlatformDashboardActivityActor:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        name:
+          type: string
+          title: Name
+      type: object
+      required:
+      - id
+      - name
+      title: PlatformDashboardActivityActor
+    PlatformDashboardMetrics:
+      properties:
+        totalLibraries:
+          type: integer
+          minimum: 0.0
+          title: Totallibraries
+        activeLibraries:
+          type: integer
+          minimum: 0.0
+          title: Activelibraries
+        pendingLibraries:
+          type: integer
+          minimum: 0.0
+          title: Pendinglibraries
+        suspendedLibraries:
+          type: integer
+          minimum: 0.0
+          title: Suspendedlibraries
+        totalOwners:
+          type: integer
+          minimum: 0.0
+          title: Totalowners
+        activeOwners:
+          type: integer
+          minimum: 0.0
+          title: Activeowners
+        suspendedOwners:
+          type: integer
+          minimum: 0.0
+          title: Suspendedowners
+        invitedOwners:
+          type: integer
+          minimum: 0.0
+          title: Invitedowners
+        totalStudents:
+          type: integer
+          minimum: 0.0
+          title: Totalstudents
+        totalSeats:
+          type: integer
+          minimum: 0.0
+          title: Totalseats
+        averageOccupancy:
+          type: integer
+          maximum: 100.0
+          minimum: 0.0
+          title: Averageoccupancy
+      type: object
+      required:
+      - totalLibraries
+      - activeLibraries
+      - pendingLibraries
+      - suspendedLibraries
+      - totalOwners
+      - activeOwners
+      - suspendedOwners
+      - invitedOwners
+      - totalStudents
+      - totalSeats
+      - averageOccupancy
+      title: PlatformDashboardMetrics
+    PlatformDashboardRange:
+      properties:
+        startMonth:
+          type: string
+          pattern: ^\d{4}-(0[1-9]|1[0-2])$
+          title: Startmonth
+        endMonth:
+          type: string
+          pattern: ^\d{4}-(0[1-9]|1[0-2])$
+          title: Endmonth
+        timezone:
+          type: string
+          title: Timezone
+          default: UTC
+      type: object
+      required:
+      - startMonth
+      - endMonth
+      title: PlatformDashboardRange
+    PlatformDashboardResponse:
+      properties:
+        totals:
+          $ref: '#/components/schemas/PlatformDashboardMetrics'
+        libraryStatus:
+          items:
+            $ref: '#/components/schemas/PlatformDashboardStatusCount'
+          type: array
+          title: Librarystatus
+        trend:
+          items:
+            $ref: '#/components/schemas/PlatformDashboardTrendPoint'
+          type: array
+          title: Trend
+        topLibraries:
+          items:
+            $ref: '#/components/schemas/PlatformDashboardTopLibrary'
+          type: array
+          title: Toplibraries
+        recentActivity:
+          items:
+            $ref: '#/components/schemas/PlatformDashboardActivity'
+          type: array
+          title: Recentactivity
+        range:
+          $ref: '#/components/schemas/PlatformDashboardRange'
+        lastUpdated:
+          type: string
+          format: date-time
+          title: Lastupdated
+      type: object
+      required:
+      - totals
+      - libraryStatus
+      - trend
+      - topLibraries
+      - recentActivity
+      - range
+      - lastUpdated
+      title: PlatformDashboardResponse
+    PlatformDashboardStatusCount:
+      properties:
+        status:
+          $ref: '#/components/schemas/LibraryStatus'
+        count:
+          type: integer
+          minimum: 0.0
+          title: Count
+      type: object
+      required:
+      - status
+      - count
+      title: PlatformDashboardStatusCount
+    PlatformDashboardSuccessResponse:
+      properties:
+        message:
+          type: string
+          title: Message
+        data:
+          $ref: '#/components/schemas/PlatformDashboardResponse'
+      type: object
+      required:
+      - message
+      - data
+      title: PlatformDashboardSuccessResponse
+    PlatformDashboardTopLibrary:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        code:
+          type: string
+          title: Code
+        name:
+          type: string
+          title: Name
+        city:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: City
+        state:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: State
+        studentCount:
+          type: integer
+          minimum: 0.0
+          title: Studentcount
+        seatCount:
+          type: integer
+          minimum: 0.0
+          title: Seatcount
+        occupiedSeatCount:
+          type: integer
+          minimum: 0.0
+          title: Occupiedseatcount
+        occupancyRate:
+          type: integer
+          maximum: 100.0
+          minimum: 0.0
+          title: Occupancyrate
+      type: object
+      required:
+      - id
+      - code
+      - name
+      - studentCount
+      - seatCount
+      - occupiedSeatCount
+      - occupancyRate
+      title: PlatformDashboardTopLibrary
+    PlatformDashboardTrendPoint:
+      properties:
+        month:
+          type: string
+          pattern: ^\d{4}-(0[1-9]|1[0-2])$
+          title: Month
+        libraries:
+          type: integer
+          minimum: 0.0
+          title: Libraries
+        owners:
+          type: integer
+          minimum: 0.0
+          title: Owners
+        students:
+          type: integer
+          minimum: 0.0
+          title: Students
+      type: object
+      required:
+      - month
+      - libraries
+      - owners
+      - students
+      title: PlatformDashboardTrendPoint
     PlatformLibraryCreate:
       properties:
         name:

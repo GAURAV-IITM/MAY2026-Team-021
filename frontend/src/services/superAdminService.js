@@ -1,16 +1,13 @@
 import {
   LIBRARY_STATUSES,
-  OWNER_STATUSES,
   SUPER_ADMIN_NETWORK_DELAY_MS,
   libraryMock,
-  platformActivityMock,
   platformSettingsMock,
   platformTrendMock,
 } from '../mocks/superAdminMock.js'
 import apiClient from '../api/axios.js'
 
 let libraries = clone(libraryMock)
-let activity = clone(platformActivityMock)
 let settings = clone(platformSettingsMock)
 
 function clone(value) {
@@ -51,104 +48,43 @@ function createServiceError(message, status = 400, code = 'SUPER_ADMIN_ERROR') {
   return error
 }
 
-function addActivity(type, title, detail = '') {
-  activity.unshift({
-    id: `platform-activity-${Date.now()}`,
-    type,
-    title,
-    detail,
-    occurredAt: new Date().toISOString(),
-  })
-}
-
-function getStatusDistribution(source, statusValues) {
-  return statusValues.map((status) => ({
-    status,
-    count: source.filter((item) => item.status === status).length,
-  }))
-}
-
 function getPlatformTotals(ownerSummary = {}) {
-  const activeLibraries = libraries.filter(
-    (library) => library.status === LIBRARY_STATUSES.ACTIVE,
-  )
+  const activeLibraries = libraries.filter((library) => library.status === LIBRARY_STATUSES.ACTIVE)
 
   return {
     totalLibraries: libraries.length,
     activeLibraries: activeLibraries.length,
-    pendingLibraries: libraries.filter(
-      (library) => library.status === LIBRARY_STATUSES.PENDING,
-    ).length,
-    suspendedLibraries: libraries.filter(
-      (library) => library.status === LIBRARY_STATUSES.SUSPENDED,
-    ).length,
+    pendingLibraries: libraries.filter((library) => library.status === LIBRARY_STATUSES.PENDING)
+      .length,
+    suspendedLibraries: libraries.filter((library) => library.status === LIBRARY_STATUSES.SUSPENDED)
+      .length,
     totalOwners: ownerSummary.total || 0,
     activeOwners: ownerSummary.active || 0,
     invitedOwners: ownerSummary.invited || 0,
-    totalStudents: activeLibraries.reduce(
-      (total, library) => total + library.studentCount,
-      0,
-    ),
+    totalStudents: activeLibraries.reduce((total, library) => total + library.studentCount, 0),
     totalSeats: activeLibraries.reduce((total, library) => total + library.seatCount, 0),
     averageOccupancy:
       activeLibraries.length === 0
         ? 0
         : Math.round(
-            activeLibraries.reduce(
-              (total, library) => total + library.occupancyRate,
-              0,
-            ) / activeLibraries.length,
+            activeLibraries.reduce((total, library) => total + library.occupancyRate, 0) /
+              activeLibraries.length,
           ),
   }
 }
 
-export async function getDashboard() {
-  await delay()
+export function buildPlatformDashboardParams(filters = {}) {
+  return {
+    startMonth: filters.startMonth || undefined,
+    endMonth: filters.endMonth || undefined,
+  }
+}
 
-  const ownerResponse = await getOwners({ page: 1, pageSize: 100 })
-  const totals = getPlatformTotals(ownerResponse.summary)
-
-  return createSuccessResponse('Super Admin dashboard fetched successfully.', {
-    totals,
-    libraryStatus: getStatusDistribution(
-      libraries,
-      Object.values(LIBRARY_STATUSES),
-    ),
-    ownerStatus: Object.values(OWNER_STATUSES).map((status) => ({
-      status,
-      count: ownerResponse.summary[status] || 0,
-    })),
-    topLibraries: [...libraries]
-      .filter((library) => library.status === LIBRARY_STATUSES.ACTIVE)
-      .sort((first, second) => second.studentCount - first.studentCount)
-      .slice(0, 5),
-    trend: clone(platformTrendMock),
-    recentActivity: activity.slice(0, 6),
-    attention: [
-      {
-        id: 'pending-libraries',
-        label: 'Pending library approvals',
-        value: totals.pendingLibraries,
-        routeName: 'superAdminLibraries',
-        tone: 'warning',
-      },
-      {
-        id: 'invited-owners',
-        label: 'Owner invitations pending',
-        value: totals.invitedOwners,
-        routeName: 'superAdminOwners',
-        tone: 'info',
-      },
-      {
-        id: 'suspended-libraries',
-        label: 'Suspended libraries',
-        value: totals.suspendedLibraries,
-        routeName: 'superAdminLibraries',
-        tone: 'danger',
-      },
-    ],
-    lastUpdated: new Date().toISOString(),
+export async function getDashboard(filters = {}) {
+  const response = await apiClient.get('/platform/dashboard', {
+    params: buildPlatformDashboardParams(filters),
   })
+  return response.data
 }
 
 export function buildPlatformLibraryParams(filters = {}) {
@@ -226,10 +162,7 @@ export async function getLibrary(libraryId) {
 }
 
 export async function createLibrary(payload = {}) {
-  const response = await apiClient.post(
-    '/platform/libraries',
-    createLibraryPayload(payload),
-  )
+  const response = await apiClient.post('/platform/libraries', createLibraryPayload(payload))
   return {
     ...response.data,
     data: mapPlatformLibrary(response.data.data),
@@ -248,14 +181,11 @@ export async function updateLibrary(libraryId, payload = {}) {
 }
 
 export async function setLibraryStatus(libraryId, payload = {}) {
-  const response = await apiClient.patch(
-    `/platform/libraries/${libraryId}/status`,
-    {
-      status: payload.status,
-      reason: payload.reason || null,
-      expectedUpdatedAt: payload.expectedUpdatedAt || null,
-    },
-  )
+  const response = await apiClient.patch(`/platform/libraries/${libraryId}/status`, {
+    status: payload.status,
+    reason: payload.reason || null,
+    expectedUpdatedAt: payload.expectedUpdatedAt || null,
+  })
   return {
     ...response.data,
     data: mapPlatformLibrary(response.data.data),
@@ -268,13 +198,10 @@ export async function getLibraryOwnerOptions() {
 }
 
 export async function assignLibraryOwner(libraryId, payload = {}) {
-  const response = await apiClient.patch(
-    `/platform/libraries/${libraryId}/owner`,
-    {
-      ownerId: payload.ownerId,
-      expectedUpdatedAt: payload.expectedUpdatedAt || null,
-    },
-  )
+  const response = await apiClient.patch(`/platform/libraries/${libraryId}/owner`, {
+    ownerId: payload.ownerId,
+    expectedUpdatedAt: payload.expectedUpdatedAt || null,
+  })
   return {
     ...response.data,
     data: mapPlatformLibrary(response.data.data),
@@ -352,13 +279,10 @@ export async function updateOwner(ownerId, payload = {}) {
 }
 
 export async function assignOwner(ownerId, payload = {}) {
-  const response = await apiClient.patch(
-    `/platform/owners/${ownerId}/assignment`,
-    {
-      libraryId: payload.libraryId,
-      expectedUpdatedAt: payload.expectedUpdatedAt || null,
-    },
-  )
+  const response = await apiClient.patch(`/platform/owners/${ownerId}/assignment`, {
+    libraryId: payload.libraryId,
+    expectedUpdatedAt: payload.expectedUpdatedAt || null,
+  })
   return {
     ...response.data,
     data: mapPlatformOwner(response.data.data),
@@ -366,14 +290,11 @@ export async function assignOwner(ownerId, payload = {}) {
 }
 
 export async function setOwnerStatus(ownerId, payload = {}) {
-  const response = await apiClient.patch(
-    `/platform/owners/${ownerId}/status`,
-    {
-      status: payload.status,
-      reason: payload.reason || null,
-      expectedUpdatedAt: payload.expectedUpdatedAt || null,
-    },
-  )
+  const response = await apiClient.patch(`/platform/owners/${ownerId}/status`, {
+    status: payload.status,
+    reason: payload.reason || null,
+    expectedUpdatedAt: payload.expectedUpdatedAt || null,
+  })
   return {
     ...response.data,
     data: mapPlatformOwner(response.data.data),
@@ -451,8 +372,6 @@ export async function updateSettings(payload = {}) {
     sessionTimeoutMinutes,
     updatedAt: new Date().toISOString(),
   }
-
-  addActivity('settings', 'Platform settings updated', platformName)
 
   return createSuccessResponse('Platform settings updated successfully.', {
     settings,

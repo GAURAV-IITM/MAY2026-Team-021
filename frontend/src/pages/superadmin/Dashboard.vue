@@ -15,13 +15,30 @@
         <span v-if="dashboard?.lastUpdated" class="text-small text-muted">
           Updated {{ formatDateTime(dashboard.lastUpdated) }}
         </span>
+        <label class="platform-dashboard__period">
+          <span class="sr-only">Trend period</span>
+          <select
+            v-model="trendPeriod"
+            class="form-control"
+            :disabled="isLoading"
+            @change="loadDashboard"
+          >
+            <option value="7">Last 7 months</option>
+            <option value="12">Last 12 months</option>
+            <option value="24">Last 24 months</option>
+          </select>
+        </label>
         <button
           class="btn btn--secondary"
           type="button"
           :disabled="isLoading"
           @click="loadDashboard"
         >
-          <RefreshCw :size="17" :class="{ 'platform-dashboard__spin': isLoading }" aria-hidden="true" />
+          <RefreshCw
+            :size="17"
+            :class="{ 'platform-dashboard__spin': isLoading }"
+            aria-hidden="true"
+          />
           {{ isLoading && dashboard ? 'Refreshing...' : 'Refresh' }}
         </button>
       </div>
@@ -31,14 +48,19 @@
       <div>
         <strong>Unable to load the platform dashboard.</strong>
         <p class="m-0">{{ errorMessage }}</p>
+        <p v-if="errorRequestId" class="text-small m-0">Request ID: {{ errorRequestId }}</p>
       </div>
-      <button class="btn btn--secondary btn--sm" type="button" @click="loadDashboard">
-        Retry
-      </button>
+      <button class="btn btn--secondary btn--sm" type="button" @click="loadDashboard">Retry</button>
     </div>
 
-    <div v-if="isLoading && !dashboard" class="platform-dashboard__loading">
-      <LoadingSpinner label="Loading platform dashboard" />
+    <div
+      v-if="isLoading && !dashboard"
+      class="platform-dashboard__skeleton"
+      aria-label="Loading platform dashboard"
+    >
+      <span v-for="item in 4" :key="item" class="platform-dashboard__skeleton-card" />
+      <span class="platform-dashboard__skeleton-panel" />
+      <span class="platform-dashboard__skeleton-panel" />
     </div>
 
     <template v-else-if="dashboard">
@@ -56,12 +78,23 @@
         </RouterLink>
       </nav>
 
-      <div class="platform-dashboard__grid">
+      <section v-if="dashboard.totals.totalLibraries === 0" class="card platform-dashboard__empty">
+        <Building2 :size="34" aria-hidden="true" />
+        <h2>No libraries registered yet</h2>
+        <p>Platform metrics will appear after the first library is created.</p>
+        <RouterLink class="btn btn--primary" :to="{ name: 'superAdminLibraries' }">
+          Manage Libraries
+        </RouterLink>
+      </section>
+
+      <div v-else class="platform-dashboard__grid">
         <section class="card platform-panel" aria-labelledby="growth-title">
           <header class="platform-panel__header">
             <div>
               <h2 id="growth-title" class="platform-panel__title">Student Growth</h2>
-              <p class="platform-panel__subtitle">Registered students across the platform</p>
+              <p class="platform-panel__subtitle">
+                Cumulative registered students, {{ formatTrendRange(dashboard.range) }}
+              </p>
             </div>
             <RouterLink class="platform-panel__link" :to="{ name: 'superAdminAnalytics' }">
               View analytics
@@ -100,6 +133,7 @@
           </header>
           <div class="platform-panel__table">
             <DataTable
+              v-if="dashboard.topLibraries.length"
               :columns="topLibraryColumns"
               :rows="dashboard.topLibraries"
               aria-label="Top performing libraries"
@@ -107,7 +141,7 @@
               <template #cell-name="{ row }">
                 <div class="platform-dashboard__library-name">
                   <strong>{{ row.name }}</strong>
-                  <span>{{ row.city }}, {{ row.state }}</span>
+                  <span>{{ formatLocation(row) }}</span>
                 </div>
               </template>
               <template #cell-studentCount="{ value }">
@@ -117,6 +151,7 @@
                 <strong>{{ value }}%</strong>
               </template>
             </DataTable>
+            <p v-else class="platform-dashboard__panel-empty">No active libraries to rank.</p>
           </div>
         </section>
 
@@ -129,7 +164,7 @@
           </header>
           <div class="platform-dashboard__attention-list">
             <RouterLink
-              v-for="item in dashboard.attention"
+              v-for="item in attentionItems"
               :key="item.id"
               class="platform-dashboard__attention-item"
               :to="{ name: item.routeName }"
@@ -164,17 +199,20 @@
             >
               <span
                 class="platform-dashboard__activity-icon"
-                :class="`platform-dashboard__activity-icon--${item.type}`"
+                :class="`platform-dashboard__activity-icon--${item.category}`"
                 aria-hidden="true"
               >
-                <component :is="getActivityIcon(item.type)" :size="18" />
+                <component :is="getActivityIcon(item.category)" :size="18" />
               </span>
               <div>
-                <strong>{{ item.title }}</strong>
-                <span>{{ item.detail }}</span>
+                <strong>{{ item.description }}</strong>
+                <span>{{ item.actor?.name || 'System' }}</span>
               </div>
-              <time :datetime="item.occurredAt">{{ formatDateTime(item.occurredAt) }}</time>
+              <time :datetime="item.createdAt">{{ formatDateTime(item.createdAt) }}</time>
             </article>
+            <p v-if="!dashboard.recentActivity.length" class="platform-dashboard__panel-empty">
+              No platform activity has been recorded yet.
+            </p>
           </div>
         </section>
       </div>
@@ -192,15 +230,13 @@ import {
   GraduationCap,
   RefreshCw,
   Settings,
-  TrendingUp,
   UserCog,
 } from '@lucide/vue'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 
 import DataTable from '../../components/common/DataTable.vue'
-import LoadingSpinner from '../../components/common/LoadingSpinner.vue'
 import PlatformMetricCards from '../../components/superadmin/PlatformMetricCards.vue'
 import PlatformTrend from '../../components/superadmin/PlatformTrend.vue'
 import StatusDistribution from '../../components/superadmin/StatusDistribution.vue'
@@ -221,8 +257,9 @@ const quickActions = Object.freeze([
 ])
 
 const store = useSuperAdminStore()
-const { dashboard, isLoading, errorMessage } = storeToRefs(store)
+const { dashboard, isLoading, errorMessage, errorRequestId } = storeToRefs(store)
 const numberFormatter = new Intl.NumberFormat('en-IN')
+const trendPeriod = ref('7')
 
 const metricItems = computed(() => {
   const totals = dashboard.value?.totals || {}
@@ -238,14 +275,14 @@ const metricItems = computed(() => {
     {
       label: 'Active Libraries',
       value: formatNumber(totals.activeLibraries),
-      detail: `${totals.averageOccupancy || 0}% average occupancy`,
+      detail: `${totals.averageOccupancy || 0}% current seat utilization`,
       icon: CircleCheckBig,
       tone: 'success',
     },
     {
       label: 'Library Owners',
       value: formatNumber(totals.totalOwners),
-      detail: `${totals.activeOwners || 0} active accounts`,
+      detail: `${totals.activeOwners || 0} active / ${totals.suspendedOwners || 0} suspended`,
       icon: UserCog,
       tone: 'info',
     },
@@ -255,6 +292,33 @@ const metricItems = computed(() => {
       detail: `${formatNumber(totals.totalSeats)} seats configured`,
       icon: GraduationCap,
       tone: 'warning',
+    },
+  ]
+})
+
+const attentionItems = computed(() => {
+  const totals = dashboard.value?.totals || {}
+  return [
+    {
+      id: 'pending-libraries',
+      label: 'Pending library approvals',
+      value: totals.pendingLibraries || 0,
+      routeName: 'superAdminLibraries',
+      tone: 'warning',
+    },
+    {
+      id: 'invited-owners',
+      label: 'Owner invitations pending',
+      value: totals.invitedOwners || 0,
+      routeName: 'superAdminOwners',
+      tone: 'info',
+    },
+    {
+      id: 'suspended-libraries',
+      label: 'Suspended libraries',
+      value: totals.suspendedLibraries || 0,
+      routeName: 'superAdminLibraries',
+      tone: 'danger',
     },
   ]
 })
@@ -274,13 +338,39 @@ function formatDateTime(value) {
   }).format(new Date(value))
 }
 
+function formatLocation(library) {
+  return [library.city, library.state].filter(Boolean).join(', ') || 'Location not provided'
+}
+
+function formatTrendRange(range) {
+  if (!range?.startMonth || !range?.endMonth) return 'UTC'
+  return `${formatMonth(range.startMonth)} to ${formatMonth(range.endMonth)} / ${range.timezone}`
+}
+
+function formatMonth(value) {
+  return new Intl.DateTimeFormat('en-IN', {
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(new Date(`${value}-01T00:00:00Z`))
+}
+
+function monthKey(value) {
+  return `${value.getUTCFullYear()}-${String(value.getUTCMonth() + 1).padStart(2, '0')}`
+}
+
+function selectedRange() {
+  const end = new Date()
+  const start = new Date(
+    Date.UTC(end.getUTCFullYear(), end.getUTCMonth() - Number(trendPeriod.value) + 1, 1),
+  )
+  return { startMonth: monthKey(start), endMonth: monthKey(end) }
+}
+
 function getActivityIcon(type) {
   const icons = {
     library: Building2,
     owner: UserCog,
-    status: CircleAlert,
-    growth: TrendingUp,
-    settings: Settings,
   }
 
   return icons[type] || CircleAlert
@@ -288,7 +378,7 @@ function getActivityIcon(type) {
 
 async function loadDashboard() {
   try {
-    await store.fetchDashboard()
+    await store.fetchDashboard(selectedRange())
   } catch {
     // Store-owned errors are rendered above the page.
   }
@@ -330,13 +420,64 @@ onMounted(loadDashboard)
   gap: var(--space-3);
 }
 
-.platform-dashboard__loading {
+.platform-dashboard__period {
+  width: 170px;
+}
+
+.platform-dashboard__period .form-control {
+  min-height: 40px;
+}
+
+.platform-dashboard__skeleton {
   display: grid;
-  min-height: 420px;
-  place-items: center;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+.platform-dashboard__skeleton-card,
+.platform-dashboard__skeleton-panel {
+  min-height: 126px;
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   background: var(--color-surface-elevated);
+  animation: platform-skeleton 1.2s ease-in-out infinite alternate;
+}
+
+.platform-dashboard__skeleton-panel {
+  grid-column: span 2;
+  min-height: 300px;
+}
+
+.platform-dashboard__empty {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-2);
+  padding: var(--space-8) var(--space-5);
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.platform-dashboard__empty h2,
+.platform-dashboard__empty p {
+  margin: 0;
+}
+
+.platform-dashboard__empty h2 {
+  color: var(--color-text-primary);
+  font-size: var(--font-size-h4);
+}
+
+.platform-dashboard__empty .btn {
+  margin-top: var(--space-2);
+}
+
+@keyframes platform-skeleton {
+  from {
+    opacity: 0.5;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .platform-dashboard__quick-actions {
@@ -419,6 +560,13 @@ onMounted(loadDashboard)
 
 .platform-panel__body {
   padding: var(--space-5);
+}
+
+.platform-dashboard__panel-empty {
+  margin: 0;
+  padding: var(--space-6) var(--space-5);
+  color: var(--color-text-muted);
+  text-align: center;
 }
 
 .platform-panel__link {
@@ -535,6 +683,10 @@ onMounted(loadDashboard)
 }
 
 @media (max-width: 980px) {
+  .platform-dashboard__skeleton {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .platform-dashboard__quick-actions {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -557,6 +709,19 @@ onMounted(loadDashboard)
 
   .platform-dashboard__quick-actions {
     grid-template-columns: 1fr;
+  }
+
+  .platform-dashboard__period,
+  .platform-dashboard__header-actions .btn {
+    width: 100%;
+  }
+
+  .platform-dashboard__skeleton {
+    grid-template-columns: 1fr;
+  }
+
+  .platform-dashboard__skeleton-panel {
+    grid-column: auto;
   }
 
   .platform-dashboard__activity-item {

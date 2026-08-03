@@ -5,6 +5,7 @@ import * as superAdminService from '../services/superAdminService.js'
 
 export const useSuperAdminStore = defineStore('superAdmin', () => {
   const dashboard = ref(null)
+  const dashboardFilters = ref({ startMonth: '', endMonth: '' })
   const libraries = ref([])
   const selectedLibrary = ref(null)
   const libraryOwnerOptions = ref([])
@@ -57,18 +58,14 @@ export const useSuperAdminStore = defineStore('superAdmin', () => {
       error.value?.response?.data?.requestId ||
       '',
   )
-  const errorCode = computed(
-    () => error.value?.response?.data?.error?.code || '',
-  )
+  const errorCode = computed(() => error.value?.response?.data?.error?.code || '')
   const activeLibraries = computed(() =>
     libraries.value.filter((library) => library.status === 'active'),
   )
   const availableLibraries = computed(() =>
     libraries.value.filter((library) => !library.ownerId && library.status !== 'suspended'),
   )
-  const activeOwners = computed(() =>
-    owners.value.filter((owner) => owner.status === 'active'),
-  )
+  const activeOwners = computed(() => owners.value.filter((owner) => owner.status === 'active'))
 
   async function runRequest(request, saving = false) {
     const loadingState = saving ? isSaving : isLoading
@@ -85,10 +82,23 @@ export const useSuperAdminStore = defineStore('superAdmin', () => {
     }
   }
 
-  async function fetchDashboard() {
-    const response = await runRequest(() => superAdminService.getDashboard())
-    dashboard.value = response.data
-    return response
+  let latestDashboardRequest = 0
+
+  async function fetchDashboard(nextFilters = dashboardFilters.value) {
+    dashboardFilters.value = { ...dashboardFilters.value, ...nextFilters }
+    const requestNumber = ++latestDashboardRequest
+    isLoading.value = true
+    error.value = null
+    try {
+      const response = await superAdminService.getDashboard(dashboardFilters.value)
+      if (requestNumber === latestDashboardRequest) dashboard.value = response.data
+      return response
+    } catch (requestError) {
+      if (requestNumber === latestDashboardRequest) error.value = requestError
+      throw requestError
+    } finally {
+      if (requestNumber === latestDashboardRequest) isLoading.value = false
+    }
   }
 
   let latestLibraryRequest = 0
@@ -129,10 +139,7 @@ export const useSuperAdminStore = defineStore('superAdmin', () => {
   }
 
   async function createLibrary(payload) {
-    const response = await runRequest(
-      () => superAdminService.createLibrary(payload),
-      true,
-    )
+    const response = await runRequest(() => superAdminService.createLibrary(payload), true)
     upsertLibrary(response.data)
     return response
   }
@@ -156,9 +163,7 @@ export const useSuperAdminStore = defineStore('superAdmin', () => {
   }
 
   async function fetchLibraryOwnerOptions() {
-    const response = await runRequest(
-      () => superAdminService.getLibraryOwnerOptions(),
-    )
+    const response = await runRequest(() => superAdminService.getLibraryOwnerOptions())
     libraryOwnerOptions.value = response.data
     return response
   }
@@ -210,39 +215,32 @@ export const useSuperAdminStore = defineStore('superAdmin', () => {
   }
 
   async function fetchOwnerLibraries() {
-    const response = await runRequest(() => superAdminService.getLibraries({
-      page: 1,
-      pageSize: 100,
-      sortBy: 'name',
-      sortOrder: 'asc',
-    }))
+    const response = await runRequest(() =>
+      superAdminService.getLibraries({
+        page: 1,
+        pageSize: 100,
+        sortBy: 'name',
+        sortOrder: 'asc',
+      }),
+    )
     ownerLibraries.value = response.data
     return response
   }
 
   async function createOwner(payload) {
-    const response = await runRequest(
-      () => superAdminService.createOwner(payload),
-      true,
-    )
+    const response = await runRequest(() => superAdminService.createOwner(payload), true)
     upsertOwner(response.data.owner)
     return response
   }
 
   async function updateOwner(ownerId, payload) {
-    const response = await runRequest(
-      () => superAdminService.updateOwner(ownerId, payload),
-      true,
-    )
+    const response = await runRequest(() => superAdminService.updateOwner(ownerId, payload), true)
     upsertOwner(response.data)
     return response
   }
 
   async function assignOwner(ownerId, payload) {
-    const response = await runRequest(
-      () => superAdminService.assignOwner(ownerId, payload),
-      true,
-    )
+    const response = await runRequest(() => superAdminService.assignOwner(ownerId, payload), true)
     upsertOwner(response.data)
     return response
   }
@@ -269,10 +267,7 @@ export const useSuperAdminStore = defineStore('superAdmin', () => {
   }
 
   async function updateSettings(payload) {
-    const response = await runRequest(
-      () => superAdminService.updateSettings(payload),
-      true,
-    )
+    const response = await runRequest(() => superAdminService.updateSettings(payload), true)
     settings.value = response.data.settings
     return response
   }
@@ -283,6 +278,7 @@ export const useSuperAdminStore = defineStore('superAdmin', () => {
 
   return {
     dashboard,
+    dashboardFilters,
     libraries,
     selectedLibrary,
     libraryOwnerOptions,
