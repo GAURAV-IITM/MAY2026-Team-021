@@ -1,4 +1,5 @@
 from __future__ import annotations
+from app.schemas.student import StudentResponse
 
 import uuid
 from datetime import date, datetime
@@ -135,3 +136,28 @@ class StudentAnnouncementItem(APIModel):
 
 class StudentAnnouncementsResponse(APIModel):
     announcements: list[StudentAnnouncementItem] = Field(default_factory=list)
+
+
+
+class StudentDashboardSeat(APIModel):
+    seat_number: str | None = None
+    floor: str | int | None = None
+    shift_name: str | None = None
+
+
+class StudentDashboardFees(APIModel):
+    total_paid: Decimal
+    total_outstanding: Decimal
+    next_due_date: date | None = None
+
+
+class StudentDashboardCounts(APIModel):
+    unread_announcements: int
+    pending_requests: int
+
+
+class StudentDashboardResponse(APIModel):
+    student: StudentResponse
+    current_seat: StudentDashboardSeat | None = None
+    fees: StudentDashboardFees
+    counts: StudentDashboardCounts
