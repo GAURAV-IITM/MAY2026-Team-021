@@ -36,7 +36,6 @@ export const useSuperAdminStore = defineStore('superAdmin', () => {
     sortBy: 'createdAt',
     sortOrder: 'desc',
   })
-  const analytics = ref(null)
   const settings = ref(null)
   const settingDefinitions = ref([])
   const settingsVersion = ref(0)
@@ -257,12 +256,6 @@ export const useSuperAdminStore = defineStore('superAdmin', () => {
     return response
   }
 
-  async function fetchAnalytics() {
-    const response = await runRequest(() => superAdminService.getAnalytics())
-    analytics.value = response.data
-    return response
-  }
-
   async function fetchSettings() {
     const response = await runRequest(() => superAdminService.getSettings())
     settings.value = response.data.settings
@@ -307,7 +300,6 @@ export const useSuperAdminStore = defineStore('superAdmin', () => {
     ownerSummary,
     ownerPagination,
     ownerFilters,
-    analytics,
     settings,
     settingDefinitions,
     settingsVersion,
@@ -336,7 +328,6 @@ export const useSuperAdminStore = defineStore('superAdmin', () => {
     updateOwner,
     assignOwner,
     setOwnerStatus,
-    fetchAnalytics,
     fetchSettings,
     updateSettings,
     clearError,

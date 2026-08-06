@@ -7,25 +7,29 @@
           Platform Analytics
         </h1>
         <p class="platform-analytics__description">
-          Compare platform growth, regional reach, and library performance.
+          Compare platform growth and library performance from live platform data.
         </p>
       </div>
-      <button class="btn btn--secondary" type="button" :disabled="isLoading" @click="loadAnalytics">
+      <button class="btn btn--secondary" type="button" :disabled="isLoading" @click="loadDashboard">
         <RefreshCw :size="17" :class="{ 'platform-analytics__spin': isLoading }" aria-hidden="true" />
-        {{ isLoading && analytics ? 'Refreshing...' : 'Refresh' }}
+        {{ isLoading && dashboard ? 'Refreshing...' : 'Refresh' }}
       </button>
     </header>
 
     <div v-if="errorMessage" class="alert alert--danger" role="alert">
-      <div><strong>Unable to load platform analytics.</strong><p class="m-0">{{ errorMessage }}</p></div>
-      <button class="btn btn--secondary btn--sm" type="button" @click="loadAnalytics"><RefreshCw :size="16" aria-hidden="true" /> Retry</button>
+      <div>
+        <strong>Unable to load platform analytics.</strong>
+        <p class="m-0">{{ errorMessage }}</p>
+        <p v-if="errorRequestId" class="text-small m-0">Request ID: {{ errorRequestId }}</p>
+      </div>
+      <button class="btn btn--secondary btn--sm" type="button" @click="loadDashboard"><RefreshCw :size="16" aria-hidden="true" /> Retry</button>
     </div>
 
-    <div v-if="isLoading && !analytics" class="platform-analytics__loading">
+    <div v-if="isLoading && !dashboard" class="platform-analytics__loading">
       <LoadingSpinner label="Loading platform analytics" />
     </div>
 
-    <template v-else-if="analytics">
+    <template v-else-if="dashboard">
       <PlatformMetricCards :items="metricItems" aria-label="Platform analytics summary" />
 
       <div class="platform-analytics__grid">
@@ -33,7 +37,9 @@
           <header class="analytics-panel__header">
             <div>
               <h2 id="analytics-trend-title" class="analytics-panel__title">Growth Trend</h2>
-              <p class="analytics-panel__subtitle">January through July 2026</p>
+              <p class="analytics-panel__subtitle">
+                Cumulative platform growth, {{ formatTrendRange(dashboard.range) }}
+              </p>
             </div>
             <div class="platform-analytics__metric-tabs" role="tablist" aria-label="Trend metric">
               <button
@@ -56,25 +62,10 @@
               <div><span>Net Growth</span><strong class="text-success">+{{ formatNumber(netGrowth) }}</strong></div>
             </div>
             <PlatformTrend
-              :points="analytics.trend"
+              :points="dashboard.trend"
               :value-key="selectedMetric"
               :aria-label="`${selectedMetricLabel} growth trend`"
             />
-          </div>
-        </section>
-
-        <section class="card analytics-panel" aria-labelledby="regional-title">
-          <header class="analytics-panel__header">
-            <div>
-              <h2 id="regional-title" class="analytics-panel__title">Regional Reach</h2>
-              <p class="analytics-panel__subtitle">Libraries and students by state</p>
-            </div>
-          </header>
-          <div class="analytics-panel__body platform-analytics__regions">
-            <div v-for="region in analytics.regionalDistribution" :key="region.state" class="platform-analytics__region">
-              <div><strong>{{ region.state }}</strong><span>{{ region.libraryCount }} {{ region.libraryCount === 1 ? 'library' : 'libraries' }}</span></div>
-              <strong>{{ formatNumber(region.studentCount) }}</strong>
-            </div>
           </div>
         </section>
 
@@ -84,11 +75,11 @@
               <h2 id="performance-title" class="analytics-panel__title">Library Performance</h2>
               <p class="analytics-panel__subtitle">Active libraries ordered by occupancy</p>
             </div>
-            <span class="text-small text-muted">Generated {{ formatDateTime(analytics.generatedAt) }}</span>
+            <span class="text-small text-muted">Updated {{ formatDateTime(dashboard.lastUpdated) }}</span>
           </header>
           <DataTable
             :columns="performanceColumns"
-            :rows="analytics.libraryPerformance"
+            :rows="dashboard.topLibraries"
             aria-label="Library performance analytics"
           >
             <template #cell-name="{ row }">
@@ -110,7 +101,7 @@
 </template>
 
 <script setup>
-import { Armchair, Building2, Gauge, GraduationCap, RefreshCw } from '@lucide/vue'
+import { Building2, Gauge, GraduationCap, RefreshCw, UsersRound } from '@lucide/vue'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref } from 'vue'
 
@@ -123,7 +114,7 @@ import { useSuperAdminStore } from '../../stores/superAdminStore'
 const trendMetrics = Object.freeze([
   { key: 'students', label: 'Students' },
   { key: 'libraries', label: 'Libraries' },
-  { key: 'seats', label: 'Seats' },
+  { key: 'owners', label: 'Owners' },
 ])
 const performanceColumns = Object.freeze([
   { key: 'name', label: 'Library' },
@@ -133,28 +124,32 @@ const performanceColumns = Object.freeze([
 ])
 
 const store = useSuperAdminStore()
-const { analytics, isLoading, errorMessage } = storeToRefs(store)
+const { dashboard, isLoading, errorMessage, errorRequestId } = storeToRefs(store)
 const selectedMetric = ref('students')
 const numberFormatter = new Intl.NumberFormat('en-IN')
 
 const metricItems = computed(() => {
-  const totals = analytics.value?.totals || {}
+  const totals = dashboard.value?.totals || {}
   return [
     { label: 'Active Libraries', value: formatNumber(totals.activeLibraries), detail: `${totals.totalLibraries || 0} registered`, icon: Building2, tone: 'success' },
-    { label: 'Platform Students', value: formatNumber(totals.totalStudents), detail: 'Across active libraries', icon: GraduationCap },
-    { label: 'Configured Seats', value: formatNumber(totals.totalSeats), detail: 'Available platform capacity', icon: Armchair, tone: 'info' },
+    { label: 'Platform Students', value: formatNumber(totals.totalStudents), detail: 'Across all libraries', icon: GraduationCap },
+    { label: 'Platform Owners', value: formatNumber(totals.totalOwners), detail: `${totals.activeOwners || 0} active`, icon: UsersRound, tone: 'info' },
     { label: 'Average Occupancy', value: `${totals.averageOccupancy || 0}%`, detail: 'Across active libraries', icon: Gauge, tone: 'warning' },
   ]
 })
 const selectedMetricLabel = computed(() => trendMetrics.find((metric) => metric.key === selectedMetric.value)?.label || 'Platform')
-const currentTrendValue = computed(() => analytics.value?.trend?.at(-1)?.[selectedMetric.value] || 0)
-const firstTrendValue = computed(() => analytics.value?.trend?.[0]?.[selectedMetric.value] || 0)
+const currentTrendValue = computed(() => dashboard.value?.trend?.at(-1)?.[selectedMetric.value] || 0)
+const firstTrendValue = computed(() => dashboard.value?.trend?.[0]?.[selectedMetric.value] || 0)
 const netGrowth = computed(() => currentTrendValue.value - firstTrendValue.value)
 
 function formatNumber(value) { return numberFormatter.format(Number(value) || 0) }
 function formatDateTime(value) { return value ? new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }).format(new Date(value)) : '—' }
-async function loadAnalytics() { try { await store.fetchAnalytics() } catch { /* Store-owned errors are rendered above. */ } }
-onMounted(loadAnalytics)
+function formatTrendRange(range) {
+  if (!range?.startMonth || !range?.endMonth) return 'selected period'
+  return `${range.startMonth} to ${range.endMonth}`
+}
+async function loadDashboard() { try { await store.fetchDashboard() } catch { /* Store-owned errors are rendered above. */ } }
+onMounted(loadDashboard)
 </script>
 
 <style scoped>
@@ -179,11 +174,6 @@ onMounted(loadAnalytics)
 .platform-analytics__trend-summary > div { display: grid; padding-bottom: var(--space-3); border-bottom: 1px solid var(--color-divider); }
 .platform-analytics__trend-summary span { color: var(--color-text-muted); font-size: var(--font-size-caption); }
 .platform-analytics__trend-summary strong { font-size: var(--font-size-h4); }
-.platform-analytics__regions { display: grid; gap: var(--space-3); }
-.platform-analytics__region { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding-bottom: var(--space-3); border-bottom: 1px solid var(--color-divider); }
-.platform-analytics__region:last-child { padding-bottom: 0; border-bottom: 0; }
-.platform-analytics__region > div { display: grid; }
-.platform-analytics__region span { color: var(--color-text-muted); font-size: var(--font-size-caption); }
 .platform-analytics__performance { grid-column: 1 / -1; }
 .platform-analytics__performance :deep(.data-table) { border: 0; border-radius: 0; }
 .platform-analytics__library-cell { display: grid; min-width: 180px; }

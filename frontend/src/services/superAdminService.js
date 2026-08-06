@@ -1,60 +1,4 @@
-import {
-  LIBRARY_STATUSES,
-  SUPER_ADMIN_NETWORK_DELAY_MS,
-  libraryMock,
-  platformTrendMock,
-} from '../mocks/superAdminMock.js'
 import apiClient from '../api/axios.js'
-
-let libraries = clone(libraryMock)
-
-function clone(value) {
-  return structuredClone(value)
-}
-
-function delay(ms = SUPER_ADMIN_NETWORK_DELAY_MS) {
-  return new Promise((resolve) => {
-    globalThis.setTimeout(resolve, ms)
-  })
-}
-
-function createSuccessResponse(message, data, meta = {}) {
-  return {
-    success: true,
-    message,
-    data: clone(data),
-    meta: {
-      source: 'mock-super-admin-service',
-      timestamp: new Date().toISOString(),
-      ...meta,
-    },
-  }
-}
-
-function getPlatformTotals(ownerSummary = {}) {
-  const activeLibraries = libraries.filter((library) => library.status === LIBRARY_STATUSES.ACTIVE)
-
-  return {
-    totalLibraries: libraries.length,
-    activeLibraries: activeLibraries.length,
-    pendingLibraries: libraries.filter((library) => library.status === LIBRARY_STATUSES.PENDING)
-      .length,
-    suspendedLibraries: libraries.filter((library) => library.status === LIBRARY_STATUSES.SUSPENDED)
-      .length,
-    totalOwners: ownerSummary.total || 0,
-    activeOwners: ownerSummary.active || 0,
-    invitedOwners: ownerSummary.invited || 0,
-    totalStudents: activeLibraries.reduce((total, library) => total + library.studentCount, 0),
-    totalSeats: activeLibraries.reduce((total, library) => total + library.seatCount, 0),
-    averageOccupancy:
-      activeLibraries.length === 0
-        ? 0
-        : Math.round(
-            activeLibraries.reduce((total, library) => total + library.occupancyRate, 0) /
-              activeLibraries.length,
-          ),
-  }
-}
 
 export function buildPlatformDashboardParams(filters = {}) {
   return {
@@ -282,38 +226,6 @@ export async function setOwnerStatus(ownerId, payload = {}) {
     ...response.data,
     data: mapPlatformOwner(response.data.data),
   }
-}
-
-export async function getAnalytics() {
-  await delay()
-
-  const ownerResponse = await getOwners({ page: 1, pageSize: 100 })
-  const totals = getPlatformTotals(ownerResponse.summary)
-  const stateGroups = libraries.reduce((groups, library) => {
-    const current = groups.get(library.state) || {
-      state: library.state,
-      libraryCount: 0,
-      studentCount: 0,
-    }
-
-    current.libraryCount += 1
-    current.studentCount += library.studentCount
-    groups.set(library.state, current)
-
-    return groups
-  }, new Map())
-
-  return createSuccessResponse('Platform analytics fetched successfully.', {
-    totals,
-    trend: clone(platformTrendMock),
-    regionalDistribution: [...stateGroups.values()].sort(
-      (first, second) => second.studentCount - first.studentCount,
-    ),
-    libraryPerformance: [...libraries]
-      .filter((library) => library.status === LIBRARY_STATUSES.ACTIVE)
-      .sort((first, second) => second.occupancyRate - first.occupancyRate),
-    generatedAt: new Date().toISOString(),
-  })
 }
 
 export async function getSettings() {

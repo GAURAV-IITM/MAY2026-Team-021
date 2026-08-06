@@ -231,18 +231,7 @@ export const ownerMock = [
   },
 ]
 
-export const platformTrendMock = [
-  { month: '2026-01', libraries: 3, students: 604, seats: 820 },
-  { month: '2026-02', libraries: 4, students: 681, seats: 940 },
-  { month: '2026-03', libraries: 4, students: 765, seats: 940 },
-  { month: '2026-04', libraries: 5, students: 892, seats: 1140 },
-  { month: '2026-05', libraries: 6, students: 1038, seats: 1420 },
-  { month: '2026-06', libraries: 6, students: 1150, seats: 1420 },
-  { month: '2026-07', libraries: 8, students: 1203, seats: 1870 },
-]
-
 export const superAdminMock = {
   libraries: libraryMock,
   owners: ownerMock,
-  platformTrend: platformTrendMock,
 }
