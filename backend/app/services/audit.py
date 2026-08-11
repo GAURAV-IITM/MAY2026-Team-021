@@ -20,8 +20,8 @@ class AuditContext:
 def write_audit_log(
     db: Session,
     *,
-    library_id: uuid.UUID,
-    actor_user_id: uuid.UUID,
+    library_id: uuid.UUID | None,
+    actor_user_id: uuid.UUID | None,
     action: str,
     entity_type: str,
     entity_id: str | None,

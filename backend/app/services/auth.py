@@ -11,6 +11,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.config import settings
+from app.core.exceptions import BusinessRuleError
 from app.core.security import (
     create_access_token,
     hash_password,
@@ -37,6 +38,7 @@ from app.schemas.auth import (
     UserResponse,
     ValidateInvitationResponse,
 )
+from app.services import platform_settings as platform_settings_service
 
 
 DEFAULT_SHIFTS = (
@@ -115,6 +117,7 @@ def _auth_response(
     user: User,
     session: UserSession,
     refresh_token: str,
+    access_timeout_minutes: int,
 ) -> AuthResponse:
     roles = [link.role.name.value for link in user.role_links]
     return AuthResponse(
@@ -122,9 +125,10 @@ def _auth_response(
             subject=str(user.id),
             session_id=str(session.id),
             roles=roles,
+            expires_minutes=access_timeout_minutes,
         ),
         refresh_token=refresh_token,
-        expires_in=settings.access_token_expire_minutes * 60,
+        expires_in=access_timeout_minutes * 60,
         user=user_response(db, user),
     )
 
@@ -135,7 +139,9 @@ def _create_session(
     *,
     ip_address: str | None,
     user_agent: str | None,
+    runtime_settings: platform_settings_service.RuntimePlatformSettings | None = None,
 ) -> AuthResponse:
+    effective_settings = runtime_settings or platform_settings_service.get_runtime_settings(db)
     refresh_token = new_refresh_token()
     session = UserSession(
         user_id=user.id,
@@ -147,7 +153,13 @@ def _create_session(
     )
     db.add(session)
     db.flush()
-    return _auth_response(db, user, session, refresh_token)
+    return _auth_response(
+        db,
+        user,
+        session,
+        refresh_token,
+        effective_settings.session_timeout_minutes,
+    )
 
 
 def _initialize_library_resources(
@@ -196,6 +208,12 @@ def register_library(
     ip_address: str | None,
     user_agent: str | None,
 ) -> AuthResponse:
+    runtime_settings = platform_settings_service.get_runtime_settings(db)
+    if not runtime_settings.allow_library_registrations:
+        raise BusinessRuleError(
+            "New library registrations are currently disabled.",
+            code="LIBRARY_REGISTRATION_DISABLED",
+        )
     email = payload.email.lower()
     if db.scalar(select(User.id).where(User.email == email)):
         raise HTTPException(
@@ -213,6 +231,7 @@ def register_library(
             contact_email=email,
             contact_phone=payload.phone,
             address_line=payload.address,
+            timezone=runtime_settings.default_timezone.value,
             status=LibraryStatus.ACTIVE,
         )
         user = User(
@@ -250,6 +269,7 @@ def register_library(
             user,
             ip_address=ip_address,
             user_agent=user_agent,
+            runtime_settings=runtime_settings,
         )
         db.commit()
         return response
@@ -412,13 +432,19 @@ def change_password(
     db.commit()
 
 
-def _invitation_record(db: Session, token: str) -> AccountInvitation:
-    invitation = db.scalar(
-        select(AccountInvitation).where(
+def _invitation_record(
+    db: Session,
+    token: str,
+    *,
+    for_update: bool = False,
+) -> AccountInvitation:
+    query = select(AccountInvitation).where(
             AccountInvitation.token_hash == hash_token(token),
             AccountInvitation.status == InvitationStatus.PENDING,
         )
-    )
+    if for_update:
+        query = query.with_for_update(of=AccountInvitation)
+    invitation = db.scalar(query)
     if invitation is None or is_expired(invitation.expires_at):
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
@@ -427,11 +453,55 @@ def _invitation_record(db: Session, token: str) -> AccountInvitation:
     return invitation
 
 
-def validate_student_invitation(
+def validate_account_invitation(
     db: Session,
     token: str,
 ) -> ValidateInvitationResponse:
     invitation = _invitation_record(db, token)
+    library = db.get(Library, invitation.library_id)
+    eligible_statuses = (
+        {LibraryStatus.ACTIVE}
+        if invitation.role == RoleName.STUDENT
+        else {LibraryStatus.PENDING, LibraryStatus.ACTIVE}
+    )
+    if (
+        library is None
+        or library.deleted_at is not None
+        or library.status not in eligible_statuses
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="This invitation can no longer be used.",
+        )
+
+    if invitation.role == RoleName.LIBRARY_OWNER:
+        if (
+            library.primary_owner_user_id is not None
+            or db.scalar(
+                select(User.id).where(
+                    User.email == invitation.email,
+                    User.deleted_at.is_(None),
+                )
+            )
+            is not None
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="This invitation can no longer be used.",
+            )
+        return ValidateInvitationResponse(
+            valid=True,
+            email=invitation.email,
+            library_name=library.name,
+            name=invitation.invitee_name or invitation.email.split("@", 1)[0],
+            role=RoleName.LIBRARY_OWNER,
+            expires_at=invitation.expires_at,
+        )
+    if invitation.role != RoleName.STUDENT:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="This invitation role is not supported.",
+        )
     student = db.scalar(
         select(Student).where(
             Student.library_id == invitation.library_id,
@@ -439,8 +509,9 @@ def validate_student_invitation(
             Student.deleted_at.is_(None),
         )
     )
-    library = db.get(Library, invitation.library_id)
-    if student is None or library is None:
+    if (
+        student is None
+    ):
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="This invitation can no longer be used.",
@@ -449,17 +520,45 @@ def validate_student_invitation(
         valid=True,
         email=student.email,
         library_name=library.name,
-        student_name=f"{student.first_name} {student.last_name}".strip(),
+        name=f"{student.first_name} {student.last_name}".strip(),
+        role=RoleName.STUDENT,
         expires_at=invitation.expires_at,
     )
 
 
-def accept_student_invitation(
+def accept_account_invitation(
     db: Session,
     token: str,
     password: str,
 ) -> AcceptInvitationResponse:
     invitation = _invitation_record(db, token)
+    library = db.scalar(
+        select(Library)
+        .where(Library.id == invitation.library_id)
+        .with_for_update(of=Library)
+    )
+    invitation = _invitation_record(db, token, for_update=True)
+    eligible_statuses = (
+        {LibraryStatus.ACTIVE}
+        if invitation.role == RoleName.STUDENT
+        else {LibraryStatus.PENDING, LibraryStatus.ACTIVE}
+    )
+    if (
+        library is None
+        or library.deleted_at is not None
+        or library.status not in eligible_statuses
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="This invitation cannot be used while the library is unavailable.",
+        )
+    if invitation.role == RoleName.LIBRARY_OWNER:
+        return _accept_owner_invitation(db, invitation, library, password)
+    if invitation.role != RoleName.STUDENT:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="This invitation role is not supported.",
+        )
     student = db.scalar(
         select(Student).where(
             Student.library_id == invitation.library_id,
@@ -514,10 +613,12 @@ def accept_student_invitation(
         student.user_id = user.id
         invitation.status = InvitationStatus.ACCEPTED
         invitation.accepted_at = datetime.now(timezone.utc)
+        invitation.accepted_user_id = user.id
         db.commit()
         return AcceptInvitationResponse(
             message="Student portal password created successfully.",
             email=student.email,
+            role=RoleName.STUDENT,
         )
     except IntegrityError as exc:
         db.rollback()
@@ -525,3 +626,79 @@ def accept_student_invitation(
             status_code=status.HTTP_409_CONFLICT,
             detail="The student account conflicts with an existing account.",
         ) from exc
+
+
+def _accept_owner_invitation(
+    db: Session,
+    invitation: AccountInvitation,
+    library: Library,
+    password: str,
+) -> AcceptInvitationResponse:
+    if library.primary_owner_user_id is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This library already has an assigned owner.",
+        )
+    if db.scalar(select(User.id).where(User.email == invitation.email)):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="An account already exists for this email address.",
+        )
+    try:
+        owner_role = db.scalar(
+            select(Role).where(Role.name == RoleName.LIBRARY_OWNER)
+        )
+        if owner_role is None:
+            owner_role = Role(
+                name=RoleName.LIBRARY_OWNER,
+                description="Library owner",
+            )
+            db.add(owner_role)
+            db.flush()
+        now = datetime.now(timezone.utc)
+        user = User(
+            email=invitation.email,
+            password_hash=hash_password(password),
+            full_name=(
+                invitation.invitee_name or invitation.email.split("@", 1)[0]
+            ),
+            phone=invitation.invitee_phone,
+            email_verified_at=now,
+        )
+        user.role_links.append(
+            UserRole(role=owner_role, assigned_by_user_id=invitation.invited_by_user_id)
+        )
+        db.add(user)
+        db.flush()
+        db.add(
+            LibraryMembership(
+                library_id=library.id,
+                user_id=user.id,
+                role=RoleName.LIBRARY_OWNER,
+                status=MembershipStatus.ACTIVE,
+                joined_at=now,
+            )
+        )
+        library.primary_owner_user_id = user.id
+        library.last_activity_at = now
+        library.updated_at = now
+        invitation.status = InvitationStatus.ACCEPTED
+        invitation.accepted_at = now
+        invitation.accepted_user_id = user.id
+        db.commit()
+        return AcceptInvitationResponse(
+            message="Library owner password created successfully.",
+            email=user.email,
+            role=RoleName.LIBRARY_OWNER,
+        )
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="The owner account conflicts with current platform data.",
+        ) from exc
+
+
+# Backward-compatible service names for existing student-management callers.
+validate_student_invitation = validate_account_invitation
+accept_student_invitation = accept_account_invitation

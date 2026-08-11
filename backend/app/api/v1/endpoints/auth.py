@@ -335,31 +335,49 @@ def change_password(
 @router.get(
     "/invitations/validate",
     response_model=ValidateInvitationResponse,
-    operation_id="validateStudentInvitation",
-    summary="Validate a student portal invitation",
+    operation_id="validateAccountInvitation",
+    summary="Validate an account invitation",
+    description=(
+        "Validates a pending student or library-owner invitation without "
+        "exposing the stored token hash or other security metadata."
+    ),
     responses=error_responses(422),
-    openapi_extra={"x-user-stories": ["STUDENT-PORTAL-INVITATION"]},
+    openapi_extra={
+        "x-user-stories": [
+            "STUDENT-PORTAL-INVITATION",
+            "PLATFORM-OWNER-INVITE",
+        ]
+    },
 )
 def validate_invitation(
     token: str,
     db: DatabaseSession,
 ) -> ValidateInvitationResponse:
-    return auth_service.validate_student_invitation(db, token)
+    return auth_service.validate_account_invitation(db, token)
 
 
 @router.post(
     "/invitations/accept",
     response_model=AcceptInvitationResponse,
-    operation_id="acceptStudentInvitation",
-    summary="Create a student password from an invitation",
+    operation_id="acceptAccountInvitation",
+    summary="Create an account password from an invitation",
+    description=(
+        "Consumes a valid student or library-owner invitation and creates the "
+        "account password, role, and tenant membership transactionally."
+    ),
     responses=error_responses(409, 422),
-    openapi_extra={"x-user-stories": ["STUDENT-PORTAL-ACTIVATION"]},
+    openapi_extra={
+        "x-user-stories": [
+            "STUDENT-PORTAL-ACTIVATION",
+            "PLATFORM-OWNER-INVITE",
+        ]
+    },
 )
 def accept_invitation(
     payload: AcceptInvitationRequest,
     db: DatabaseSession,
 ) -> AcceptInvitationResponse:
-    return auth_service.accept_student_invitation(
+    return auth_service.accept_account_invitation(
         db,
         payload.token,
         payload.password,

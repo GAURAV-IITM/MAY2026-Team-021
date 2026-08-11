@@ -7,10 +7,10 @@
     <template v-else>
       <header>
         <span class="invitation-page__icon"><KeyRound :size="24" /></span>
-        <p class="text-label text-muted m-0">Student Portal</p>
+        <p class="text-label text-muted m-0">Account Activation</p>
         <h1 id="invitation-title">Create your password</h1>
         <p v-if="invitation" class="text-muted m-0">
-          Welcome {{ invitation.studentName }}. Activate your account for
+          Welcome {{ invitation.name }}. Activate your {{ accountLabel }} account for
           {{ invitation.libraryName }}.
         </p>
       </header>
@@ -63,7 +63,7 @@
       <div v-if="isComplete" class="invitation-page__complete">
         <CircleCheckBig :size="34" />
         <strong>Password created successfully</strong>
-        <p class="text-muted m-0">You can now sign in to the student portal.</p>
+        <p class="text-muted m-0">You can now sign in to your {{ accountLabel }} account.</p>
         <RouterLink class="btn btn--primary" :to="{ name: 'login' }">Go to Login</RouterLink>
       </div>
 
@@ -76,13 +76,13 @@
 
 <script setup>
 import { CircleCheckBig, KeyRound } from '@lucide/vue'
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 
 import LoadingSpinner from '../../components/common/LoadingSpinner.vue'
 import {
-  acceptStudentInvitation,
-  validateStudentInvitation,
+  acceptAccountInvitation,
+  validateAccountInvitation,
 } from '../../services/authService.js'
 
 const route = useRoute()
@@ -95,6 +95,7 @@ const isSubmitting = ref(false)
 const isComplete = ref(false)
 const errorMessage = ref('')
 const errors = reactive({})
+const accountLabel = computed(() => invitation.value?.role === 'library_owner' ? 'library owner' : 'student portal')
 
 function validate() {
   Object.keys(errors).forEach((key) => delete errors[key])
@@ -112,7 +113,7 @@ async function submit() {
   isSubmitting.value = true
   errorMessage.value = ''
   try {
-    await acceptStudentInvitation(token, password.value)
+    await acceptAccountInvitation(token, password.value)
     isComplete.value = true
   } catch (error) {
     errorMessage.value = error.response?.data?.message || error.message
@@ -128,7 +129,7 @@ onMounted(async () => {
     return
   }
   try {
-    invitation.value = await validateStudentInvitation(token)
+    invitation.value = await validateAccountInvitation(token)
   } catch (error) {
     errorMessage.value = error.response?.data?.message || error.message
   } finally {

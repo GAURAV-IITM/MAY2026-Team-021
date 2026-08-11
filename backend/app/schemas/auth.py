@@ -6,6 +6,7 @@ from datetime import datetime
 
 from pydantic import ConfigDict, Field
 
+from app.models.enums import RoleName
 from app.schemas.common import APIModel, MessageResponse
 
 
@@ -176,7 +177,8 @@ class ValidateInvitationResponse(APIModel):
     valid: bool
     email: str
     library_name: str
-    student_name: str
+    name: str
+    role: RoleName
     expires_at: datetime
 
 
@@ -188,3 +190,4 @@ class AcceptInvitationRequest(APIModel):
 class AcceptInvitationResponse(APIModel):
     message: str
     email: str
+    role: RoleName

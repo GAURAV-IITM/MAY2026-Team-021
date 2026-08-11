@@ -1,7 +1,7 @@
 <template>
   <Modal
     :is-open="isOpen"
-    :title="mode === 'edit' ? 'Edit Library Owner' : 'Add Library Owner'"
+    :title="mode === 'edit' ? 'Edit Library Owner' : 'Invite Library Owner'"
     title-id="owner-form-title"
     @close="handleClose"
   >
@@ -27,8 +27,12 @@
           class="form-input"
           type="email"
           autocomplete="email"
+          :readonly="mode === 'edit'"
           required
         />
+        <span v-if="mode === 'edit'" class="form-help">
+          Email changes require a separate verified account workflow.
+        </span>
         <span v-if="errors.email" class="form-error">{{ errors.email }}</span>
       </div>
 
@@ -43,23 +47,15 @@
         />
       </div>
 
-      <div class="form-group">
-        <label class="form-label" for="owner-status">Status</label>
-        <select id="owner-status" v-model="form.status" class="form-select">
-          <option value="invited">Invited</option>
-          <option value="active">Active</option>
-          <option value="suspended">Suspended</option>
-        </select>
-      </div>
-
-      <div class="form-group owner-form__full">
+      <div v-if="mode !== 'edit'" class="form-group owner-form__full">
         <label class="form-label" for="owner-library">Assigned Library</label>
-        <select id="owner-library" v-model="form.libraryId" class="form-select">
-          <option value="">Not assigned</option>
+        <select id="owner-library" v-model="form.libraryId" class="form-select" required>
+          <option value="">Select a library</option>
           <option v-for="library in libraries" :key="library.id" :value="library.id">
             {{ library.name }}
           </option>
         </select>
+        <span v-if="errors.libraryId" class="form-error">{{ errors.libraryId }}</span>
       </div>
     </form>
 
@@ -68,7 +64,7 @@
         Cancel
       </button>
       <button class="btn btn--primary" type="submit" form="owner-form" :disabled="isSaving">
-        {{ isSaving ? 'Saving...' : mode === 'edit' ? 'Save Changes' : 'Create Owner' }}
+        {{ isSaving ? 'Saving...' : mode === 'edit' ? 'Save Changes' : 'Send Invitation' }}
       </button>
     </template>
   </Modal>
@@ -88,8 +84,8 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['close', 'save'])
-const form = reactive({ name: '', email: '', phone: '', libraryId: '', status: 'invited' })
-const errors = reactive({ name: '', email: '' })
+const form = reactive({ name: '', email: '', phone: '', libraryId: '' })
+const errors = reactive({ name: '', email: '', libraryId: '' })
 
 function resetForm() {
   Object.assign(form, {
@@ -97,20 +93,26 @@ function resetForm() {
     email: props.owner?.email || '',
     phone: props.owner?.phone || '',
     libraryId: props.owner?.libraryId || '',
-    status: props.owner?.status || 'invited',
   })
   errors.name = ''
   errors.email = ''
+  errors.libraryId = ''
 }
 
 function validate() {
   errors.name = form.name ? '' : 'Owner name is required.'
   errors.email = /^\S+@\S+\.\S+$/.test(form.email) ? '' : 'Enter a valid email.'
-  return !errors.name && !errors.email
+  errors.libraryId = props.mode === 'edit' || form.libraryId
+    ? ''
+    : 'Select a library for this owner.'
+  return !errors.name && !errors.email && !errors.libraryId
 }
 
 function handleSubmit() {
-  if (validate()) emit('save', { ...form })
+  if (!validate()) return
+  emit('save', props.mode === 'edit'
+    ? { name: form.name, phone: form.phone }
+    : { ...form })
 }
 
 function handleClose() {

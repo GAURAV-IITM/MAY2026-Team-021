@@ -104,6 +104,28 @@ class AccountInvitation(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             sqlite_where=text("status = 'pending'"),
             postgresql_where=text("status = 'pending'"),
         ),
+        Index(
+            "uq_pending_owner_invitation_email",
+            "email",
+            unique=True,
+            sqlite_where=text(
+                "status = 'pending' AND role = 'library_owner'"
+            ),
+            postgresql_where=text(
+                "status = 'pending' AND role = 'library_owner'"
+            ),
+        ),
+        Index(
+            "uq_pending_owner_invitation_library",
+            "library_id",
+            unique=True,
+            sqlite_where=text(
+                "status = 'pending' AND role = 'library_owner'"
+            ),
+            postgresql_where=text(
+                "status = 'pending' AND role = 'library_owner'"
+            ),
+        ),
     )
 
     library_id: Mapped[uuid.UUID | None] = mapped_column(
@@ -111,6 +133,8 @@ class AccountInvitation(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         index=True,
     )
     email: Mapped[str] = mapped_column(String(320), nullable=False, index=True)
+    invitee_name: Mapped[str | None] = mapped_column(String(160))
+    invitee_phone: Mapped[str | None] = mapped_column(String(32))
     role: Mapped[RoleName] = mapped_column(
         enum_type(RoleName, "invitation_role"),
         nullable=False,
@@ -125,6 +149,10 @@ class AccountInvitation(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     invited_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL")
+    )
+    accepted_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        index=True,
     )
 
 

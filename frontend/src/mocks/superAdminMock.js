@@ -231,73 +231,7 @@ export const ownerMock = [
   },
 ]
 
-export const platformTrendMock = [
-  { month: '2026-01', libraries: 3, students: 604, seats: 820 },
-  { month: '2026-02', libraries: 4, students: 681, seats: 940 },
-  { month: '2026-03', libraries: 4, students: 765, seats: 940 },
-  { month: '2026-04', libraries: 5, students: 892, seats: 1140 },
-  { month: '2026-05', libraries: 6, students: 1038, seats: 1420 },
-  { month: '2026-06', libraries: 6, students: 1150, seats: 1420 },
-  { month: '2026-07', libraries: 8, students: 1203, seats: 1870 },
-]
-
-export const platformActivityMock = [
-  {
-    id: 'platform-activity-001',
-    type: 'library',
-    title: 'Silent Study Point registered',
-    detail: 'Ahmedabad, Gujarat',
-    occurredAt: '2026-07-09T14:30:00.000Z',
-  },
-  {
-    id: 'platform-activity-002',
-    type: 'owner',
-    title: 'Owner invitation sent to Neha Kulkarni',
-    detail: 'Knowledge Hub',
-    occurredAt: '2026-07-08T12:05:00.000Z',
-  },
-  {
-    id: 'platform-activity-003',
-    type: 'library',
-    title: 'Knowledge Hub submitted registration',
-    detail: 'Pune, Maharashtra',
-    occurredAt: '2026-07-08T12:00:00.000Z',
-  },
-  {
-    id: 'platform-activity-004',
-    type: 'status',
-    title: 'Focus Zone Library suspended',
-    detail: 'Administrative review required',
-    occurredAt: '2026-07-02T11:15:00.000Z',
-  },
-  {
-    id: 'platform-activity-005',
-    type: 'growth',
-    title: 'Platform crossed 1,200 students',
-    detail: 'Across all registered libraries',
-    occurredAt: '2026-07-01T08:00:00.000Z',
-  },
-]
-
-export const platformSettingsMock = {
-  platformName: 'Smart Library Platform',
-  supportEmail: 'support@smartlibrary.test',
-  supportPhone: '1800123456',
-  allowLibraryRegistrations: true,
-  requireRegistrationApproval: true,
-  maintenanceMode: false,
-  sessionTimeoutMinutes: 60,
-  defaultTimezone: 'Asia/Kolkata',
-  notifyOnLibraryRegistration: true,
-  notifyOnOwnerSuspension: true,
-  weeklySummaryEnabled: true,
-  updatedAt: '2026-07-01T08:00:00.000Z',
-}
-
 export const superAdminMock = {
   libraries: libraryMock,
   owners: ownerMock,
-  platformTrend: platformTrendMock,
-  activity: platformActivityMock,
-  settings: platformSettingsMock,
 }
