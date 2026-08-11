@@ -30,19 +30,23 @@
           />
         </div>
         <div class="form-field" :class="{ 'form-field--error': errors.password }">
-          <label class="form-label" for="invitation-password">Password</label>
+          <label class="form-label" for="invitation-password">
+            Password <span class="required-mark" aria-hidden="true">*</span>
+          </label>
           <input
             id="invitation-password"
             v-model="password"
             class="form-control"
             type="password"
             autocomplete="new-password"
+            required
+            aria-required="true"
           />
           <p class="form-help">{{ errors.password || 'Use at least 8 characters.' }}</p>
         </div>
         <div class="form-field" :class="{ 'form-field--error': errors.confirmPassword }">
           <label class="form-label" for="invitation-confirm-password">
-            Confirm Password
+            Confirm Password <span class="required-mark" aria-hidden="true">*</span>
           </label>
           <input
             id="invitation-confirm-password"
@@ -50,6 +54,8 @@
             class="form-control"
             type="password"
             autocomplete="new-password"
+            required
+            aria-required="true"
           />
           <p v-if="errors.confirmPassword" class="form-help">
             {{ errors.confirmPassword }}
