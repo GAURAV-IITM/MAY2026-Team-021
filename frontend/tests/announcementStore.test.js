@@ -99,3 +99,30 @@ test('publish-now creation uses create draft then explicit publish', async () =>
   assert.equal(store.announcements[0].title, 'Published announcement')
   assert.equal(store.isSaving, false)
 })
+
+
+test('errorMessage is empty by default and populated on failure', async () => {
+  const store = useAnnouncementStore()
+  assert.equal(store.errorMessage, '')
+  assert.equal(store.errorRequestId, '')
+
+  apiClient.defaults.adapter = async () => {
+    const err = new Error('Network timeout')
+    err.response = {
+      status: 500,
+      data: {
+        error: { message: 'Failed to fetch announcements.' },
+        requestId: 'req-test-123',
+      },
+    }
+    throw err
+  }
+
+  await assert.rejects(async () => {
+    await store.fetchAnnouncements()
+  })
+
+  assert.equal(store.errorMessage, 'Failed to fetch announcements.')
+  assert.equal(store.errorRequestId, 'req-test-123')
+})
+

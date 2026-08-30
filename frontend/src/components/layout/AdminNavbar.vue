@@ -17,7 +17,6 @@
     </div>
 
     <div class="app-navbar__page">
-      <p class="app-navbar__breadcrumb">Dashboard / {{ pageTitle }}</p>
       <h1>{{ pageTitle }}</h1>
     </div>
 

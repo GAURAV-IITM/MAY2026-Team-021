@@ -136,3 +136,27 @@ The contract includes the real owner/staff payment vertical slice:
 
 See [`../payments.md`](../payments.md) for eligibility, calculation,
 concurrency, frontend mapping, and test details.
+
+## Sprint 2 / Milestone 4 Additions
+
+The current contract contains 90 operations. Sprint 2 extends the Milestone 3
+contract with the remaining role-specific workflows while preserving the same
+authentication, tenant, response, and error conventions:
+
+- Student self-service for profile, allocations, fees, receipts, announcements,
+  and seat-change requests.
+- Owner receipts, payment reminders, operational dashboards, and reports.
+- Super Admin platform dashboard, platform settings, library management, and
+  owner invitations, assignment, lifecycle, and profile management.
+- Shared invitation validation/acceptance for student and platform-owner
+  account activation.
+
+Every Sprint 2 operation has a stable `operationId`, a summary and full
+description, one or more `x-user-stories`, documented success and error
+responses, and the request-ID response header. The contract audit in
+`backend/tests/test_openapi_contract.py` verifies these rules and checks that
+the checked-in YAML is byte-for-byte current with FastAPI's generated schema.
+
+The feedback-to-implementation record and final test matrix are maintained in
+[`../milestones/MILESTONE_4_SPRINT_2_DELIVERABLES.md`](../milestones/MILESTONE_4_SPRINT_2_DELIVERABLES.md)
+and [`../milestones/MILESTONE_4_API_TEST_CASE_MATRIX.md`](../milestones/MILESTONE_4_API_TEST_CASE_MATRIX.md).

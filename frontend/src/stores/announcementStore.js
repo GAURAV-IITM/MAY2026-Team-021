@@ -55,6 +55,8 @@ export const useAnnouncementStore = defineStore('announcements', () => {
   const categories = ref(ANNOUNCEMENT_CATEGORIES)
   const audiences = ref(ANNOUNCEMENT_AUDIENCES)
   const errorMessage = computed(() => {
+    if (!error.value) return ''
+
     return (
       error.value?.response?.data?.error?.message ||
       error.value?.response?.data?.message ||

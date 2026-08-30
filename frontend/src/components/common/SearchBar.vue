@@ -8,7 +8,7 @@
       :placeholder="placeholder"
       @input="$emit('update:modelValue', $event.target.value)"
     />
-    <kbd class="search-bar__shortcut">{{ shortcut }}</kbd>
+    <kbd v-if="shortcut && !modelValue" class="search-bar__shortcut">{{ shortcut }}</kbd>
     <button
       v-if="modelValue"
       class="btn btn--ghost btn--icon btn--sm"
@@ -36,7 +36,7 @@ defineProps({
   },
   shortcut: {
     type: String,
-    default: '/',
+    default: '',
   },
 })
 
